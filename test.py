@@ -119,25 +119,25 @@ class FilteringExample(LocalProtocol):
                                             qmemory_name="right_qmemory",
                                             node=node_a,
                                             name="purify_AB",
-                                            target_fidelity=0.9))
+                                            target_fidelity=0.99))
         # purification B -> A
         self.add_subprotocol(PurifyEntangle(cc_port=node_b.get_conn_port(node_a.ID),
                                             qmemory_name="left_qmemory",
                                             node=node_b,
                                             name="purify_BA",
-                                            target_fidelity=0.9))
+                                            target_fidelity=0.99))
         # purification B -> C
         self.add_subprotocol(PurifyEntangle(cc_port=node_b.get_conn_port(node_c.ID),
                                             qmemory_name="right_qmemory",
                                             node=node_b,
                                             name="purify_BC",
-                                            target_fidelity=0.9))
+                                            target_fidelity=0.99))
         # purification C -> B
         self.add_subprotocol(PurifyEntangle(cc_port=node_c.get_conn_port(node_b.ID),
                                             qmemory_name="left_qmemory",
                                             node=node_c,
                                             name="purify_CB",
-                                            target_fidelity=0.9))
+                                            target_fidelity=0.99))
         # Set start expressions
         self.subprotocols["purify_AB"].start_expression = (
             self.subprotocols["purify_AB"].await_signal(self.subprotocols["entangle_AB"],
@@ -194,25 +194,23 @@ class FilteringExample(LocalProtocol):
                    self.await_signal(self.subprotocols["purify_BA"], Signals.SUCCESS) &
                    self.await_signal(self.subprotocols["purify_BC"], Signals.SUCCESS) &
                    self.await_signal(self.subprotocols["purify_CB"], Signals.SUCCESS))
-            signal_A = self.subprotocols["purify_A"].get_signal_result(Signals.SUCCESS,
-                                                                       self)
-            signal_B = self.subprotocols["purify_B"].get_signal_result(Signals.SUCCESS,
-                                                                       self)
-            signal_C = self.subprotocols["purify_C"].get_signal_result(Signals.SUCCESS,
-                                                                       self)
+            signal_A = self.subprotocols["purify_AB"].get_signal_result(Signals.SUCCESS,
+                                                                        self)
+            signal_B = self.subprotocols["purify_BC"].get_signal_result(Signals.SUCCESS,
+                                                                        self)
+            # signal_C = self.subprotocols["purify_C"].get_signal_result(Signals.SUCCESS,
+            #                                                            self)
             result = {
-                "pos_A": signal_A,
-                "pos_B": signal_B,
-                "pos_C": signal_C,
-                "time": sim_time() - start_time,
-
+                "AB": signal_A,
+                "BC": signal_B,
+                "start_time": start_time,
             }
             print(result)
             self.send_signal(Signals.SUCCESS, result)
 
 
-def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, depolar_rate=1,
-                          node_distance=20):
+def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, depolar_rate=1e-3,
+                          node_distance=50):
     """Create an example network for use with the purification protocols.
 
     Connection flow:
@@ -294,13 +292,6 @@ def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, depolar_rate
         ClassicalChannel("CChannel_B->A", length=node_distance,
                          models={"delay_model": FibreDelayModel(c=200e3)}))
     network.add_connection(node_a, node_b, connection=a_b_conn_cchannel)
-    # a_b_conn_cchannel_entangle = DirectConnection(
-    #     "CChannelConn_AB_entangle",
-    #     ClassicalChannel("CChannel_A->B", length=node_distance,
-    #                      models={"delay_model": FibreDelayModel(c=200e3)}),
-    #     ClassicalChannel("CChannel_B->A", length=node_distance,
-    #                      models={"delay_model": FibreDelayModel(c=200e3)}))
-    # network.add_connection(node_a, node_b, connection=a_b_conn_cchannel_entangle)
 
     b_c_conn_cchannel = DirectConnection(
         "CChannelConn_BC",
@@ -310,23 +301,15 @@ def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, depolar_rate
                          models={"delay_model": FibreDelayModel(c=200e3)}))
     network.add_connection(node_b, node_c, connection=b_c_conn_cchannel)
 
-    # b_c_conn_cchannel_entangle = DirectConnection(
-    #     "CChannelConn_BC_entangle",
-    #     ClassicalChannel("CChannel_B->C", length=node_distance,
-    #                      models={"delay_model": FibreDelayModel(c=200e3)}),
-    #     ClassicalChannel("CChannel_C->B", length=node_distance,
-    #                      models={"delay_model": FibreDelayModel(c=200e3)}))
-    # network.add_connection(node_b, node_c, connection=b_c_conn_cchannel_entangle)
-
     # node_A.connect_to(node_B, conn_cchannel)
     a_b_qchannel = QuantumChannel("QChannel_A->B", length=node_distance,
                                   models={"quantum_loss_model": None,
                                           "delay_model": FibreDelayModel(c=200e3)},
-                                  depolar_rate=0)
+                                  depolar_rate=depolar_rate)
     a_internal_qchannel = QuantumChannel("QChannel_A->A", length=0,
                                          models={"quantum_loss_model": None,
                                                  "delay_model": FibreDelayModel(c=200e3)},
-                                         depolar_rate=0)
+                                         depolar_rate=depolar_rate)
     # internal qchannel to link right_qmemory for node A
     node_a.add_subcomponent(a_internal_qchannel, name="internal_qchannel")
     (node_a.subcomponents["internal_qchannel"].ports["recv"].
@@ -390,13 +373,35 @@ def example_sim_setup(node_a, node_b, node_c, num_runs, epsilon=0.3):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
         # Record fidelity
-        q_A, = node_a.qmemory.pop(positions=[result["pos_A"]])
-        q_B, = node_b.qmemory.pop(positions=[result["pos_B"]])
-        q_C, = node_c.qmemory.pop(positions=[result["pos_C"]])
-        f2 = qapi.fidelity([q_A, q_B], ks.b01, squared=True)
-        f3 = qapi.fidelity([q_B, q_C], ks.b01, squared=True)
-        print(f"{sim_time():.1f}: Fidelity = {f2:.3f}")
-        return {"F2": f2, "pairs": result["pairs"], "time": result["time"]}
+        a_b_entangled_pairs = result["AB"]["satisfied_pairs"]
+        b_c_entangled_pairs = result["BC"]["satisfied_pairs"]
+        print(f"AB entangled pairs: {a_b_entangled_pairs}")
+        print(f"BC entangled pairs: {b_c_entangled_pairs}")
+        # count the purified count
+        a_b_purify_count = result["AB"]["purification_count"]
+        b_c_purify_count = result["BC"]["purification_count"]
+        print(f"AB purification count: {a_b_purify_count}")
+        print(f"BC purification count: {b_c_purify_count}")
+
+        # count the purification success count
+        a_b_purify_success_count = result["AB"]["purification_success_count"]
+        b_c_purify_success_count = result["BC"]["purification_success_count"]
+        print(f"AB purification success count: {a_b_purify_success_count}")
+        print(f"BC purification success count: {b_c_purify_success_count}")
+
+        # calculate the purification process time
+        a_b_purify_time = result["AB"]["finish_time"] - result["start_time"]
+        b_c_purify_time = result["BC"]["finish_time"] - result["start_time"]
+        print(f"AB purification time: {a_b_purify_time/1e9}")
+        print(f"BC purification time: {b_c_purify_time/1e9}")
+        # store in dic
+        data = {"AB": a_b_entangled_pairs, "BC": b_c_entangled_pairs,
+                "AB_purify_count": a_b_purify_count, "BC_purify_count": b_c_purify_count,
+                "AB_purify_success_count": a_b_purify_success_count,
+                "BC_purify_success_count": b_c_purify_success_count,
+                "AB_purify_time": a_b_purify_time, "BC_purify_time": b_c_purify_time}
+        # pretty print the data
+        return data
 
     dc = DataCollector(record_run, include_time_stamp=False,
                        include_entity_name=False)
