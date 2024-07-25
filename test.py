@@ -208,6 +208,9 @@ class FilteringExample(LocalProtocol):
             print(result)
             self.send_signal(Signals.SUCCESS, result)
 
+            for subprotocol in self.subprotocols.values():
+                subprotocol.reset()
+            # self.reset()
 
 def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, depolar_rate=1e-3,
                           node_distance=50):
@@ -415,6 +418,13 @@ if __name__ == "__main__":
     filt_example, dc = example_sim_setup(network.get_node("node_A"),
                                          network.get_node("node_B"),
                                          network.get_node("node_C"),
-                                         num_runs=1)
+                                         num_runs=10)
     filt_example.start()
     ns.sim_run()
+    collected_data = dc.dataframe
+    print(f"Average AB Purification Time: {collected_data['AB_purify_time'].mean()/1e9}")
+    print(f"Average BC Purification Time: {collected_data['BC_purify_time'].mean()/1e9}")
+    print(f"Average AB Purification Count: {collected_data['AB_purify_count'].mean()}")
+    print(f"Average BC Purification Count: {collected_data['BC_purify_count'].mean()}")
+    print(f"Average AB Purification Success Count: {collected_data['AB_purify_success_count'].mean()}")
+    print(f"Average BC Purification Success Count: {collected_data['BC_purify_success_count'].mean()}")

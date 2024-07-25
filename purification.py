@@ -101,7 +101,7 @@ class PurifyEntangle(NodeProtocol):
         # currently purifying paris, store the memory position and fidelity
         self.purifying_paris = {}  # (p1, p2) -> (f1, f2)
         self.purifying_results = {}  # (p1, p2) -> (M1, M2)
-        # TODO rename this expression to 'qubit input'
+        # this expression is 'qubit input' event
         self.start_expression = start_expression
         # is source node
         self.is_source = None
@@ -318,8 +318,8 @@ class PurifyEntangle(NodeProtocol):
                               f"Add {pair[0]} to satisfied pairs")
                 else:
                     self.entangled_pairs[pair[0]] = new_fidelity
-                    print_green(f"Purify {self.name} -> Node {self.node.name} Pair {pair} is not satisfied, "
-                                f"Add {pair[0]} back to entangled pairs")
+                    print_orange(f"Purify {self.name} -> Node {self.node.name} Pair {pair} is not satisfied, "
+                                 f"Add {pair[0]} back to entangled pairs")
 
                 # send the message to the right neighbour the result
                 print_green(f"Purify {self.name} -> Node {self.node.name} sending purification "
@@ -368,11 +368,11 @@ class PurifyEntangle(NodeProtocol):
                                 f"entangled pairs")
                 else:
                     self.entangled_pairs[pair[0]] = new_fidelity
-                    print_green(f"Purify {self.name} -> Node {self.node.name} Pair {pair} is not satisfied, "
-                                f"updating {pair[0]}'s fidelity")
+                    print_orange(f"Purify {self.name} -> Node {self.node.name} Pair {pair} is not satisfied, "
+                                 f"updating {pair[0]}'s fidelity")
             # remove the pair is being measured
             print_green(
-                f"Purify {self.name} -> Node {self.node.name} removing destroyed {pair[1]} from purifying paris")
+                f"Purify {self.name} -> Node {self.node.name} removing destroyed {pair[1]} from entangled paris")
             del self.entangled_pairs[pair[1]]
             # TODO wait for new Entangle signal from the left neighbour
             print_blue(
@@ -458,3 +458,15 @@ class PurifyEntangle(NodeProtocol):
         self.remote_message = []
         for message in temp:
             yield from self._handle_cchannel_rx(message)
+    def reset(self):
+        # clean up the pairs
+        self.entangled_pairs = {}
+        # map of entangled pairs with higher fidelity
+        self.satisfied_pairs = {}
+        # store temporary pairs until remote node is ready
+        self.temporary_pairs = {}
+        # store message from remote node
+        self.remote_message = []
+        super().reset()
+    def stop(self):
+        super().stop()

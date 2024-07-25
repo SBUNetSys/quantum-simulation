@@ -172,19 +172,22 @@ class GenEntanglement(NodeProtocol):
 
     def handle_re_entangle(self, event):
         source_protocol = event.source
-        ready_signal = source_protocol.get_signal_by_event(
-            event=event, receiver=self)
-        result = ready_signal.result
-        print_blue(f"GenEntangle {self.name} -> Node {self.node.name} received signal: {result}")
-        if result["mem_pos"] in self.used_mem_positions and result["qmemory_name"] == self._qmemory_name:
-            # release the memory position from the used memory positions and add it to the available memory positions
-            self.used_mem_positions.remove(result["mem_pos"])
-            self.aval_mem_postions.append(result["mem_pos"])
-            self.entangled_pairs -= 1
-            print_blue(f"GenEntangle {self.name} -> Node {self.node.name}\n"
-                       f"\tCurrent entangled pairs: {self.entangled_pairs}\n"
-                       f"\tUsed memory positions: {self.used_mem_positions}\n"
-                       f"\tAvailable memory positions: {self.aval_mem_postions}")
+        try:
+            ready_signal = source_protocol.get_signal_by_event(
+                event=event, receiver=self)
+            result = ready_signal.result
+            print_blue(f"GenEntangle {self.name} -> Node {self.node.name} received signal: {result}")
+            if result["mem_pos"] in self.used_mem_positions and result["qmemory_name"] == self._qmemory_name:
+                # release the memory position from the used memory positions and add it to the available memory positions
+                self.used_mem_positions.remove(result["mem_pos"])
+                self.aval_mem_postions.append(result["mem_pos"])
+                self.entangled_pairs -= 1
+                print_blue(f"GenEntangle {self.name} -> Node {self.node.name}\n"
+                           f"\tCurrent entangled pairs: {self.entangled_pairs}\n"
+                           f"\tUsed memory positions: {self.used_mem_positions}\n"
+                           f"\tAvailable memory positions: {self.aval_mem_postions}")
+        except KeyError as e:
+            print(f"KeyError: {e} - Signal not found in source protocol.")
         # TODO this should be handled by the parent while loop and generate new qubits
 
     def start(self):
