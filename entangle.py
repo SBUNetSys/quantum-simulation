@@ -168,7 +168,9 @@ class GenEntanglement(NodeProtocol):
               f"\tUsed memory positions: {self.used_mem_positions}\n"
               f"\tAvailable memory positions: {self.aval_mem_postions}")
         self.send_signal(Signals.SUCCESS, {"mem_pos": mem_pos, "qmemory": self._qmemory_name,
-                                           "is_source": self._is_source, "initial_fidelity": init_fidelity})
+                                           "is_source": self._is_source,
+                                           "initial_fidelity": init_fidelity,
+                                           "entangle_node": self.entangle_node})
 
     def handle_re_entangle(self, event):
         source_protocol = event.source

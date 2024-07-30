@@ -458,6 +458,7 @@ class PurifyEntangle(NodeProtocol):
         self.remote_message = []
         for message in temp:
             yield from self._handle_cchannel_rx(message)
+
     def reset(self):
         # clean up the pairs
         self.entangled_pairs = {}
@@ -468,5 +469,6 @@ class PurifyEntangle(NodeProtocol):
         # store message from remote node
         self.remote_message = []
         super().reset()
+
     def stop(self):
         super().stop()
