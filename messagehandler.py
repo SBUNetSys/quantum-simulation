@@ -1,7 +1,9 @@
 """
 Message protocol which handles all classical messages between nodes.
 """
+import operator
 from enum import Enum, auto
+from functools import reduce
 
 import numpy as np
 import netsquid as ns
@@ -41,7 +43,7 @@ class MessageType(Enum):
     SWAP_READY = auto()
     SWAP_RESULT = auto()
     SWAP_FAILED = auto()
-    APPLY_CORRECTION = auto()
+    CORRECTION_SUCCESS = auto()
     RE_ENTANGLE = auto()
 
 
@@ -50,18 +52,53 @@ class MessageHandler(NodeProtocol):
     A protocol that handles all classical messages between nodes.
     """
 
-    def __init__(self, node, swapping_tree):
-        super().__init__()
+    def __init__(self, node, name, cc_ports):
+        super().__init__(node=node, name=name)
         self.node = node
-        self.swapping_tree = swapping_tree
-        self.swap_index = 0
-        # qubits that are entangled node_name -> memory position
-        self.entangled_qubits = {}
-    def send_message(self, receiver, message_type, data=None):
-        pass
+        self.cc_ports = cc_ports
+        self.add_signals()
+
+    def send_message(self, message_type, dest, data):
+        """
+        Send a message to the destination node.
+        :param message_type: message signal type
+        :param dest: destination node name
+        :param data: message data
+        :return:
+        """
+        cport = self.cc_ports[dest]
+        cport.tx_output(Message(data, header=message_type))
+
+    def add_signals(self):
+        # add all signals from enum
+        for signal in MessageType:
+            self.add_signal(signal)
+
     def run(self):
-        yield self.await_port_input(self.node.ports['qin1'])
-        yield self.await_port_input(self.node.ports['qin2'])
-        yield self.await_program(self.node.qmemory.execute_program(INSTR_SWAP(self.q1, self.q2)))
-        yield self.await_program(self.node.qmemory.execute_program(INSTR_SWAP(self.q2, self.q1)))
-        self.node.ports['qout1'].tx_output(self.q1)
+        while True:
+            # yield until a message is received
+            expr = yield reduce(operator.or_, [self.await_port_input(port) for port in self.cc_ports.values()])
+            for event in expr.triggered_events:
+                port = event.source
+                message = port.rx_input()
+                for msg in message.items:
+                    self.send_signal(message.meta['header'], msg)
+            # if message.header == MessageType.ENTANGLED:
+            #     for msg in message.items:
+            #         self.send_signal(Signals.SUCCESS, msg)
+            # elif message.header == MessageType.SWAP_NEED:
+            #     for msg in message.items:
+            #         self.send_signal(Signals.SUCCESS, msg)
+            # elif message.header == MessageType.SWAP_READY:
+            #     for msg in message.items:
+            #         self.send_signal(Signals.SUCCESS, msg)
+            # elif message.header == MessageType.SWAP_RESULT:
+            #     self.node.qmemory.put(message.data)
+            # elif message.header == MessageType.SWAP_FAILED:
+            #     self.node.qmemory.put(message.data)
+            # elif message.header == MessageType.CORRECTION_SUCCESS:
+            #     self.node.qmemory.put(message.data)
+            # elif message.header == MessageType.RE_ENTANGLE:
+            #     self.node.qmemory.put(message.data)
+            # else:
+            #     raise ValueError(f"Unknown message type: {message.header}")

@@ -88,7 +88,7 @@ class FilteringExample(LocalProtocol):
                                              node=node_a,
                                              name="entangle_AB",
                                              is_source=True,
-                                             qmemory_name="right_qmemory"))
+                                             ))
         # entangle B -> A
         self.add_subprotocol(GenEntanglement(input_mem_pos=0,
                                              total_pairs=5,
@@ -96,7 +96,7 @@ class FilteringExample(LocalProtocol):
                                              node=node_b,
                                              name="entangle_BA",
                                              is_source=False,
-                                             qmemory_name="left_qmemory"))
+                                             ))
         # entangle B -> C
         self.add_subprotocol(GenEntanglement(input_mem_pos=0,
                                              total_pairs=5,
@@ -104,7 +104,7 @@ class FilteringExample(LocalProtocol):
                                              node=node_b,
                                              name="entangle_BC",
                                              is_source=True,
-                                             qmemory_name="right_qmemory"))
+                                             ))
         # entangle C -> B
         self.add_subprotocol(GenEntanglement(input_mem_pos=0,
                                              total_pairs=5,
@@ -112,29 +112,29 @@ class FilteringExample(LocalProtocol):
                                              node=node_c,
                                              name="entangle_CB",
                                              is_source=False,
-                                             qmemory_name="left_qmemory"))
+                                             ))
 
         # purification A -> B
         self.add_subprotocol(PurifyEntangle(cc_port=node_a.get_conn_port(node_b.ID),
-                                            qmemory_name="right_qmemory",
+                                            entangle_node=node_b.name,
                                             node=node_a,
                                             name="purify_AB",
                                             target_fidelity=0.99))
         # purification B -> A
         self.add_subprotocol(PurifyEntangle(cc_port=node_b.get_conn_port(node_a.ID),
-                                            qmemory_name="left_qmemory",
+                                            entangle_node=node_a.name,
                                             node=node_b,
                                             name="purify_BA",
                                             target_fidelity=0.99))
         # purification B -> C
         self.add_subprotocol(PurifyEntangle(cc_port=node_b.get_conn_port(node_c.ID),
-                                            qmemory_name="right_qmemory",
+                                            entangle_node=node_c.name,
                                             node=node_b,
                                             name="purify_BC",
                                             target_fidelity=0.99))
         # purification C -> B
         self.add_subprotocol(PurifyEntangle(cc_port=node_c.get_conn_port(node_b.ID),
-                                            qmemory_name="left_qmemory",
+                                            entangle_node=node_b.name,
                                             node=node_c,
                                             name="purify_CB",
                                             target_fidelity=0.99))
@@ -154,18 +154,23 @@ class FilteringExample(LocalProtocol):
 
         # set the start expression for the entanglement protocols
         # wait for the purification protocol to send re-generation signal
-        self.subprotocols["entangle_AB"].start_expression = (
-            self.subprotocols["entangle_AB"].await_signal(self.subprotocols["purify_AB"],
-                                                          "entangle"))
-        self.subprotocols["entangle_BA"].start_expression = (
-            self.subprotocols["entangle_BA"].await_signal(self.subprotocols["purify_BA"],
-                                                          "entangle"))
-        self.subprotocols["entangle_BC"].start_expression = (
-            self.subprotocols["entangle_BC"].await_signal(self.subprotocols["purify_BC"],
-                                                          "entangle"))
-        self.subprotocols["entangle_CB"].start_expression = (
-            self.subprotocols["entangle_CB"].await_signal(self.subprotocols["purify_CB"],
-                                                          "entangle"))
+        self.subprotocols["entangle_AB"].re_entangle_sender = self.subprotocols["purify_AB"]
+        self.subprotocols["entangle_BA"].re_entangle_sender = self.subprotocols["purify_BA"]
+        self.subprotocols["entangle_BC"].re_entangle_sender = self.subprotocols["purify_BC"]
+        self.subprotocols["entangle_CB"].re_entangle_sender = self.subprotocols["purify_CB"]
+
+        # self.subprotocols["entangle_AB"].re = (
+        #     self.subprotocols["entangle_AB"].await_signal(self.subprotocols["purify_AB"],
+        #                                                   "entangle"))
+        # self.subprotocols["entangle_BA"].start_expression = (
+        #     self.subprotocols["entangle_BA"].await_signal(self.subprotocols["purify_BA"],
+        #                                                   "entangle"))
+        # self.subprotocols["entangle_BC"].start_expression = (
+        #     self.subprotocols["entangle_BC"].await_signal(self.subprotocols["purify_BC"],
+        #                                                   "entangle"))
+        # self.subprotocols["entangle_CB"].start_expression = (
+        #     self.subprotocols["entangle_CB"].await_signal(self.subprotocols["purify_CB"],
+        #                                                   "entangle"))
 
         # start_expr_ent_A = (self.subprotocols["entangle_A"].await_signal(
         #     self.subprotocols["purify_A"], Signals.FAIL) |
@@ -212,8 +217,9 @@ class FilteringExample(LocalProtocol):
                 subprotocol.reset()
             # self.reset()
 
+
 def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, depolar_rate=1e-3,
-                          node_distance=50):
+                          node_distance=50, nodes_list=["node_A", "node_B", "node_C"], network_name="purify_network"):
     """Create an example network for use with the purification protocols.
 
     Connection flow:
@@ -258,102 +264,158 @@ def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, depolar_rate
         This network is also used by the matching integration test.
 
     """
-    network = Network("purify_network")
+    network = Network(network_name)
+    nodes = network.add_nodes(nodes_list)
 
-    node_a, node_b, node_c = network.add_nodes(["node_A", "node_B", "node_C"])
-    node_a.add_subcomponent(QuantumProcessor(
-        "right_qmemory", num_positions=10, fallback_to_nonphysical=True,
-        memory_noise_models=DepolarNoiseModel(depolar_rate)))
-    state_sampler_a = StateSampler(
-        [ns.b00], [1])
-    node_a.add_subcomponent(QSource(
-        "QSource_A", state_sampler=state_sampler_a,
-        models={"emission_delay_model": FixedDelayModel(delay=source_delay)},
-        num_ports=1, status=SourceStatus.EXTERNAL))
+    # add components to the nodes
+    for index, node in enumerate(nodes):
+        state_sampler = StateSampler([ns.b00], [1])
+        node.add_subcomponent(QSource(name=f"QSource_{node.name}", state_sampler=state_sampler,
+                                      models={"emission_delay_model": FixedDelayModel(delay=source_delay)},
+                                      num_ports=1, status=SourceStatus.EXTERNAL))
+        if index - 1 >= 0:
+            node.add_subcomponent(QuantumProcessor(name=nodes[index - 1].name + "_qmemory",
+                                                   num_positions=10,
+                                                   fallback_to_nonphysical=True,
+                                                   memory_noise_models=DepolarNoiseModel(depolar_rate)))
+        if index + 1 < len(nodes):
+            # case of we are the source node
+            node.add_subcomponent(QuantumProcessor(name=nodes[index + 1].name + "_qmemory",
+                                                   num_positions=10,
+                                                   fallback_to_nonphysical=True,
+                                                   memory_noise_models=DepolarNoiseModel(depolar_rate)))
 
-    node_b.add_subcomponent(QuantumProcessor(
-        "right_qmemory", num_positions=10, fallback_to_nonphysical=True,
-        memory_noise_models=DepolarNoiseModel(depolar_rate)))
-    node_b.add_subcomponent(QuantumProcessor(
-        "left_qmemory", num_positions=10, fallback_to_nonphysical=True,
-        memory_noise_models=DepolarNoiseModel(depolar_rate)))
-    state_sampler_b = StateSampler(
-        [ns.b00], [1])
-    node_b.add_subcomponent(QSource(
-        "QSource_B", state_sampler=state_sampler_b,
-        models={"emission_delay_model": FixedDelayModel(delay=source_delay)},
-        num_ports=1, status=SourceStatus.EXTERNAL))
+    # add connections between the nodes
+    for index, node in enumerate(nodes):
 
-    node_c.add_subcomponent(QuantumProcessor(
-        "left_qmemory", num_positions=10, fallback_to_nonphysical=True,
-        memory_noise_models=DepolarNoiseModel(depolar_rate)))
+        if index + 1 < len(nodes):
+            right_node = nodes[index + 1]
+            # case of we are the source node
+            internal_qchannel = QuantumChannel(name=f"QChannel_{node.name}->{node.name}", length=0,
+                                               models={"quantum_loss_model": None,
+                                                       "delay_model": FibreDelayModel(c=200e3)},
+                                               depolar_rate=depolar_rate)
+            # internal qchannel to link right_qmemory for source node
+            node.add_subcomponent(internal_qchannel, name="internal_qchannel")
+            (node.subcomponents["internal_qchannel"].ports["recv"]
+             .connect(node.subcomponents[right_node.name + "_qmemory"].ports["qin0"]))
+            # create a quantum channel between the source node and the next node
+            qchannel = QuantumChannel(name=f"QChannel_{node.name}->{right_node.name}", length=node_distance,
+                                      models={"quantum_loss_model": None,
+                                              "delay_model": FibreDelayModel(c=200e3)},
+                                      depolar_rate=depolar_rate)
 
-    a_b_conn_cchannel = DirectConnection(
-        "CChannelConn_AB",
-        ClassicalChannel("CChannel_A->B", length=node_distance,
-                         models={"delay_model": FibreDelayModel(c=200e3)}),
-        ClassicalChannel("CChannel_B->A", length=node_distance,
-                         models={"delay_model": FibreDelayModel(c=200e3)}))
-    network.add_connection(node_a, node_b, connection=a_b_conn_cchannel)
+            port_name_a, port_name_b = network.add_connection(
+                node, right_node, channel_to=qchannel, label="quantum",
+                port_name_node1=f"qout_{nodes[index + 1].name}",
+                port_name_node2=f"qin_{node.name}")
+            # map the input from node to right_node's qmemory, which is the memory of the left node
+            right_node.ports[port_name_b].forward_input(right_node.subcomponents[f"{node.name}_qmemory"].ports[f"qin0"])
 
-    b_c_conn_cchannel = DirectConnection(
-        "CChannelConn_BC",
-        ClassicalChannel("CChannel_B->C", length=node_distance,
-                         models={"delay_model": FibreDelayModel(c=200e3)}),
-        ClassicalChannel("CChannel_C->B", length=node_distance,
-                         models={"delay_model": FibreDelayModel(c=200e3)}))
-    network.add_connection(node_b, node_c, connection=b_c_conn_cchannel)
+            # Add the classical channel between the nodes
+            for j in range(index + 1, len(nodes)):
+                conn_cchannel = DirectConnection(
+                    f"CChannelConn_{nodes[index].name}_{nodes[j].name}",
+                    ClassicalChannel(f"CChannel_{nodes[index].name}->{nodes[j].name}", length=node_distance,
+                                     models={"delay_model": FibreDelayModel(c=200e3)}),
+                    ClassicalChannel(f"CChannel_{nodes[j].name}->{nodes[index].name}", length=node_distance,
+                                     models={"delay_model": FibreDelayModel(c=200e3)}))
+                network.add_connection(node, nodes[j], connection=conn_cchannel)
 
-    # node_A.connect_to(node_B, conn_cchannel)
-    a_b_qchannel = QuantumChannel("QChannel_A->B", length=node_distance,
-                                  models={"quantum_loss_model": None,
-                                          "delay_model": FibreDelayModel(c=200e3)},
-                                  depolar_rate=depolar_rate)
-    a_internal_qchannel = QuantumChannel("QChannel_A->A", length=0,
-                                         models={"quantum_loss_model": None,
-                                                 "delay_model": FibreDelayModel(c=200e3)},
-                                         depolar_rate=depolar_rate)
-    # internal qchannel to link right_qmemory for node A
-    node_a.add_subcomponent(a_internal_qchannel, name="internal_qchannel")
-    (node_a.subcomponents["internal_qchannel"].ports["recv"].
-     connect(node_a.subcomponents["right_qmemory"].ports["qin0"]))
-
-    port_name_a, port_name_b = network.add_connection(
-        node_a, node_b, channel_to=a_b_qchannel, label="quantum", port_name_node1="qout0", port_name_node2="qin0")
-    print(f"Added connection between {node_a.name} and {node_b.name} with ports {port_name_a} and {port_name_b}")
-    # Link Alice ports:
-    # node_a.subcomponents["QSource_A"].ports["qout1"].forward_output(
-    #     node_a.ports[port_name_a])
-    # node_a.subcomponents["QSource_A"].ports["qout0"].connect(
-    #     node_a.subcomponents["right_qmemory"].ports["qin0"])
-    # Link Bob ports:
-    node_b.ports[port_name_b].forward_input(node_b.subcomponents["left_qmemory"].ports[f"qin0"])
-
-    # node_B.connect_to(node_C, conn_cchannel)
-    b_c_qchannel = QuantumChannel("QChannel_B->C", length=node_distance,
-                                  models={"quantum_loss_model": None,
-                                          "delay_model": FibreDelayModel(c=200e3)},
-                                  depolar_rate=0)
-
-    # internal qchannel to link left_qmemory for node B
-    b_internal_qchannel = QuantumChannel("QChannel_B->B", length=0,
-                                         models={"quantum_loss_model": None,
-                                                 "delay_model": FibreDelayModel(c=200e3)},
-                                         depolar_rate=0)
-    node_b.add_subcomponent(b_internal_qchannel, name="internal_qchannel")
-    (node_b.subcomponents["internal_qchannel"].ports["recv"]
-     .connect(node_b.subcomponents["right_qmemory"].ports["qin0"]))
-
-    port_name_b, port_name_c = network.add_connection(
-        node_b, node_c, channel_to=b_c_qchannel, label="quantum", port_name_node1="qout0", port_name_node2="qin0")
-    print(f"Added connection between {node_b.name} and {node_c.name} with ports {port_name_b} and {port_name_c}")
-    # Link Bob ports:
-    # node_b.subcomponents["QSource_B"].ports["qout1"].forward_output(
-    #     node_b.ports[port_name_b])
-    # node_b.subcomponents["QSource_B"].ports["qout0"].connect(
-    #     node_b.subcomponents["right_qmemory"].ports["qin0"])
-    # Link Charlie ports:
-    node_c.ports[port_name_c].forward_input(node_c.subcomponents["left_qmemory"].ports[f"qin0"])
+    # node_a, node_b, node_c = network.add_nodes(["node_A", "node_B", "node_C"])
+    # node_a.add_subcomponent(QuantumProcessor(
+    #     "right_qmemory", num_positions=10, fallback_to_nonphysical=True,
+    #     memory_noise_models=DepolarNoiseModel(depolar_rate)))
+    # state_sampler_a = StateSampler(
+    #     [ns.b00], [1])
+    # node_a.add_subcomponent(QSource(
+    #     "QSource_A", state_sampler=state_sampler_a,
+    #     models={"emission_delay_model": FixedDelayModel(delay=source_delay)},
+    #     num_ports=1, status=SourceStatus.EXTERNAL))
+    #
+    # node_b.add_subcomponent(QuantumProcessor(
+    #     "right_qmemory", num_positions=10, fallback_to_nonphysical=True,
+    #     memory_noise_models=DepolarNoiseModel(depolar_rate)))
+    # node_b.add_subcomponent(QuantumProcessor(
+    #     "left_qmemory", num_positions=10, fallback_to_nonphysical=True,
+    #     memory_noise_models=DepolarNoiseModel(depolar_rate)))
+    # state_sampler_b = StateSampler(
+    #     [ns.b00], [1])
+    # node_b.add_subcomponent(QSource(
+    #     "QSource_B", state_sampler=state_sampler_b,
+    #     models={"emission_delay_model": FixedDelayModel(delay=source_delay)},
+    #     num_ports=1, status=SourceStatus.EXTERNAL))
+    #
+    # node_c.add_subcomponent(QuantumProcessor(
+    #     "left_qmemory", num_positions=10, fallback_to_nonphysical=True,
+    #     memory_noise_models=DepolarNoiseModel(depolar_rate)))
+    #
+    # a_b_conn_cchannel = DirectConnection(
+    #     "CChannelConn_AB",
+    #     ClassicalChannel("CChannel_A->B", length=node_distance,
+    #                      models={"delay_model": FibreDelayModel(c=200e3)}),
+    #     ClassicalChannel("CChannel_B->A", length=node_distance,
+    #                      models={"delay_model": FibreDelayModel(c=200e3)}))
+    # network.add_connection(node_a, node_b, connection=a_b_conn_cchannel)
+    #
+    # b_c_conn_cchannel = DirectConnection(
+    #     "CChannelConn_BC",
+    #     ClassicalChannel("CChannel_B->C", length=node_distance,
+    #                      models={"delay_model": FibreDelayModel(c=200e3)}),
+    #     ClassicalChannel("CChannel_C->B", length=node_distance,
+    #                      models={"delay_model": FibreDelayModel(c=200e3)}))
+    # network.add_connection(node_b, node_c, connection=b_c_conn_cchannel)
+    #
+    # # node_A.connect_to(node_B, conn_cchannel)
+    # a_b_qchannel = QuantumChannel("QChannel_A->B", length=node_distance,
+    #                               models={"quantum_loss_model": None,
+    #                                       "delay_model": FibreDelayModel(c=200e3)},
+    #                               depolar_rate=depolar_rate)
+    # a_internal_qchannel = QuantumChannel("QChannel_A->A", length=0,
+    #                                      models={"quantum_loss_model": None,
+    #                                              "delay_model": FibreDelayModel(c=200e3)},
+    #                                      depolar_rate=depolar_rate)
+    # # internal qchannel to link right_qmemory for node A
+    # node_a.add_subcomponent(a_internal_qchannel, name="internal_qchannel")
+    # (node_a.subcomponents["internal_qchannel"].ports["recv"].
+    #  connect(node_a.subcomponents["right_qmemory"].ports["qin0"]))
+    #
+    # port_name_a, port_name_b = network.add_connection(
+    #     node_a, node_b, channel_to=a_b_qchannel, label="quantum", port_name_node1="qout0", port_name_node2="qin0")
+    # print(f"Added connection between {node_a.name} and {node_b.name} with ports {port_name_a} and {port_name_b}")
+    # # Link Alice ports:
+    # # node_a.subcomponents["QSource_A"].ports["qout1"].forward_output(
+    # #     node_a.ports[port_name_a])
+    # # node_a.subcomponents["QSource_A"].ports["qout0"].connect(
+    # #     node_a.subcomponents["right_qmemory"].ports["qin0"])
+    # # Link Bob ports:
+    # node_b.ports[port_name_b].forward_input(node_b.subcomponents["left_qmemory"].ports[f"qin0"])
+    #
+    # # node_B.connect_to(node_C, conn_cchannel)
+    # b_c_qchannel = QuantumChannel("QChannel_B->C", length=node_distance,
+    #                               models={"quantum_loss_model": None,
+    #                                       "delay_model": FibreDelayModel(c=200e3)},
+    #                               depolar_rate=0)
+    #
+    # # internal qchannel to link left_qmemory for node B
+    # b_internal_qchannel = QuantumChannel("QChannel_B->B", length=0,
+    #                                      models={"quantum_loss_model": None,
+    #                                              "delay_model": FibreDelayModel(c=200e3)},
+    #                                      depolar_rate=0)
+    # node_b.add_subcomponent(b_internal_qchannel, name="internal_qchannel")
+    # (node_b.subcomponents["internal_qchannel"].ports["recv"]
+    #  .connect(node_b.subcomponents["right_qmemory"].ports["qin0"]))
+    #
+    # port_name_b, port_name_c = network.add_connection(
+    #     node_b, node_c, channel_to=b_c_qchannel, label="quantum", port_name_node1="qout0", port_name_node2="qin0")
+    # print(f"Added connection between {node_b.name} and {node_c.name} with ports {port_name_b} and {port_name_c}")
+    # # Link Bob ports:
+    # # node_b.subcomponents["QSource_B"].ports["qout1"].forward_output(
+    # #     node_b.ports[port_name_b])
+    # # node_b.subcomponents["QSource_B"].ports["qout0"].connect(
+    # #     node_b.subcomponents["right_qmemory"].ports["qin0"])
+    # # Link Charlie ports:
+    # node_c.ports[port_name_c].forward_input(node_c.subcomponents["left_qmemory"].ports[f"qin0"])
 
     return network
 
@@ -395,8 +457,8 @@ def example_sim_setup(node_a, node_b, node_c, num_runs, epsilon=0.3):
         # calculate the purification process time
         a_b_purify_time = result["AB"]["finish_time"] - result["start_time"]
         b_c_purify_time = result["BC"]["finish_time"] - result["start_time"]
-        print(f"AB purification time: {a_b_purify_time/1e9}")
-        print(f"BC purification time: {b_c_purify_time/1e9}")
+        print(f"AB purification time: {a_b_purify_time / 1e9}")
+        print(f"BC purification time: {b_c_purify_time / 1e9}")
         # store in dic
         data = {"AB": a_b_entangled_pairs, "BC": b_c_entangled_pairs,
                 "AB_purify_count": a_b_purify_count, "BC_purify_count": b_c_purify_count,
@@ -422,8 +484,8 @@ if __name__ == "__main__":
     filt_example.start()
     ns.sim_run()
     collected_data = dc.dataframe
-    print(f"Average AB Purification Time: {collected_data['AB_purify_time'].mean()/1e9}")
-    print(f"Average BC Purification Time: {collected_data['BC_purify_time'].mean()/1e9}")
+    print(f"Average AB Purification Time: {collected_data['AB_purify_time'].mean() / 1e9}")
+    print(f"Average BC Purification Time: {collected_data['BC_purify_time'].mean() / 1e9}")
     print(f"Average AB Purification Count: {collected_data['AB_purify_count'].mean()}")
     print(f"Average BC Purification Count: {collected_data['BC_purify_count'].mean()}")
     print(f"Average AB Purification Success Count: {collected_data['AB_purify_success_count'].mean()}")

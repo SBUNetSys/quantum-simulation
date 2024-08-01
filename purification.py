@@ -54,7 +54,7 @@ class PurifyEntangle(NodeProtocol):
 
     def __init__(self, node,
                  cc_port=None,
-                 qmemory_name=None,
+                 entangle_node=None,
                  start_expression=None,
                  msg_header="purification",
                  name=None,
@@ -72,8 +72,8 @@ class PurifyEntangle(NodeProtocol):
             raise ValueError("cc_port must be specified.")
         if not isinstance(cc_port, Port):
             raise TypeError("cc_port should be a {}, not a {}".format(Port, type(cc_port)))
-        if qmemory_name is None:
-            raise ValueError("qmemory_name must be specified.")
+        if entangle_node is None:
+            raise ValueError("entangle_node must be specified.")
 
         name = name if name else ("Purification({}, cc_port:{})"
                                   .format(node.name, cc_port.name))
@@ -81,11 +81,11 @@ class PurifyEntangle(NodeProtocol):
         self.add_signal("entangle")
 
         self.cc_port = cc_port
-        self._qmemory_name = qmemory_name
+        self._qmemory_name = f"{entangle_node}_qmemory"
         try:
-            self.qmemory = self.node.subcomponents[qmemory_name]
+            self.qmemory = self.node.subcomponents[self._qmemory_name]
         except KeyError:
-            raise ValueError(f"Node {node.name} does not have a quantum memory named {qmemory_name}")
+            raise ValueError(f"Node {node.name} does not have a quantum memory named {self._qmemory_name}")
 
         self.target_fidelity = target_fidelity
         # map of entangled pairs with their memory positions and fidelity

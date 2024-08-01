@@ -1,0 +1,133 @@
+from netsquid.components import ClassicalChannel, QuantumChannel
+from netsquid.util.simtools import sim_time
+from netsquid.util.datacollector import DataCollector
+from netsquid.qubits.ketutil import outerprod
+from netsquid.qubits.ketstates import s0, s1
+from netsquid.qubits import operators as ops, ketstates
+from netsquid.qubits import qubitapi as qapi
+from netsquid.protocols.nodeprotocols import NodeProtocol, LocalProtocol
+from netsquid.protocols.protocol import Signals
+from netsquid.nodes.network import Network
+from netsquid.components.instructions import INSTR_MEASURE, INSTR_CNOT, IGate, INSTR_Z, INSTR_SWAP, INSTR_H
+from netsquid.components.component import Message, Port
+from netsquid.components.qsource import QSource, SourceStatus
+from netsquid.components.qprocessor import QuantumProcessor
+from netsquid.components.qprogram import QuantumProgram
+from netsquid.qubits import ketstates as ks
+from netsquid.qubits.state_sampler import StateSampler
+from netsquid.components.models.delaymodels import FixedDelayModel, FibreDelayModel
+from netsquid.components.models import DepolarNoiseModel
+from netsquid.nodes.connections import DirectConnection
+from pydynaa import EventExpression
+from netsquid.qubits.qubitapi import measure
+from netsquid.qubits.operators import CNOT, Z
+from netsquid.components.instructions import INSTR_MEASURE
+from netsquid.nodes import Node
+from netsquid.qubits.qubitapi import fidelity
+import netsquid as ns
+from entangle import *
+from swapping import *
+from gen_swapping_tree import generate_swapping_tree, SwapNode
+from network_setup_swapping import example_network_setup
+
+
+class SwappingExample(LocalProtocol):
+    """
+    A simple example of a swapping protocol.
+    """
+
+    def __init__(self, nodes: list, num_runs=1, node_path=None, ):
+        if node_path is None:
+            raise ValueError("node_path must be provided")
+        # generate the swapping tree and levels
+        swapping_nodes, levels = generate_swapping_tree(node_path)
+        self.swap_nodes = swapping_nodes
+        self.levels = levels
+        self.final_entanglement = (node_path[0], node_path[-1])
+        self.all_nodes = nodes
+        super().__init__(nodes={node.name: node for node in nodes}, name="SwappingExample")
+        self.num_runs = num_runs
+        # Initialize the entangle protocol
+        for index, node in enumerate(nodes):
+            qubit_input_signals = []
+            if index - 1 >= 0:
+                # case of we have a previous node
+                self.add_subprotocol(GenEntanglement(
+                    input_mem_pos=0,
+                    total_pairs=2,
+                    entangle_node=nodes[index - 1].name,
+                    node=node,
+                    name=f"entangle_{node.name}->{nodes[index - 1].name}",
+                    is_source=False,
+                ))
+                qubit_input_signals.append(self.subprotocols[f"entangle_{node.name}->{nodes[index - 1].name}"])
+            if index + 1 < len(nodes):
+                # case of we have a next node
+                self.add_subprotocol(GenEntanglement(
+                    input_mem_pos=0,
+                    total_pairs=2,
+                    entangle_node=nodes[index + 1].name,
+                    node=node,
+                    name=f"entangle_{node.name}->{nodes[index + 1].name}",
+                    is_source=True,
+                ))
+                qubit_input_signals.append(self.subprotocols[f"entangle_{node.name}->{nodes[index + 1].name}"])
+            # Initialize the MessageHandler protocol
+            self.add_subprotocol(MessageHandler(node=node,
+                                                name=f"message_handler_{node.name}",
+                                                cc_ports=self.get_cc_ports(node)
+                                                ))
+            # Initialize the swap protocol
+            self.add_subprotocol(SwapProtocol(
+                node=node,
+                qubit_input_signals=qubit_input_signals,
+                cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
+                swapping_tree=swapping_nodes,
+                final_entanglement=self.final_entanglement,
+                name=f"swap_{node.name}",
+            ))
+            # Add re-entangle protocol
+            for entangle_protocols in qubit_input_signals:
+                entangle_protocols.re_entangle_sender = self.subprotocols[f"swap_{node.name}"]
+
+    def run(self):
+        self.start_subprotocols()
+        for i in range(self.num_runs):
+            start_time = sim_time()
+            yield (self.await_signal(self.subprotocols[f"swap_{self.final_entanglement[0]}"], Signals.SUCCESS) &
+                   self.await_signal(self.subprotocols[f"swap_{self.final_entanglement[1]}"], Signals.SUCCESS))
+            end_time = sim_time()
+            print(f"Swapping completed in {(end_time - start_time) / 1e9} seconds.")
+            result_a = self.subprotocols[f"swap_{self.final_entanglement[0]}"].get_signal_result(Signals.SUCCESS, self)
+            result_b = self.subprotocols[f"swap_{self.final_entanglement[1]}"].get_signal_result(Signals.SUCCESS, self)
+            print(f"Swapping result: {result_a}, {result_b}")
+            self.send_signal(Signals.SUCCESS, {"result_a": result_a, "result_b": result_b})
+
+    def get_cc_ports(self, node):
+        cc_ports = {}
+        for n in self.all_nodes:
+            if n != node:
+                cc_ports[n.name] = node.get_conn_port(n.ID)
+        return cc_ports
+
+
+def example_sim_run(nodes, num_runs):
+    swapping_example = SwappingExample(nodes=nodes, num_runs=num_runs, node_path=[node.name for node in nodes])
+
+    def record_run(evexpr):
+        protocol = evexpr.triggered_events[-1].source
+        result = protocol.get_signal_result(Signals.SUCCESS)
+        print(f"Run completed: {result}")
+
+    dc = DataCollector(record_run, include_time_stamp=False,
+                       include_entity_name=False)
+    dc.collect_on(pd.EventExpression(source=swapping_example, event_type=Signals.SUCCESS.value))
+    return swapping_example, dc
+
+
+if __name__ == '__main__':
+    network = example_network_setup()
+    sample_nodes = [node for node in network.nodes.values()]
+    swapping_example, dc = example_sim_run(sample_nodes, 1)
+    swapping_example.start()
+    ns.sim_run()

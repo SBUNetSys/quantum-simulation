@@ -40,29 +40,25 @@ class GenEntanglement(NodeProtocol):
     We only care about the at node level and with respect to the qmemory.
     """
 
-    def __init__(self, node, start_expression=None,
+    def __init__(self, node, re_entangle_sender=None,
                  input_mem_pos=0,
                  total_pairs=2,
                  name=None,
                  entangle_node=None,
-                 qmemory_name=None,
                  is_source=False,
                  ):
         """
         Initialize the GenEntanglementProtocol.
         @param node: node that the protocol is attached to
-        @param start_expression: expression to start the protocol
+        @param re_entangle_sender: expression to start the protocol
         @param input_mem_pos: memory position to use as input
         @param total_pairs: total number of pairs to entangle
         @param name: name of the protocol
         @param entangle_node: node to entangle with
-        @param qmemory_name: name of the qmemory to use
         @param is_source: whether the node is a source or not
         """
         if entangle_node is None:
             raise ValueError("Entangle node must be specified.")
-        if qmemory_name is None:
-            raise ValueError("Qmemory name must be specified.")
 
         name = name if name else ("DirectionalEntangleNode({}, left={}, right={})"
                                   .format(node.name,
@@ -71,9 +67,10 @@ class GenEntanglement(NodeProtocol):
 
         super().__init__(node=node, name=name)
 
-        if start_expression is not None and not isinstance(start_expression, EventExpression):
-            raise TypeError("Start expression should be a {}, not a {}".format(EventExpression, type(start_expression)))
-        self.start_expression = start_expression
+        if re_entangle_sender is not None and not isinstance(re_entangle_sender, NodeProtocol):
+            raise TypeError("Start expression should be a {}, not a {}".format(
+                NodeProtocol, type(re_entangle_sender)))
+        self.re_entangle_sender = re_entangle_sender
         self.aval_mem_postions = None  # stack of available memory positions
         self.used_mem_positions = None  # stack of used memory positions
         self._total_pairs = total_pairs
@@ -81,12 +78,12 @@ class GenEntanglement(NodeProtocol):
         self.entangle_node = entangle_node
 
         self._is_source = is_source
-        self._qmemory_name = qmemory_name
+        self._qmemory_name = f"{entangle_node}_qmemory"
         # get the qmemory
         try:
-            self.qmemory = self.node.subcomponents[qmemory_name]
+            self.qmemory = self.node.subcomponents[self._qmemory_name]
         except KeyError:
-            raise ValueError("Qmemory {} not found in node {}.".format(qmemory_name, node))
+            raise ValueError("Qmemory {} not found in node {}.".format(self._qmemory_name, node))
         # case of is source we need to add port to send qubits
         if self._is_source:
             self._qport = self.node.subcomponents["internal_qchannel"].ports["send"]
@@ -106,8 +103,9 @@ class GenEntanglement(NodeProtocol):
               f"\ttotal pairs: {self._total_pairs}"
               f"\tinput memory position: {self._input_mem_pos}"
               )
-
-        re_entangle = self.start_expression
+        if self.re_entangle_sender is None:
+            raise ValueError("Re-entangle sender must be specified.")
+        re_entangle = self.await_signal(self.re_entangle_sender, "entangle")
 
         while True:
             # the logic that we generate qubits and send them to the entangle node
@@ -135,7 +133,7 @@ class GenEntanglement(NodeProtocol):
                     self._qport.tx_input(qubit_1)
                     # send the qubit to the right neighbour
                     print(f"GenEntangle {self.name} -> Node {self.node.name} sending qubit to {self.entangle_node}")
-                    self.node.ports["qout0"].tx_output(qubit_2)
+                    self.node.ports[f"qout_{self.entangle_node}"].tx_output(qubit_2)
                     # yield self.await_timer(duration=10000.0)
                     # time for the qubit to be sent
                 # wait for qubit from entangle node
