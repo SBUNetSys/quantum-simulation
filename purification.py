@@ -78,8 +78,7 @@ class PurifyEntangle(NodeProtocol):
         name = name if name else ("Purification({}, cc_port:{})"
                                   .format(node.name, cc_port.name))
         super().__init__(node, name)
-        self.add_signal("entangle")
-
+        self.entangled_node = entangle_node
         self.cc_port = cc_port
         self._qmemory_name = f"{entangle_node}_qmemory"
         try:
@@ -111,6 +110,14 @@ class PurifyEntangle(NodeProtocol):
         # record how many purification pairs we have done in order to have all the pairs meet the target fidelity
         self.purification_count = 0
         self.purification_success_count = 0
+
+    def add_new_signal(self, signal):
+        """
+        Add new signal to the protocol
+        :param signal: signal name
+        :return:
+        """
+        self.add_signal(signal)
 
     def run(self):
         cchannel_ready = self.await_port_input(self.cc_port)
@@ -342,7 +349,8 @@ class PurifyEntangle(NodeProtocol):
             # we dont remove the pair[1] from the entangled pairs as we are the source, has been removed initially
             print_blue(
                 f"Purify {self.name} -> Node {self.node.name} sending re-entangled signal to GenEntangle protocol")
-            self.send_signal("entangle", {"mem_pos": pair[1], "qmemory_name": self._qmemory_name})
+            self.send_signal(f"entangle_{self.node.name}->{self.entangled_node}",
+                             {"mem_pos": pair[1], "qmemory_name": self._qmemory_name})
             # TODO send generation signal to Entangle protocol to generate new qubits
         elif "purify_result" in message:
             # only operation with left memory will receive this message
@@ -377,7 +385,7 @@ class PurifyEntangle(NodeProtocol):
             # TODO wait for new Entangle signal from the left neighbour
             print_blue(
                 f"Purify {self.name} -> Node {self.node.name} sending re-entangled signal to GenEntangle protocol")
-            self.send_signal("entangle", {"mem_pos": pair[1], "qmemory_name": self._qmemory_name})
+            self.send_signal(f"entangle_{self.node.name}->{self.entangled_node}", {"mem_pos": pair[1], "qmemory_name": self._qmemory_name})
 
     def start_purification(self):
         """

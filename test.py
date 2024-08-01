@@ -86,7 +86,7 @@ class FilteringExample(LocalProtocol):
                                              total_pairs=5,
                                              entangle_node=node_b.name,
                                              node=node_a,
-                                             name="entangle_AB",
+                                             name=f"entangle_{node_a.name}->{node_b.name}",
                                              is_source=True,
                                              ))
         # entangle B -> A
@@ -94,7 +94,7 @@ class FilteringExample(LocalProtocol):
                                              total_pairs=5,
                                              entangle_node=node_a.name,
                                              node=node_b,
-                                             name="entangle_BA",
+                                             name=f"entangle_{node_b.name}->{node_a.name}",
                                              is_source=False,
                                              ))
         # entangle B -> C
@@ -102,7 +102,7 @@ class FilteringExample(LocalProtocol):
                                              total_pairs=5,
                                              entangle_node=node_c.name,
                                              node=node_b,
-                                             name="entangle_BC",
+                                             name=f"entangle_{node_b.name}->{node_c.name}",
                                              is_source=True,
                                              ))
         # entangle C -> B
@@ -110,7 +110,7 @@ class FilteringExample(LocalProtocol):
                                              total_pairs=5,
                                              entangle_node=node_b.name,
                                              node=node_c,
-                                             name="entangle_CB",
+                                             name=f"entangle_{node_c.name}->{node_b.name}",
                                              is_source=False,
                                              ))
 
@@ -140,24 +140,31 @@ class FilteringExample(LocalProtocol):
                                             target_fidelity=0.99))
         # Set start expressions
         self.subprotocols["purify_AB"].start_expression = (
-            self.subprotocols["purify_AB"].await_signal(self.subprotocols["entangle_AB"],
+            self.subprotocols["purify_AB"].await_signal(self.subprotocols[f"entangle_{node_a.name}->{node_b.name}"],
                                                         Signals.SUCCESS))
         self.subprotocols["purify_BA"].start_expression = (
-            self.subprotocols["purify_BA"].await_signal(self.subprotocols["entangle_BA"],
+            self.subprotocols["purify_BA"].await_signal(self.subprotocols[f"entangle_{node_b.name}->{node_a.name}"],
                                                         Signals.SUCCESS))
         self.subprotocols["purify_BC"].start_expression = (
-            self.subprotocols["purify_BC"].await_signal(self.subprotocols["entangle_BC"],
+            self.subprotocols["purify_BC"].await_signal(self.subprotocols[f"entangle_{node_b.name}->{node_c.name}"],
                                                         Signals.SUCCESS))
         self.subprotocols["purify_CB"].start_expression = (
-            self.subprotocols["purify_CB"].await_signal(self.subprotocols["entangle_CB"],
+            self.subprotocols["purify_CB"].await_signal(self.subprotocols[f"entangle_{node_c.name}->{node_b.name}"],
                                                         Signals.SUCCESS))
 
         # set the start expression for the entanglement protocols
         # wait for the purification protocol to send re-generation signal
-        self.subprotocols["entangle_AB"].re_entangle_sender = self.subprotocols["purify_AB"]
-        self.subprotocols["entangle_BA"].re_entangle_sender = self.subprotocols["purify_BA"]
-        self.subprotocols["entangle_BC"].re_entangle_sender = self.subprotocols["purify_BC"]
-        self.subprotocols["entangle_CB"].re_entangle_sender = self.subprotocols["purify_CB"]
+        self.subprotocols[f"entangle_{node_a.name}->{node_b.name}"].re_entangle_sender = self.subprotocols["purify_AB"]
+        self.subprotocols[f"entangle_{node_b.name}->{node_a.name}"].re_entangle_sender = self.subprotocols["purify_BA"]
+        self.subprotocols[f"entangle_{node_b.name}->{node_c.name}"].re_entangle_sender = self.subprotocols["purify_BC"]
+        self.subprotocols[f"entangle_{node_c.name}->{node_b.name}"].re_entangle_sender = self.subprotocols["purify_CB"]
+
+        self.subprotocols["purify_AB"].add_new_signal(f"entangle_{node_a.name}->{node_b.name}")
+        self.subprotocols["purify_BA"].add_new_signal(f"entangle_{node_b.name}->{node_a.name}")
+        self.subprotocols["purify_BC"].add_new_signal(f"entangle_{node_b.name}->{node_c.name}")
+        self.subprotocols["purify_CB"].add_new_signal(f"entangle_{node_c.name}->{node_b.name}")
+
+
 
         # self.subprotocols["entangle_AB"].re = (
         #     self.subprotocols["entangle_AB"].await_signal(self.subprotocols["purify_AB"],

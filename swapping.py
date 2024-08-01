@@ -87,7 +87,6 @@ class SwapProtocol(NodeProtocol):
         # classical message handler
         self.cc_message_handler = cc_message_handler
         # add entangle signal so that the protocol can be triggered
-        self.add_signal("entangle")
 
         # final entanglement
         self.final_entanglement = final_entanglement
@@ -95,6 +94,9 @@ class SwapProtocol(NodeProtocol):
         # record the swapping source and target if any
         self.swap_source = None
         self.swap_target = None
+
+    def add_new_signal(self, signal):
+        self.add_signal(signal)
 
     def get_qmemory(self, memory_name):
         """
@@ -118,7 +120,7 @@ class SwapProtocol(NodeProtocol):
         yield self.await_timer(1)  # Simulate some operation time
 
         # Simulate Bell state measurement
-        success_probability = 1  # 50% success rate for Bell state measurement
+        success_probability = 0.5  # 50% success rate for Bell state measurement
         if np.random.random() > success_probability:
             return False, None, None
 
@@ -138,7 +140,7 @@ class SwapProtocol(NodeProtocol):
         m2 = qapi.measure(q2)
         return True, m1, m2
 
-    def apply_corrections(self, m1, m2,node_name, qmem_pos):
+    def apply_corrections(self, m1, m2, node_name, qmem_pos):
 
         qmemory = self.get_qmemory(f"{node_name}_qmemory")
 
@@ -188,17 +190,31 @@ class SwapProtocol(NodeProtocol):
                                                   "to": swap_node.right})
             self.swap_index += 1
         else:
-            # send the message to the parent node to re-entangle
+            print_red(f"Swap {self.name} -> Swap failed, re-entangle the qubits")
+            self.entangle_reset()
+
+            # free the left qubit and send the re-entangle signal to the left node
+            self.send_signal(f"entangle_{self.node.name}->{swap_node.left}",
+                             {"mem_pos": q1_mem_pos,
+                              "qmemory_name": f"{swap_node.left}_qmemory"})
             self.cc_message_handler.send_message(MessageType.RE_ENTANGLE,
                                                  swap_node.left,
                                                  {"from": self.node.name,
-                                                  "to": swap_node.right,
+                                                  "to": swap_node.left,
                                                   "mem_pos": q1_mem_pos})
+
+            # send the re-entangle signal to the right node, let the right node free the qubit
             self.cc_message_handler.send_message(MessageType.RE_ENTANGLE,
                                                  swap_node.right,
                                                  {"from": self.node.name,
-                                                  "to": swap_node.left,
+                                                  "to": swap_node.right,
                                                   "mem_pos": q2_mem_pos})
+            # TODO: we need to wait for the right node to clear up its memory position and re-entangle
+            yield self.await_timer(1000)
+            # entangle the qubits again, we only send to the right as we are the source to gen the qubit
+            self.send_signal(f"entangle_{self.node.name}->{swap_node.right}",
+                             {"mem_pos": q2_mem_pos,
+                              "qmemory_name": f"{swap_node.right}_qmemory"})
 
     def process_entangle_message(self):
         """
@@ -257,6 +273,21 @@ class SwapProtocol(NodeProtocol):
         # or A and C to finish
         if len(self.swapping_qubits) == 0:
             self.swap_index += 1
+
+    def entangle_reset(self):
+        """
+        Reset the entangled qubits
+        :return:
+        """
+        self.entangled_qubits = {}
+        self.temp_qubits = {}
+        self.entangle_message_queue = []
+        self.swapping_qubits = {}
+        self.swap_ready = False
+        self.swap_source = None
+        self.swap_target = None
+        self.swap_index = 0
+        self.swap_need_sent = {}
 
     def run(self):
         """
@@ -374,12 +405,11 @@ class SwapProtocol(NodeProtocol):
                             # re-entangle the qubits
                             _, mem_pos = self.swapping_qubits[self.swap_source]
 
-                            self.send_signal("entangle", {"mem_pos": mem_pos,
-                                                          "qmemory_name": f"{self.node.name}_qmemory"})
+                            self.send_signal(f"entangle_{self.node.name}",
+                                             {"mem_pos": mem_pos,
+                                              "qmemory_name": f"{result['from']}_qmemory"})
                             # reset the swap source and target
-                            self.swap_source = None
-                            self.swap_target = None
-                            self.swap_ready = False
+                            self.entangle_reset()
                     elif ready_signal.label == MessageType.ENTANGLED:
                         print_blue(f"Swap {self.name} -> Entangled signal from {result['from']}")
                         # add the qubit to the entangled qubits
@@ -396,9 +426,12 @@ class SwapProtocol(NodeProtocol):
                     elif ready_signal.label == MessageType.RE_ENTANGLE:
                         # re-entangle the qubits
                         print_red(f"Swap {self.name} -> Re-entangle signal from {result['from']} to {result['to']}")
+                        self.entangle_reset()
                         mem_pos = result["mem_pos"]
-                        self.send_signal("entangle", {"mem_pos": mem_pos,
-                                                      "qmemory_name": f"{self.node.name}_qmemory"})
+                        self.send_signal(f"entangle_{self.node.name}->{result['from']}",
+                                         {"mem_pos": mem_pos,
+                                          "qmemory_name": f"{result['from']}_qmemory"})
+
             # process the entangle message
             self.process_entangle_message()
             yield from self.handle_swapping(swap_node)

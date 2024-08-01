@@ -105,7 +105,7 @@ class GenEntanglement(NodeProtocol):
               )
         if self.re_entangle_sender is None:
             raise ValueError("Re-entangle sender must be specified.")
-        re_entangle = self.await_signal(self.re_entangle_sender, "entangle")
+        re_entangle = self.await_signal(self.re_entangle_sender, self.name)
 
         while True:
             # the logic that we generate qubits and send them to the entangle node

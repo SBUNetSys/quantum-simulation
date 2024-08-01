@@ -89,6 +89,7 @@ class SwappingExample(LocalProtocol):
             # Add re-entangle protocol
             for entangle_protocols in qubit_input_signals:
                 entangle_protocols.re_entangle_sender = self.subprotocols[f"swap_{node.name}"]
+                self.subprotocols[f"swap_{node.name}"].add_new_signal(entangle_protocols.name)
 
     def run(self):
         self.start_subprotocols()
