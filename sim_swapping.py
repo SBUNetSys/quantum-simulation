@@ -102,6 +102,11 @@ class SwappingExample(LocalProtocol):
             result_a = self.subprotocols[f"swap_{self.final_entanglement[0]}"].get_signal_result(Signals.SUCCESS, self)
             result_b = self.subprotocols[f"swap_{self.final_entanglement[1]}"].get_signal_result(Signals.SUCCESS, self)
             print(f"Swapping result: {result_a}, {result_b}")
+            # check the final entanglement's fidelity
+            qubit_a = self.nodes[self.final_entanglement[0]].qmemory.peek(result_a["final_entanglement"])[0]
+            qubit_b = self.nodes[self.final_entanglement[1]].qmemory.peek(result_b["final_entanglement"])[0]
+            fidelity_result = qapi.fidelity([qubit_a, qubit_b], ks.b00)
+            print_red(f"Fidelity of the final entanglement: {fidelity_result}")
             self.send_signal(Signals.SUCCESS, {"result_a": result_a, "result_b": result_b})
 
     def get_cc_ports(self, node):

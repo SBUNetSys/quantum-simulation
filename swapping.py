@@ -136,22 +136,23 @@ class SwapProtocol(NodeProtocol):
         qapi.operate(qubits=[q1, q2], operator=CNOT)
 
         # measure the qubits so we get m1 and m2
-        m1 = qapi.measure(q1)
-        m2 = qapi.measure(q2)
+        m1, _ = qapi.measure(q1)
+        m2, _ = qapi.measure(q2)
         return True, m1, m2
 
     def apply_corrections(self, m1, m2, node_name, qmem_pos):
+        print_yellow(f"Swap {self.name} -> Apply correction for {node_name}, {qmem_pos}")
 
         qmemory = self.get_qmemory(f"{node_name}_qmemory")
 
         if m1 == 1:
             if qmemory.busy:
                 yield self.await_program(qmemory)
-            qmemory.execute_instruction(INSTR_Z, qmem_pos)
+            qmemory.execute_instruction(INSTR_Z, [qmem_pos])
         if m2 == 1:
             if qmemory.busy:
                 yield self.await_program(qmemory)
-            qmemory.execute_instruction(INSTR_X, qmem_pos)
+            qmemory.execute_instruction(INSTR_X, [qmem_pos])
         # send the success signal to the target node
         self.cc_message_handler.send_message(MessageType.CORRECTION_SUCCESS,
                                              self.swap_target,
