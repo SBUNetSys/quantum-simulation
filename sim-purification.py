@@ -449,6 +449,27 @@ def example_sim_setup(node_a, node_b, node_c, num_runs, epsilon=0.3):
         b_c_entangled_pairs = result["BC"]["satisfied_pairs"]
         print(f"AB entangled pairs: {a_b_entangled_pairs}")
         print(f"BC entangled pairs: {b_c_entangled_pairs}")
+        a_b_actual_fidelities = []
+        for mem_pos, theoretical_fidelity in a_b_entangled_pairs.items():
+            print_red(f"AB theoretical fidelity at memory position {mem_pos}: {theoretical_fidelity}")
+            q_a = node_a.subcomponents[f"node_B_qmemory"].peek(mem_pos)[0]
+            q_b = node_b.subcomponents[f"node_A_qmemory"].peek(mem_pos)[0]
+            f = fidelity([q_a, q_b], ks.b00)
+            a_b_actual_fidelities.append(f)
+            print_green(f"AB fidelity at memory position {mem_pos}: {f}")
+        average_ab_fidelity = np.mean(list(a_b_entangled_pairs.values()))
+        average_ab_actual_fidelity = np.mean(a_b_actual_fidelities)
+        b_c_actual_fidelities = []
+        for mem_pos, theoretical_fidelity in b_c_entangled_pairs.items():
+            print_red(f"BC theoretical fidelity at memory position {mem_pos}: {theoretical_fidelity}")
+            q_b = node_b.subcomponents[f"node_C_qmemory"].peek(mem_pos)[0]
+            q_c = node_c.subcomponents[f"node_B_qmemory"].peek(mem_pos)[0]
+            f = fidelity([q_b, q_c], ks.b00)
+            b_c_actual_fidelities.append(f)
+            print_green(f"BC fidelity at memory position {mem_pos}: {f}")
+        average_bc_fidelity = np.mean(list(b_c_entangled_pairs.values()))
+        average_bc_actual_fidelity = np.mean(b_c_actual_fidelities)
+
         # count the purified count
         a_b_purify_count = result["AB"]["purification_count"]
         b_c_purify_count = result["BC"]["purification_count"]
@@ -471,7 +492,12 @@ def example_sim_setup(node_a, node_b, node_c, num_runs, epsilon=0.3):
                 "AB_purify_count": a_b_purify_count, "BC_purify_count": b_c_purify_count,
                 "AB_purify_success_count": a_b_purify_success_count,
                 "BC_purify_success_count": b_c_purify_success_count,
-                "AB_purify_time": a_b_purify_time, "BC_purify_time": b_c_purify_time}
+                "AB_purify_time": a_b_purify_time,
+                "BC_purify_time": b_c_purify_time,
+                "AB_average_fidelity": average_ab_fidelity,
+                "BC_average_fidelity": average_bc_fidelity,
+                "AB_actual_average_fidelity": average_ab_actual_fidelity,
+                "BC_actual_average_fidelity": average_bc_actual_fidelity}
         # pretty print the data
         return data
 
@@ -491,6 +517,10 @@ if __name__ == "__main__":
     filt_example.start()
     ns.sim_run()
     collected_data = dc.dataframe
+    print(f"Average AB Fidelity: {collected_data['AB_average_fidelity'].mean()}")
+    print(f"Average AB Actual Fidelity: {collected_data['AB_actual_average_fidelity'].mean()}")
+    print(f"Average BC Fidelity: {collected_data['BC_average_fidelity'].mean()}")
+    print(f"Average BC Actual Fidelity: {collected_data['BC_actual_average_fidelity'].mean()}")
     print(f"Average AB Purification Time: {collected_data['AB_purify_time'].mean() / 1e9}")
     print(f"Average BC Purification Time: {collected_data['BC_purify_time'].mean() / 1e9}")
     print(f"Average AB Purification Count: {collected_data['AB_purify_count'].mean()}")
