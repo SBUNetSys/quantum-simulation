@@ -7,7 +7,7 @@ from netsquid.util.simtools import sim_time
 from netsquid.util.datacollector import DataCollector
 from netsquid.qubits.ketutil import outerprod
 from netsquid.qubits.ketstates import s0, s1
-from netsquid.qubits import operators as ops, ketstates
+from netsquid.qubits import operators as ops, ketstates, operators
 from netsquid.qubits import qubitapi as qapi
 from netsquid.protocols.nodeprotocols import NodeProtocol, LocalProtocol
 from netsquid.protocols.protocol import Signals
@@ -32,6 +32,10 @@ from netsquid.qubits.qubitapi import fidelity
 
 def print_blue(msg):
     print(f"\033[94m{msg}\033[0m")
+
+
+def print_red(msg):
+    print(f"\033[91m{msg}\033[0m")
 
 
 class GenEntanglement(NodeProtocol):
@@ -128,6 +132,12 @@ class GenEntanglement(NodeProtocol):
                     qubit_1, qubit_2 = qsource.ports['qout0'].rx_output().items
                     # perform fidelity measurement
                     initial_fidelity = qapi.fidelity([qubit_1, qubit_2], ks.b00)
+                    new_fidelity = qapi.fidelity([qubit_1, qubit_2], ks.b00)
+
+                    # apply H gate to qubit_1
+                    # print_blue(f"GenEntangle {self.name} -> Node {self.node.name} applying H gate to qubit_1")
+                    # qapi.operate(qubits=[qubit_1], operator=operators.H)
+                    # qapi.operate(qubits=[qubit_1, qubit_2], operator=operators.CNOT)
                     print(f"GenEntangle {self.name} -> Node {self.node.name} initial fidelity: {initial_fidelity}")
                     # send qubit right qmemory
                     self._qport.tx_input(qubit_1)
@@ -217,6 +227,10 @@ class GenEntanglement(NodeProtocol):
             # we will swap the qubits from input memory position to the available memory positions
             # therefore we need to make sure we do not use the input memory position as available memory position
             self.aval_mem_postions = []
+            # check if the input memory position is in use
+            if not self.qmemory.mem_positions[self._input_mem_pos].in_use:
+                # we need to claim the input memory position
+                self.qmemory.mem_positions[self._input_mem_pos].in_use = True
             self.used_mem_positions = [self._input_mem_pos]
             extra_memory -= 1
             claim_memory_positions(extra_memory, self.aval_mem_postions, self.qmemory)
@@ -230,6 +244,7 @@ class GenEntanglement(NodeProtocol):
             for i in self.used_mem_positions[1:]:
                 self.qmemory.mem_positions[i].in_use = False
             self.aval_mem_postions = None
+
         # Call parent stop method
         super().stop()
 

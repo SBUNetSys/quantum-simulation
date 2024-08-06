@@ -25,6 +25,9 @@ The protocol is as follows:
    generating new entanglement pairs.
 4. The protocol will then generate new entanglement based on the memory position sent by purification protocol.
 
+## SwapEntanglement
+
+
 ## Purification
 
 Purify entanglement between two nodes. `purify.py` is the implementation of this protocol.

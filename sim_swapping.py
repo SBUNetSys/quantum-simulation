@@ -98,16 +98,48 @@ class SwappingExample(LocalProtocol):
             yield (self.await_signal(self.subprotocols[f"swap_{self.final_entanglement[0]}"], Signals.SUCCESS) &
                    self.await_signal(self.subprotocols[f"swap_{self.final_entanglement[1]}"], Signals.SUCCESS))
             end_time = sim_time()
+
             print(f"Swapping completed in {(end_time - start_time) / 1e9} seconds.")
             result_a = self.subprotocols[f"swap_{self.final_entanglement[0]}"].get_signal_result(Signals.SUCCESS, self)
             result_b = self.subprotocols[f"swap_{self.final_entanglement[1]}"].get_signal_result(Signals.SUCCESS, self)
             print(f"Swapping result: {result_a}, {result_b}")
             # check the final entanglement's fidelity
-            qubit_a = self.nodes[self.final_entanglement[0]].qmemory.peek(result_a["final_entanglement"])[0]
-            qubit_b = self.nodes[self.final_entanglement[1]].qmemory.peek(result_b["final_entanglement"])[0]
-            fidelity_result = qapi.fidelity([qubit_a, qubit_b], ks.b00)
+            qubit_a = self.nodes[self.final_entanglement[0]].qmemory.peek(result_a[self.final_entanglement[1]])[0]
+            qubit_b = self.nodes[self.final_entanglement[1]].qmemory.peek(result_b[self.final_entanglement[0]])[0]
+            # rd = qapi.reduced_dm([qubit_a, qubit_b])
+            # fidelity_result = qapi.fidelity(rd, ks.b00)
+            fidelity_result = qapi.fidelity([qubit_a, qubit_b], ns.b00)
             print_red(f"Fidelity of the final entanglement: {fidelity_result}")
-            self.send_signal(Signals.SUCCESS, {"result_a": result_a, "result_b": result_b})
+
+            # generate a qubit for teleportation
+            # qubit = qapi.create_qubits(1)[0]
+            #
+            # qapi.operate(qubit, ops.H)
+            # qapi.operate(qubit, ops.S)
+            # og_state = qubit.qstate
+            # og_bstate = qubit_b.qstate
+            # # teleport the qubit
+            # qapi.operate(qubits=[qubit, qubit_a], operator=ops.CNOT)
+            # qapi.operate(qubit, ops.H)
+            # m1, _ = qapi.measure(qubit)
+            # m2, _ = qapi.measure(qubit_a)
+            # if m1 == 1:
+            #     qapi.operate(qubit_b, ops.Z)
+            # if m2 == 1:
+            #     qapi.operate(qubit_b, ops.X)
+            # # check if the teleportation was successful
+            # new_state = qubit_b.qstate
+
+            # if og_state == new_state:
+            #     print_green("Teleportation successful")
+
+            # rd = qapi.reduced_dm([qubit_a, qubit_b])
+            # fidelity_result = qapi.fidelity(rd, ks.b00)
+            # fidelity_result = qapi.fidelity([qubit_a, qubit_b], ks.b00)
+            # print_red(f"Fidelity of the final entanglement after {10e9 / 1e9} seconds: {fidelity_result}")
+            self.send_signal(Signals.SUCCESS, {"fidelity": fidelity_result})
+            for subprotocol in self.subprotocols.values():
+                subprotocol.reset()
 
     def get_cc_ports(self, node):
         cc_ports = {}
@@ -124,6 +156,8 @@ def example_sim_run(nodes, num_runs):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
         print(f"Run completed: {result}")
+        return {"fidelity": result["fidelity"]}
+
 
     dc = DataCollector(record_run, include_time_stamp=False,
                        include_entity_name=False)
@@ -132,8 +166,13 @@ def example_sim_run(nodes, num_runs):
 
 
 if __name__ == '__main__':
-    network = example_network_setup()
+    node_list = ["node_A", "node_B", "node_C", "node_D", "node_E", "node_F"]
+    network = example_network_setup(nodes_list=node_list, node_distance=20, memeory_depolar_rate=100)
     sample_nodes = [node for node in network.nodes.values()]
-    swapping_example, dc = example_sim_run(sample_nodes, 1)
+    swapping_example, dc = example_sim_run(sample_nodes, 1000)
     swapping_example.start()
     ns.sim_run()
+    collected_data = dc.dataframe
+    # print average fidelity
+    fidelities = collected_data["fidelity"]
+    print(f"Average fidelity: {sum(fidelities) / len(fidelities)}")
