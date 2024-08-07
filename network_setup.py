@@ -29,46 +29,6 @@ import netsquid as ns
 import numpy as np
 
 
-def create_processor(node_name, num_paris, depolar_rate=1, dephase_rate=0):
-    """Factory to create a quantum processor for each end node.
-
-    Has two memory positions and the physical instructions necessary
-    for teleportation.
-
-    Parameters
-    ----------
-    depolar_rate : float
-        Depolarization rate of qubits in memory.
-    dephase_rate : float
-        Dephasing rate of physical measurement instruction.
-
-    Returns
-    -------
-    :class:`~netsquid.components.qprocessor.QuantumProcessor`
-        A quantum processor to specification.
-
-    """
-    measure_noise_model = DephaseNoiseModel(dephase_rate=dephase_rate, time_independent=True)
-    physical_instructions = [
-        PhysicalInstruction(instr.INSTR_INIT, duration=3, parallel=True),
-        PhysicalInstruction(instr.INSTR_H, duration=1, parallel=True, ),
-        PhysicalInstruction(instr.INSTR_X, duration=1, parallel=True, ),
-        PhysicalInstruction(instr.INSTR_Z, duration=1, parallel=True, ),
-        PhysicalInstruction(instr.INSTR_S, duration=1, parallel=True, ),
-        PhysicalInstruction(instr.INSTR_CNOT, duration=4, parallel=True, ),
-        PhysicalInstruction(instr.INSTR_MEASURE, duration=7, parallel=False,
-                            quantum_noise_model=measure_noise_model, apply_q_noise_after=False),
-        PhysicalInstruction(instr.INSTR_MEASURE, duration=7, parallel=False, ),
-        PhysicalInstruction(instr.INSTR_SWAP, duration=1, parallel=True, ),
-    ]
-    memory_noise_model = DepolarNoiseModel(depolar_rate=depolar_rate)
-    processor = QuantumProcessor(name=node_name, num_positions=num_paris,
-                                 memory_noise_models=[memory_noise_model] * num_paris,
-                                 phys_instructions=physical_instructions,
-                                 )
-    return processor
-
-
 def calculate_channel_depolar_rate(length_km, loss_db_per_km=0.2, c=2e8):
     # c is speed of light in fiber (m/s)
     loss_rate = 1 - 10 ** (-loss_db_per_km * length_km / 10)
@@ -77,9 +37,13 @@ def calculate_channel_depolar_rate(length_km, loss_db_per_km=0.2, c=2e8):
     return depolar_rate
 
 
-def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, memory_depolar_rate=10,
-                          node_distance=20, nodes_list=None):
-    """Create an example network for use with the swapping protocols.
+def setup_network(nodes_list, network_name,
+                  memory_capacity=10,
+                  source_delay=1e5,
+                  memory_depolar_rate=10,
+                  node_distance=20, ):
+    """
+    Create a network with nodes and channels.
 
     Connection flow:
 
@@ -96,7 +60,7 @@ def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, memory_depol
         This network is also used by the matching integration test.
 
     """
-    network = Network("swapping_network")
+    network = Network(network_name)
     nodes = network.add_nodes(nodes_list)
 
     # add components to the nodes
@@ -106,18 +70,18 @@ def example_network_setup(source_delay=1e5, source_fidelity_sq=0.8, memory_depol
                                       models={"emission_delay_model": FixedDelayModel(delay=source_delay)},
                                       num_ports=1, status=SourceStatus.EXTERNAL))
         if index - 1 >= 0:
-            # node.add_subcomponent(create_processor(nodes[index - 1].name + "_qmemory", 10))
             node.add_subcomponent(QuantumProcessor(name=nodes[index - 1].name + "_qmemory",
-                                                   num_positions=10,
+                                                   num_positions=memory_capacity,
                                                    fallback_to_nonphysical=True,
-                                                   memory_noise_models=[DepolarNoiseModel(memory_depolar_rate)] * 10))
+                                                   memory_noise_models=
+                                                   [DepolarNoiseModel(memory_depolar_rate)] * memory_capacity))
         if index + 1 < len(nodes):
             # case of we are the source node
-            # node.add_subcomponent(create_processor(nodes[index + 1].name + "_qmemory", 10))
             node.add_subcomponent(QuantumProcessor(name=nodes[index + 1].name + "_qmemory",
-                                                   num_positions=10,
+                                                   num_positions=memory_capacity,
                                                    fallback_to_nonphysical=True,
-                                                   memory_noise_models=[DepolarNoiseModel(memory_depolar_rate)] * 10))
+                                                   memory_noise_models=
+                                                   [DepolarNoiseModel(memory_depolar_rate)] * memory_capacity))
     # get qchannels deploar rate
     qchannel_depolar_rate = calculate_channel_depolar_rate(node_distance)
     # add connections between the nodes

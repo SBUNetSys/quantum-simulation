@@ -121,8 +121,8 @@ class GenEntanglement(NodeProtocol):
                 if self._is_source and len(self.aval_mem_postions) > 0:
                     qsource = self.node.subcomponents[self._qsource_name]
                     # avoid generating qubits if the qsource is busy
-                    # if qsource._busy_until > ns.sim_time():
-                    #     yield self.await_timer(qsource._busy_until - ns.sim_time())
+                    if qsource._busy_until > ns.sim_time():
+                        yield self.await_timer(qsource._busy_until - ns.sim_time())
                     qsource.trigger()
                     print(f"GenEntangle {self.name} -> Node {self.node.name} generating qubit\n"
                           f"\tCurrent entangled pairs {self.entangled_pairs}")
@@ -215,9 +215,10 @@ class GenEntanglement(NodeProtocol):
             if extra_memories > 0:
                 unused_positions = qmemory.unused_positions
                 if extra_memories > len(unused_positions):
-                    raise RuntimeError("Not enough unused memory positions available: need {}, have {}"
-                                       .format(extra_memories, len(unused_positions)))
-                for i in unused_positions[:extra_memories]:
+                    raise RuntimeError("{} Not enough unused memory positions available: need {}, have {}"
+                                       .format(self.name, extra_memories, len(unused_positions)))
+                # we need start with 1 since 0 is the default value for input_mem_pos
+                for i in unused_positions[0:extra_memories]:
                     mem_positions.append(i)
                     qmemory.mem_positions[i].in_use = True
 
@@ -237,14 +238,26 @@ class GenEntanglement(NodeProtocol):
 
         return super().start()
 
-    def stop(self):
-        # Unclaim used memory positions:
-        if self.used_mem_positions:
-            # starts from 1 because 0 is the default value for input_mem_pos
-            for i in self.used_mem_positions[1:]:
-                self.qmemory.mem_positions[i].in_use = False
-            self.aval_mem_postions = None
+    def reset_memory_positions(self):
+        # unclaim used memory positions again in case of stop was not called
+        for i in self.qmemory.used_positions:
+            self.qmemory.mem_positions[i].in_use = False
+        self.used_mem_positions = []
+        self.aval_mem_postions = None
 
+    def reset(self):
+        self.reset_memory_positions()
+        print_red(f"GenEntangle {self.name} -> Node {self.node.name} resetting. Memory positions released.\n"
+                  f"\tAvailable memory positions: {self.qmemory.unused_positions}\n"
+                  f"\tUsed memory positions: {self.qmemory.used_positions}")
+        # Call parent stop method
+        super().reset()
+
+    def stop(self):
+        self.reset_memory_positions()
+        print_red(f"GenEntangle {self.name} -> Node {self.node.name} stopped. Memory positions released.\n"
+                  f"\tAvailable memory positions: {self.qmemory.unused_positions}\n"
+                  f"\tUsed memory positions: {self.qmemory.used_positions}")
         # Call parent stop method
         super().stop()
 
@@ -256,7 +269,7 @@ class GenEntanglement(NodeProtocol):
             return False
         # check if entangle node is present but memory positions are not assigned
         if self.entangle_node is not None and self.aval_mem_postions is None and len(
-                self._qmemory.unused_positions) < self._total_pairs - 1:
+                self._qmemory.unused_positions) < self._total_pairs + 1:
             return False
         # check if entangle node is present and memory positions are assigned correctly
         # -1 here since we are using the input memory position as temporary memory position

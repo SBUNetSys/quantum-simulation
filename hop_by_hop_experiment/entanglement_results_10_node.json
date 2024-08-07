@@ -1,0 +1,38 @@
+{
+  "2": {
+    "actual_fidelity": 0.9779999999999999,
+    "estimated_fidelity": 0.9925373753118545
+  },
+  "3": {
+    "actual_fidelity": 0.9399179999999997,
+    "estimated_fidelity": 0.9851304413909451
+  },
+  "4": {
+    "actual_fidelity": 0.9392672879999997,
+    "estimated_fidelity": 0.9777787826379774
+  },
+  "5": {
+    "actual_fidelity": 0.9110979305999997,
+    "estimated_fidelity": 0.9704819865551183
+  },
+  "6": {
+    "actual_fidelity": 0.8937381896155673,
+    "estimated_fidelity": 0.9632396437228515
+  },
+  "7": {
+    "actual_fidelity": 0.8812558674659369,
+    "estimated_fidelity": 0.9560513477770048
+  },
+  "8": {
+    "actual_fidelity": 0.8628060312380594,
+    "estimated_fidelity": 0.9489166953859494
+  },
+  "9": {
+    "actual_fidelity": 0.8335076627008694,
+    "estimated_fidelity": 0.9418352862279687
+  },
+  "10": {
+    "actual_fidelity": 0.7993270708675622,
+    "estimated_fidelity": 0.9348067229687973
+  }
+}
