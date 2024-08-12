@@ -32,6 +32,7 @@ plt.rcParams['xtick.labelsize'] = 14
 plt.rcParams['ytick.labelsize'] = 14
 plt.rcParams['legend.fontsize'] = 14
 
+
 def print_green(text):
     print(f"\033[92m{text}\033[0m")
 
@@ -262,7 +263,7 @@ def main():
     ys.append(list(np.mean(data[key]) for key in data.keys()))
     plot_lines([xs, xs, xs[1:]], ys, "Entanglement fidelity vs number of nodes",
                "Number of nodes", "Fidelity",
-               ["Hop-by-Hop Actual fidelity","Hop-by-Hop Estimated fidelity", "Swapping Actual fidelity"],
+               ["Hop-by-Hop Actual fidelity", "Hop-by-Hop Estimated fidelity", "Swapping Actual fidelity"],
                save=True, save_dir="./")
 
 

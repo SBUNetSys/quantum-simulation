@@ -74,6 +74,14 @@ class MessageHandler(NodeProtocol):
         for signal in MessageType:
             self.add_signal(signal)
 
+    def send_signal(self, signal, msg):
+        """
+        Emit a signal from MessageHandler.
+        :param signal: signal to emit
+        :param msg: message data
+        """
+        self.node.send_signal(signal, msg)
+
     def run(self):
         while True:
             # yield until a message is received
