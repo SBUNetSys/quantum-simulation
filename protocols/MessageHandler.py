@@ -45,7 +45,14 @@ class MessageType(Enum):
     SWAP_FAILED = auto()
     CORRECTION_SUCCESS = auto()
     RE_ENTANGLE = auto()
+    RE_ENTANGLE_READY = auto()
+    RE_ENTANGLE_READY_REMOTE = auto()
 
+class ClassicalMessage():
+    def __init__(self, from_node, to_node, data):
+        self.from_node = from_node
+        self.to_node = to_node
+        self.data = data
 
 class MessageHandler(NodeProtocol):
     """
@@ -74,13 +81,13 @@ class MessageHandler(NodeProtocol):
         for signal in MessageType:
             self.add_signal(signal)
 
-    def send_signal(self, signal, msg):
-        """
-        Emit a signal from MessageHandler.
-        :param signal: signal to emit
-        :param msg: message data
-        """
-        self.node.send_signal(signal, msg)
+    # def send_signals(self, signal, msg):
+    #     """
+    #     Emit a signal from MessageHandler.
+    #     :param signal: signal to emit
+    #     :param msg: message data
+    #     """
+    #     self.node.send_signal(signal, msg)
 
     def run(self):
         while True:
