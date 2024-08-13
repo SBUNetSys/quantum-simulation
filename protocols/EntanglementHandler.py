@@ -184,7 +184,7 @@ class EntanglementHandler(NodeProtocol):
                     ready_signal = source_protocol.get_signal_by_event(
                         event=event, receiver=self)
                     result = ready_signal.result
-                    gen_data: SignalMessages.GenEntanglementSignalMessage = result
+                    gen_data: SignalMessages.NewEntanglementSignalMessage = result
                     mem_pos = gen_data.mem_pos
                     is_source = gen_data.is_source
                     qmemory_name = gen_data.qmemory_name

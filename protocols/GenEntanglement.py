@@ -163,7 +163,7 @@ class GenEntanglement(NodeProtocol):
                          f"\tUsed memory positions: {self.used_mem_positions}\n"
                          f"\tAvailable memory positions: {self.aval_mem_postions}")
         self.send_signal(Signals.SUCCESS,
-                         SignalMessages.GenEntanglementSignalMessage(mem_pos, self._qmemory_name, self._is_source,
+                         SignalMessages.NewEntanglementSignalMessage(mem_pos, self._qmemory_name, self._is_source,
                                                                      init_fidelity,
                                                                      self.entangle_node))
 
