@@ -6,9 +6,9 @@ Simulate Quantum Network Using Net-Squid
 
 Try to implement a transport layer protocol for quantum network using NetSquid.
 
-# Overview
+# Protocol Overview
 
-![overview](./img/protocol-overview.png)
+![overview](./img/protocol-stack.png)
 
 # Protocols
 
