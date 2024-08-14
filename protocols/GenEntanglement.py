@@ -26,14 +26,22 @@ class GenEntanglement(NodeProtocol):
                  logger=None):
         """
         Initialize the GenEntanglementProtocol.
-        @param node: node that the protocol is attached to
-        @param name: name of the protocol
-        @param re_entangle_sender: expression to start the protocol
-        @param input_mem_pos: memory position to use as input
-        @param total_pairs: total number of pairs to entangle
-        @param entangle_node: node to entangle with
-        @param is_source: whether the node is a source or not
-        @param logger: logger to use to print debug messages
+        @param node: `netsquid.nodes.node.Node`
+                    The node that the protocol is attached to
+        @param name: str
+                    The name of the protocol
+        @param re_entangle_sender: `protocols.EntanglementHandler`
+                    The protocol that will send the re-entangle signal.
+        @param input_mem_pos: int
+                    The memory position to use as input
+        @param total_pairs: int
+                    The total number of entangled pairs to generate
+        @param entangle_node: str
+                    The name of the node to entangle with
+        @param is_source: bool
+                    If the node is the source of the entanglement, if True, the node will generate qubits
+        @param logger: `utils.Logging.Logger`
+                    The logger to use for logging
         """
         if entangle_node is None:
             raise ValueError("Entangle node must be specified.")
@@ -163,9 +171,10 @@ class GenEntanglement(NodeProtocol):
                          f"\tUsed memory positions: {self.used_mem_positions}\n"
                          f"\tAvailable memory positions: {self.aval_mem_postions}")
         self.send_signal(Signals.SUCCESS,
-                         SignalMessages.NewEntanglementSignalMessage(mem_pos, self._qmemory_name, self._is_source,
+                         SignalMessages.NewEntanglementSignalMessage(self.entangle_node, mem_pos, self._qmemory_name,
+                                                                     self._is_source,
                                                                      init_fidelity,
-                                                                     self.entangle_node))
+                                                                     ))
 
     def handle_re_entangle(self, event):
         source_protocol = event.source

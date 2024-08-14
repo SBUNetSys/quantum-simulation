@@ -21,7 +21,7 @@ import netsquid as ns
 import netsquid.qubits.ketstates as ks
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from protocols.network_setup import setup_network
+from utils.network_setup import setup_network
 from protocols.GenEntanglement import GenEntanglement
 from protocols.MessageHandler import MessageHandler
 from protocols.EntanglementHandler import EntanglementHandler

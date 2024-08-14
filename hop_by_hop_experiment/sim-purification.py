@@ -29,50 +29,13 @@ from netsquid.components.instructions import INSTR_MEASURE
 from netsquid.nodes import Node
 from netsquid.qubits.qubitapi import fidelity
 
-from entangle import *
-from purification import *
+from utils import SignalMessages
+from protocols import MessageHandler, GenEntanglement, Purification
 
 
 class FilteringExample(LocalProtocol):
-    r"""Protocol for a complete filtering experiment.
-
-    Combines the sub-protocols:
-    - :py:class:`~netsquid.examples.entanglenodes.EntangleNodes`
-    - :py:class:`~netsquid.examples.purify.Filter`
-
-    Will run for specified number of times then stop, recording results after each run.
-
-    Parameters
-    ----------
-    node_a : :py:class:`~netsquid.nodes.node.Node`
-        Must be specified before protocol can start.
-    node_b : :py:class:`~netsquid.nodes.node.Node`
-        Must be specified before protocol can start.
-    num_runs : int
-        Number of successful runs to do.
-    epsilon : float
-        Parameter used in filter's measurement operator.
-
-    Attributes
-    ----------
-    results : :py:obj:`dict`
-        Dictionary containing results. Results are :py:class:`numpy.array`\s.
-        Results keys are *F2*, *pairs*, and *time*.
-
-    Subprotocols
-    ------------
-    entangle_A : :class:`~netsquid.examples.entanglenodes.EntangleNodes`
-        Entanglement generation protocol running on node A.
-    entangle_B : :class:`~netsquid.examples.entanglenodes.EntangleNodes`
-        Entanglement generation protocol running on node B.
-    purify_A : :class:`~netsquid.examples.purify.Filter`
-        Purification protocol running on node A.
-    purify_B : :class:`~netsquid.examples.purify.Filter`
-        Purification protocol running on node B.
-
-    Notes
-    -----
-        The filter purification does not support the stabilizer formalism.
+    """
+    Protocol for a complete purification example.
 
     """
 
@@ -163,8 +126,6 @@ class FilteringExample(LocalProtocol):
         self.subprotocols["purify_BA"].add_new_signal(f"entangle_{node_b.name}->{node_a.name}")
         self.subprotocols["purify_BC"].add_new_signal(f"entangle_{node_b.name}->{node_c.name}")
         self.subprotocols["purify_CB"].add_new_signal(f"entangle_{node_c.name}->{node_b.name}")
-
-
 
         # self.subprotocols["entangle_AB"].re = (
         #     self.subprotocols["entangle_AB"].await_signal(self.subprotocols["purify_AB"],

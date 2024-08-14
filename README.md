@@ -8,8 +8,6 @@ Try to implement a transport layer protocol for quantum network using NetSquid.
 
 # Protocol Overview
 
-![overview](./img/protocol-stack.png){ width=50% }
-
 # Protocols
 
 ## GenEntanglement

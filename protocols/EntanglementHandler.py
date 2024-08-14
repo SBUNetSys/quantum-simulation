@@ -2,7 +2,6 @@ import operator
 from functools import reduce
 
 import numpy as np
-import netsquid as ns
 from netsquid.protocols.nodeprotocols import NodeProtocol
 from netsquid.protocols.protocol import Signals
 
@@ -19,7 +18,7 @@ class EntanglementHandler(NodeProtocol):
     def __init__(self, node, name, num_pairs, entangle_nodes,
                  node_distance, memory_depolar_rate,
                  qubit_input_signals, cc_message_handler,
-                 logger=None):
+                 logger=None, is_top_layer=False):
         """
         Initialize the protocol.
 
@@ -41,6 +40,10 @@ class EntanglementHandler(NodeProtocol):
             The message handler for classical communication.
         logger : Logging
             The logger to log messages.
+        is_top_layer : bool
+            This flag is used to indicate if the protocol is the top layer protocol. If True, the protocol will
+            stop the simulation when the entanglement is complete. Otherwise, it will run forever and waiting for
+            re-entangle process.
         """
         if entangle_nodes is None or len(entangle_nodes) == 0:
             raise ValueError("entangle_node must be specified.")
@@ -86,6 +89,8 @@ class EntanglementHandler(NodeProtocol):
             self.add_new_signal(f"{entangle_protocol}_re_entangle_ready")
             self.add_new_signal(f"{entangle_protocol}_re_entangle")
 
+        self.is_top_layer = is_top_layer
+
     def add_new_signal(self, signal_label):
         """
         Add a new signal to the protocol. This allows the protocol to emit the signal with the signal label.
@@ -116,6 +121,10 @@ class EntanglementHandler(NodeProtocol):
                              f"\tEntangled_pairs_count: {self.entangled_pairs_count}\n"
                              f"\tExpected pairs: {self.max_pairs}"
                              f"\tProgress: {self.entangled_pairs_count / self.max_pairs}", color="green")
+            # send the entangle pair to the upper layer
+            self.send_signal(Signals.SUCCESS,
+                             SignalMessages.EntangleSuccessSignalMessage(from_node, mem_pos,
+                                                                         self.entangled_qubits[from_node][mem_pos]))
         else:
             # store the qubit in the temporary qubits
             self.entangle_message_queue.append(message)
@@ -213,6 +222,11 @@ class EntanglementHandler(NodeProtocol):
                                                                  SignalMessages.EntangleSignalMessage(self.node.name,
                                                                                                       mem_pos)
                                                              ))
+                        # send the entangle pair to the upper layer
+                        self.send_signal(Signals.SUCCESS,
+                                         SignalMessages.EntangleSuccessSignalMessage(entangle_node,
+                                                                                     mem_pos,
+                                                                                     initial_fidelity))
             elif expr.second_term.value:
                 # case we have entanglement signal
                 for event in expr.second_term.triggered_events:
@@ -246,12 +260,12 @@ class EntanglementHandler(NodeProtocol):
                         entangle_node = entangle_data.entangle_node
                         message = SignalMessages.EntangleSignalMessage(entangle_node, mem_pos)
                         self.send_signal(f"{entangle_node}_re_entangle_ready", message)
-
-            if self.entangled_pairs_count >= self.max_pairs:
-                # send finish signal to the source node
-                self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="yellow")
-                self.send_signal(Signals.SUCCESS, self.entangled_qubits)
-                break
+            if self.is_top_layer:
+                if self.entangled_pairs_count >= self.max_pairs:
+                    # send finish signal to the source node
+                    self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="yellow")
+                    self.send_signal(Signals.SUCCESS, self.entangled_qubits)
+                    break
 
     def reset(self):
         self.entangled_qubits = {node: {} for node in self.entangled_nodes}
