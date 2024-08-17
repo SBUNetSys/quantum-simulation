@@ -5,8 +5,9 @@ import numpy as np
 from netsquid.protocols.nodeprotocols import NodeProtocol
 from netsquid.protocols.protocol import Signals
 
-from protocols.MessageHandler import MessageType, ClassicalMessage
+from protocols.MessageHandler import MessageType
 from utils import Logging, SignalMessages
+from utils.ClassicalMessages import ClassicalMessage
 
 
 class EntanglementHandler(NodeProtocol):
@@ -38,7 +39,7 @@ class EntanglementHandler(NodeProtocol):
             The signals that the protocol listens to for qubit input.
         cc_message_handler : MessageHandler
             The message handler for classical communication.
-        logger : Logging
+        logger : Logging.Logger
             The logger to log messages.
         is_top_layer : bool
             This flag is used to indicate if the protocol is the top layer protocol. If True, the protocol will
@@ -80,7 +81,7 @@ class EntanglementHandler(NodeProtocol):
 
         # set the logger
         if logger is None:
-            self.logger = Logging.Logger(f"{self.name}_logger", logging_enabled=True)
+            self.logger = Logging.Logger(f"{self.name}_logger", logging_enabled=False)
         else:
             self.logger = logger
 
@@ -88,8 +89,13 @@ class EntanglementHandler(NodeProtocol):
         for entangle_protocol in self.entangle_nodes.values():
             self.add_new_signal(f"{entangle_protocol}_re_entangle_ready")
             self.add_new_signal(f"{entangle_protocol}_re_entangle")
+        self.add_new_signal(MessageType.ENTANGLED)
+        self.add_new_signal(MessageType.PROTOCOL_FINISHED)
+        self.shutdown = False
 
         self.is_top_layer = is_top_layer
+        # if self.is_top_layer:
+        #     self.add_new_signal(MessageType.PROTOCOL_FINISHED)
 
     def add_new_signal(self, signal_label):
         """
@@ -117,22 +123,29 @@ class EntanglementHandler(NodeProtocol):
             # remove the temporary qubit
             del self.temp_qubits[from_node][mem_pos]
             self.entangled_pairs_count += 1
-            self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete\n "
+            self.logger.info(f"ManageEntangle {self.name} -> Entanglement Successful\n"
+                             f"\tFrom: {from_node}\n"
+                             f"\tMem_pos: {mem_pos}\n"
                              f"\tEntangled_pairs_count: {self.entangled_pairs_count}\n"
                              f"\tExpected pairs: {self.max_pairs}"
                              f"\tProgress: {self.entangled_pairs_count / self.max_pairs}", color="green")
+            if self.shutdown:
+                # we don't need to process the message if the protocol is going to shutdown
+                return
             # send the entangle pair to the upper layer
             self.send_signal(Signals.SUCCESS,
                              SignalMessages.EntangleSuccessSignalMessage(from_node, mem_pos,
                                                                          self.entangled_qubits[from_node][mem_pos]))
+            # send the entangled signal to lower layer, which is the source node
+            self.send_signal(MessageType.ENTANGLED, None)
+
         else:
             # store the qubit in the temporary qubits
             self.entangle_message_queue.append(message)
-
             self.logger.info(f"ManageEntangle {self.name} -> Entangle signal from {from_node}, mem_pos: {mem_pos}"
                              f" not ready yet", color="blue")
 
-    def process_re_entangle_message(self, message: ClassicalMessage):
+    def process_re_entangle_message(self, message: SignalMessages.ReEntangleSignalMessage):
         """
         Process the re-entangle message from upper layer. 
         The source node will wait re-entangle ready signal from the destination node.
@@ -140,14 +153,16 @@ class EntanglementHandler(NodeProtocol):
 
         """
         # get the entangle data from the message
-
-        entangle_data = message.data
-        entangle_node = entangle_data.entangle_node
-        mem_pos = entangle_data.mem_pos
+        entangle_node = message.entangle_node
+        mem_poses = message.re_entangle_mem_poses
+        # remove the qubits from the entangled qubits
+        for mem_pos in mem_poses:
+            del self.entangled_qubits[entangle_node][mem_pos]
+            self.entangled_pairs_count -= 1
         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal, entangle_node: {entangle_node},"
-                         f" mem_pos: {mem_pos}", color="yellow")
-        self.send_signal(f"{entangle_node}_re_entangle",
-                         SignalMessages.EntangleSignalMessage(entangle_node, mem_pos))
+                         f" mem_pos: {mem_poses}", color="yellow")
+        self.send_signal(f"{self.entangled_nodes[entangle_node]}_re_entangle",
+                         message)
 
     def process_message_queue(self):
 
@@ -182,6 +197,7 @@ class EntanglementHandler(NodeProtocol):
                             self.await_signal(self.cc_message_handler, signal_label=MessageType.RE_ENTANGLE) |
                             self.await_signal(self.cc_message_handler,
                                               signal_label=MessageType.RE_ENTANGLE_READY_REMOTE) |
+                            self.await_signal(self.cc_message_handler, signal_label=MessageType.PROTOCOL_FINISHED) |
                             self.re_entangle_ready_signals)
         while True:
             # wait for entanglement
@@ -233,45 +249,71 @@ class EntanglementHandler(NodeProtocol):
                     source_protocol = event.source
                     ready_signal = source_protocol.get_signal_by_event(
                         event=event, receiver=self)
-                    result: ClassicalMessage = ready_signal.result
+                    result = ready_signal.result
                     if ready_signal.label == MessageType.ENTANGLED:
+                        result: ClassicalMessage
                         self.process_entangle_message(result)
                     elif ready_signal.label == MessageType.RE_ENTANGLE:
                         # process re-entangle signal
+                        result: SignalMessages.ReEntangleSignalMessage
                         self.process_re_entangle_message(result)
                     elif ready_signal.label == MessageType.RE_ENTANGLE_READY:
                         # process re-entangle ready signal
                         # only remote node will receive this signal
                         # we need to send an classical message to the source node
-                        entangle_data = result.data
-                        mem_pos = entangle_data.mem_pos
-                        entangle_node = entangle_data.entangle_node
-                        self.cc_message_handler.send_message(MessageType.RE_ENTANGLE_READY_REMOTE, entangle_node,
+                        result: SignalMessages.ReEntangleSignalMessage
+                        self.cc_message_handler.send_message(MessageType.RE_ENTANGLE_READY_REMOTE,
+                                                             result.entangle_node,
                                                              ClassicalMessage(
-                                                                 self.node.name, entangle_node,
-                                                                 SignalMessages.EntangleSignalMessage(self.node.name,
-                                                                                                      mem_pos)
+                                                                 self.node.name,
+                                                                 result.entangle_node,
+                                                                 SignalMessages.ReEntangleSignalMessage(
+                                                                     self.node.name,
+                                                                     result.re_entangle_mem_poses
+                                                                 )
                                                              ))
                     elif ready_signal.label == MessageType.RE_ENTANGLE_READY_REMOTE:
                         # process re-entangle ready remote signal
                         # only source node will receive this signal, we can clear up the memory and generate new qubit
-                        entangle_data = result.data
-                        mem_pos = entangle_data.mem_pos
-                        entangle_node = entangle_data.entangle_node
-                        message = SignalMessages.EntangleSignalMessage(entangle_node, mem_pos)
-                        self.send_signal(f"{entangle_node}_re_entangle_ready", message)
+                        re_entangle_data: SignalMessages.ReEntangleSignalMessage = result.data
+                        self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal from "
+                                         f"{re_entangle_data.entangle_node},"
+                                         f" mem_pos: {re_entangle_data.re_entangle_mem_poses}", color="purple")
+                        # forwards the re-entangle signal to the source node
+                        self.send_signal(f"{self.entangled_nodes[re_entangle_data.entangle_node]}_re_entangle_ready",
+                                         re_entangle_data)
+                    elif ready_signal.label == MessageType.PROTOCOL_FINISHED:
+                        self.logger.info(f"ManageEntangle {self.name} -> Entanglement Need Stop\n"
+                                         f"\t{self.entangled_qubits}"
+                                         f"\t{self.entangled_pairs_count}", color="orange")
+                        self.shutdown = True
+                        # gracefully stop the simulation
+
+            self.process_message_queue()
+            if self.shutdown:
+                # check if we need to stop the simulation
+                if self.entangled_pairs_count >= self.max_pairs and len(self.entangle_message_queue) == 0:
+                    self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="green")
+                    self.send_signal(MessageType.PROTOCOL_FINISHED, self.entangled_qubits)
+
             if self.is_top_layer:
                 if self.entangled_pairs_count >= self.max_pairs:
                     # send finish signal to the source node
-                    self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="yellow")
-                    self.send_signal(Signals.SUCCESS, self.entangled_qubits)
+                    self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="green")
+                    self.send_signal(MessageType.PROTOCOL_FINISHED, self.entangled_qubits)
                     break
 
     def reset(self):
-        self.entangled_qubits = {node: {} for node in self.entangled_nodes}
-        self.temp_qubits = {node: {} for node in self.entangled_nodes}
+        # mapping of entangled qubits to memory positions key: node name, value: {memory position, fidelity}
+        self.entangled_qubits = {node: {} for node in self.entangle_nodes.keys()}
+        # mapping of temporary qubits to memory positions
+        self.temp_qubits = {node: {} for node in self.entangle_nodes.keys()}
+        # keep track of the number of entangled pairs
         self.entangled_pairs_count = 0
+        # entangle_message_queue
         self.entangle_message_queue = []
+        # reset the shutdown flag
+        self.shutdown = False
         super().reset()
 
     @property

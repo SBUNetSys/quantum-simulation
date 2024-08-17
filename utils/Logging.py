@@ -8,13 +8,13 @@ Logging class to log messages to stdout for debugging purposes.
 
 class Logger:
     def __init__(self, name, level=logging.DEBUG, logging_enabled=True):
-        if not logging_enabled:
-            self.logging_enabled = False
-            return
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch = logging.StreamHandler(sys.stdout)  # Send logs to stdout
+        if logging_enabled:
+            ch = logging.StreamHandler(sys.stdout)  # Send logs to stdout
+        else:
+            ch = logging.NullHandler()
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
 

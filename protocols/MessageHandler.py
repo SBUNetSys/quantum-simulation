@@ -10,11 +10,14 @@ from netsquid.components.component import Message, Port
 
 
 class MessageType(Enum):
+
     # entanglement signals
+    GEN_ENTANGLE_READY = auto()
     ENTANGLED = auto()
     RE_ENTANGLE = auto()
     RE_ENTANGLE_READY = auto()
     RE_ENTANGLE_READY_REMOTE = auto()
+    RE_ENTANGLE_READY_SOURCE = auto()
     # purification signals
     PURIFICATION_START = auto()
     PURIFICATION_RESULT = auto()
@@ -26,12 +29,8 @@ class MessageType(Enum):
     SWAP_FAILED = auto()
     CORRECTION_SUCCESS = auto()
 
-
-class ClassicalMessage():
-    def __init__(self, from_node, to_node, data):
-        self.from_node = from_node
-        self.to_node = to_node
-        self.data = data
+    # general signals
+    PROTOCOL_FINISHED = auto()
 
 
 class MessageHandler(NodeProtocol):

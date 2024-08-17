@@ -21,9 +21,9 @@ import netsquid as ns
 import netsquid.qubits.ketstates as ks
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.network_setup import setup_network
+from utils.NetworkSetup import setup_network
 from protocols.GenEntanglement import GenEntanglement
-from protocols.MessageHandler import MessageHandler
+from protocols.MessageHandler import MessageHandler, MessageType
 from protocols.EntanglementHandler import EntanglementHandler
 
 plt.rcParams['axes.labelsize'] = 16
@@ -98,11 +98,12 @@ class ExampleEntanglement(LocalProtocol):
                                                          f"message_handler_{node.name}"],
                                                      entangle_nodes=entangle_nodes,
                                                      memory_depolar_rate=memory_depolar_rate,
-                                                     node_distance=node_distance
+                                                     node_distance=node_distance,
+                                                     is_top_layer=True
                                                      ))
             # Add re-entangle protocol
             for entangle_protocols in qubit_input_signals:
-                entangle_protocols.re_entangle_sender = self.subprotocols[f"entanglement_handler_{node.name}"]
+                entangle_protocols.entanglement_handler = self.subprotocols[f"entanglement_handler_{node.name}"]
                 # no need to add new signal as the entanglement handler protocol will handle during initialization
                 # self.subprotocols[f"entanglement_handler_{node.name}"].add_new_signal(entangle_protocols.name)
 
@@ -111,13 +112,15 @@ class ExampleEntanglement(LocalProtocol):
         for _ in range(self.num_runs):
             start_time = sim_time()
             # set yield expression to wait for end of experiment
-            await_signals = [self.await_signal(self.subprotocols[f"entanglement_handler_{node.name}"], Signals.SUCCESS)
+            await_signals = [self.await_signal(self.subprotocols[f"entanglement_handler_{node.name}"],
+                                               MessageType.PROTOCOL_FINISHED)
                              for node in self.all_nodes]
             yield reduce(operator.and_, await_signals)
             end_time = sim_time()
             print_green(f"Entanglement time: {end_time - start_time}")
             # get all the entangled qubits and calculate the fidelity
-            results = [self.subprotocols[f"entanglement_handler_{node.name}"].get_signal_result(Signals.SUCCESS, self)
+            results = [self.subprotocols[f"entanglement_handler_{node.name}"]
+                       .get_signal_result(MessageType.PROTOCOL_FINISHED, self)
                        for node in self.all_nodes]
             result_dic = {}
             for i in range(0, len(results) - 1):
@@ -254,7 +257,7 @@ def experiment_with_increasing_nodes(max_node, save_dir):
 
 
 def main():
-    experiment_with_increasing_nodes(2, "./")
+    experiment_with_increasing_nodes(2, "./entanglement_results")
     # with open("entanglement_results_50_node.json", "r") as f:
     #     data = json.load(f)
     # xs = list(int(key) for key in data.keys())

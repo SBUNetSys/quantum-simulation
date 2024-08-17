@@ -1,3 +1,6 @@
+import netsquid as ns
+
+
 class EntangleSignalMessage:
     """
     Base class for entanglement signal messages
@@ -7,6 +10,7 @@ class EntangleSignalMessage:
     def __init__(self, entangle_node, mem_pos):
         self.entangle_node = entangle_node
         self.mem_pos = mem_pos
+        self.timestamp = ns.sim_time()
 
 
 class NewEntanglementSignalMessage(EntangleSignalMessage):
@@ -73,3 +77,14 @@ class PurifyTargetMetSignalMessage(EntangleSignalMessage):
     def __init__(self, entangle_node, mem_pos, new_fidelity):
         super().__init__(entangle_node, mem_pos)
         self.fidelity = new_fidelity
+
+
+class ReEntangleSignalMessage:
+    """
+    Signal message for re-entanglement, now we support list of re-entangle memory positions to avoid
+    race condition
+    """
+
+    def __init__(self, entangle_node, re_entangle_mem_poses: list):
+        self.entangle_node = entangle_node
+        self.re_entangle_mem_poses = re_entangle_mem_poses
