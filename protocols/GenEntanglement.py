@@ -141,6 +141,7 @@ class GenEntanglement(NodeProtocol):
             if self._is_source:
                 if len(self.aval_mem_postions) > 0 or len(self.re_entangle_pos) > 0:
                     self.send_signal(MessageType.GEN_ENTANGLE_READY, None)
+                yield self.await_signal(self, Signals.SUCCESS)
                 yield self.await_signal(self.entanglement_handler, MessageType.ENTANGLED)
             else:
                 yield self.await_signal(self, Signals.SUCCESS)
