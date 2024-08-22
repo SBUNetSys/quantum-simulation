@@ -79,6 +79,15 @@ class PurifyTargetMetSignalMessage(EntangleSignalMessage):
         self.fidelity = new_fidelity
 
 
+class PurificationDoneSignalMessage():
+    """
+    Signal message for purification done
+    """
+
+    def __init__(self, entangle_node):
+        self.entangle_node = entangle_node
+
+
 class ReEntangleSignalMessage:
     """
     Signal message for re-entanglement, now we support list of re-entangle memory positions to avoid

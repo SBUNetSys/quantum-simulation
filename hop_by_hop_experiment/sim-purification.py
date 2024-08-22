@@ -152,7 +152,7 @@ class PurificationExample(LocalProtocol):
                     #     raise ValueError(f"Qubit states are not the same: {q_a.qstate}, {q_b.qstate}")
                     f = qapi.fidelity([q_a, q_b], ks.b00)
                     if 0 < f < 0.99:
-                        raise ValueError(f"Fidelity is not correct: {f}")
+                        raise ValueError(f"Fidelity is not correct: {f}, q_a_name: {q_a_name}, q_b_name: {q_b_name}")
                     print(f"Actual fidelity at {mem_pos} is {f}, {q_a.qstate}, {q_b.qstate}")
                     actual_fidelities[mem_pos] = f
                     theoretical_fidelities[mem_pos] = theoretical_fidelity
@@ -234,15 +234,15 @@ def experiment_with_increasing_node(max_node, save_dir):
     # create a network
     nodes_list = [f"Node_{i}" for i in range(max_node)]
     network = setup_network(nodes_list, "hop-by-hop-purification",
-                            memory_capacity=10, memory_depolar_rate=100,
+                            memory_capacity=128, memory_depolar_rate=100,
                             node_distance=20, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     experiment_result = {}
     # run the protocol
     for i in range(2, max_node + 1):
-        filt_example, dc = example_sim_run(sample_nodes[:i], num_runs=1000, memory_depolar_rate=100, node_distance=20,
-                                           max_entangle_pairs=10, target_fidelity=0.995)
+        filt_example, dc = example_sim_run(sample_nodes[:i], num_runs=1, memory_depolar_rate=100, node_distance=20,
+                                           max_entangle_pairs=128, target_fidelity=0.995)
         filt_example.start()
         ns.sim_run()
         collected_data = dc.dataframe

@@ -17,6 +17,10 @@ class Logger:
             ch = logging.NullHandler()
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
+        # save the logger to file
+        fh = logging.FileHandler("p.log")  # Send logs to a file
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
 
     def info(self, message, color=None):
         if color:

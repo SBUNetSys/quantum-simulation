@@ -22,6 +22,8 @@ class MessageType(Enum):
     PURIFICATION_START = auto()
     PURIFICATION_RESULT = auto()
     PURIFICATION_TARGET_MET = auto()
+    # purification signals for ending condition
+    PURIFICATION_DONE = auto()
     # swap signals
     SWAP_NEED = auto()
     SWAP_READY = auto()
