@@ -39,7 +39,7 @@ class PurificationExample(LocalProtocol):
         self.max_entangle_pairs = max_entangle_pairs
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExamplePurification")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=True)
+        self.logger = Logging.Logger(self.name, logging_enabled=False)
         # initialize the protocol for each node
         # Initialize the entangle protocol
         for index, node in enumerate(network_nodes):
@@ -241,10 +241,13 @@ def experiment_with_increasing_node(max_node, save_dir):
     experiment_result = {}
     # run the protocol
     for i in range(2, max_node + 1):
-        filt_example, dc = example_sim_run(sample_nodes[:i], num_runs=1, memory_depolar_rate=100, node_distance=20,
-                                           max_entangle_pairs=10, target_fidelity=0.995)
-        filt_example.start()
-        for _ in range(100):
+
+        # ns.sim_run()
+        round_data = {}
+        for _ in range(10):
+            filt_example, dc = example_sim_run(sample_nodes[:i], num_runs=1, memory_depolar_rate=100, node_distance=20,
+                                               max_entangle_pairs=10, target_fidelity=0.995)
+            filt_example.start()
             ns.sim_run()
             collected_data = dc.dataframe
             print(collected_data)
@@ -320,8 +323,7 @@ def experiment_with_increasing_node(max_node, save_dir):
                                     "purified_count": final_purified_count,
                                     "purified_success_count": final_purified_success_count,
                                     "experiment_duration": final_experiment_duration}
-            ns.sim_reset()
-
+            filt_example.stop()
     with open(f"{save_dir}/purification_result_{max_node}_node.json", "w") as f:
         json.dump(experiment_result, f)
     return experiment_result
