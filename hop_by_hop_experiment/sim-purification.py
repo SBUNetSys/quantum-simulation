@@ -167,14 +167,14 @@ class PurificationExample(LocalProtocol):
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": index})
             # TODO: This is to gracefully reset the protocol.
-            # for node in self.all_nodes:
-            #     eh_protocol = self.subprotocols[f"entanglement_handler_{node.name}"]
-            #     if eh_protocol.is_running:
-            #         self.await_signal(eh_protocol, MessageType.PROTOCOL_FINISHED)
+            for node in self.all_nodes:
+                eh_protocol = self.subprotocols[f"entanglement_handler_{node.name}"]
+                if eh_protocol.is_running:
+                    self.await_signal(eh_protocol, MessageType.PROTOCOL_FINISHED)
             # wait_signals = [self.await_signal(self.subprotocols[f"entanglement_handler_{node.name}"],
             #                                   MessageType.PROTOCOL_FINISHED)
             #                 for node in self.all_nodes]
-            #
+
             # yield reduce(operator.and_, wait_signals)
             for subprotocol in self.subprotocols.values():
                 subprotocol.reset()
@@ -241,84 +241,86 @@ def experiment_with_increasing_node(max_node, save_dir):
     experiment_result = {}
     # run the protocol
     for i in range(2, max_node + 1):
-        filt_example, dc = example_sim_run(sample_nodes[:i], num_runs=1000, memory_depolar_rate=100, node_distance=20,
+        filt_example, dc = example_sim_run(sample_nodes[:i], num_runs=1, memory_depolar_rate=100, node_distance=20,
                                            max_entangle_pairs=10, target_fidelity=0.995)
         filt_example.start()
-        ns.sim_run()
-        collected_data = dc.dataframe
-        print(collected_data)
-        # process the collected data
-        # compute average for each column
-        all_node_actual_fidelity = []
-        all_node_estimated_fidelity = []
-        all_node_purified_count = []
-        all_node_purified_success_count = []
-        all_experiment_duration = []
-        # pandas.set_option('display.precision', 10)
+        for _ in range(100):
+            ns.sim_run()
+            collected_data = dc.dataframe
+            print(collected_data)
+            # process the collected data
+            # compute average for each column
+            all_node_actual_fidelity = []
+            all_node_estimated_fidelity = []
+            all_node_purified_count = []
+            all_node_purified_success_count = []
+            all_experiment_duration = []
+            # pandas.set_option('display.precision', 10)
 
-        for column in dc.dataframe.columns:
-            # Flatten the lists in the column
-            # we have dictionary in the column
-            # {'actual_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
-            # 'theoretical_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
-            # 'purified_count': 0,
-            # 'purified_success_count': 0}
+            for column in dc.dataframe.columns:
+                # Flatten the lists in the column
+                # we have dictionary in the column
+                # {'actual_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
+                # 'theoretical_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
+                # 'purified_count': 0,
+                # 'purified_success_count': 0}
 
-            flattened_actual_fidelities = []
-            flattened_theoretical_fidelities = []
-            flattened_purified_count = []
-            flattened_purified_success_count = []
-            flattened_experiment_duration = []
+                flattened_actual_fidelities = []
+                flattened_theoretical_fidelities = []
+                flattened_purified_count = []
+                flattened_purified_success_count = []
+                flattened_experiment_duration = []
 
-            for result_data in dc.dataframe[column]:
-                if isinstance(result_data, dict):
-                    for key, value in result_data.items():
-                        if "actual_fidelities" in key:
-                            flattened_actual_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
-                        elif "theoretical_fidelities" in key:
-                            flattened_theoretical_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
-                        elif "purified_count" in key:
-                            flattened_purified_count.append(value)
-                        elif "purified_success_count" in key:
-                            flattened_purified_success_count.append(value)
-                        elif "experiment_duration" in key:
-                            flattened_experiment_duration.append(value)
-            # calculate the average of the flattened values
-            # actual fidelities
-            actual_fidelities = np.mean(flattened_actual_fidelities, dtype=np.float64)
-            all_node_actual_fidelity.append(actual_fidelities)
-            # theoretical fidelities
-            estimated_fidelities = np.mean(flattened_theoretical_fidelities, dtype=np.float64)
-            all_node_estimated_fidelity.append(estimated_fidelities)
-            # purified count
-            purified_count = np.mean(flattened_purified_count, dtype=np.float64)
-            all_node_purified_count.append(purified_count)
-            # purified success count
-            purified_success_count = np.mean(flattened_purified_success_count, dtype=np.float64)
-            all_node_purified_success_count.append(purified_success_count)
-            # experiment duration
-            experiment_duration = np.mean(flattened_experiment_duration, dtype=np.float64)
-            all_experiment_duration.append(experiment_duration)
-        # calculate the final fidelity
-        final_fidelity = 1
-        for fidelity in all_node_actual_fidelity:
-            final_fidelity *= fidelity
-        final_estimated_fidelity = 1
-        for fidelity in all_node_estimated_fidelity:
-            final_estimated_fidelity *= fidelity
-        final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)
-        final_purified_success_count = np.mean(all_node_purified_success_count, dtype=np.float64)
-        final_experiment_duration = np.mean(all_experiment_duration, dtype=np.float64)
-        print(f"Final experiment duration: {final_experiment_duration}")
-        print(f"Final estimated fidelity: {final_estimated_fidelity}")
-        print(f"Final fidelity: {final_fidelity}")
-        print(f"Final purified count: {final_purified_count}")
-        print(f"Final purified success count: {final_purified_success_count}")
-        experiment_result[i] = {"actual_fidelity": final_fidelity,
-                                "estimated_fidelity": final_estimated_fidelity,
-                                "purified_count": final_purified_count,
-                                "purified_success_count": final_purified_success_count,
-                                "experiment_duration": final_experiment_duration}
+                for result_data in dc.dataframe[column]:
+                    if isinstance(result_data, dict):
+                        for key, value in result_data.items():
+                            if "actual_fidelities" in key:
+                                flattened_actual_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
+                            elif "theoretical_fidelities" in key:
+                                flattened_theoretical_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
+                            elif "purified_count" in key:
+                                flattened_purified_count.append(value)
+                            elif "purified_success_count" in key:
+                                flattened_purified_success_count.append(value)
+                            elif "experiment_duration" in key:
+                                flattened_experiment_duration.append(value)
+                # calculate the average of the flattened values
+                # actual fidelities
+                actual_fidelities = np.mean(flattened_actual_fidelities, dtype=np.float64)
+                all_node_actual_fidelity.append(actual_fidelities)
+                # theoretical fidelities
+                estimated_fidelities = np.mean(flattened_theoretical_fidelities, dtype=np.float64)
+                all_node_estimated_fidelity.append(estimated_fidelities)
+                # purified count
+                purified_count = np.mean(flattened_purified_count, dtype=np.float64)
+                all_node_purified_count.append(purified_count)
+                # purified success count
+                purified_success_count = np.mean(flattened_purified_success_count, dtype=np.float64)
+                all_node_purified_success_count.append(purified_success_count)
+                # experiment duration
+                experiment_duration = np.mean(flattened_experiment_duration, dtype=np.float64)
+                all_experiment_duration.append(experiment_duration)
+            # calculate the final fidelity
+            final_fidelity = 1
+            for fidelity in all_node_actual_fidelity:
+                final_fidelity *= fidelity
+            final_estimated_fidelity = 1
+            for fidelity in all_node_estimated_fidelity:
+                final_estimated_fidelity *= fidelity
+            final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)
+            final_purified_success_count = np.mean(all_node_purified_success_count, dtype=np.float64)
+            final_experiment_duration = np.mean(all_experiment_duration, dtype=np.float64)
+            print(f"Final experiment duration: {final_experiment_duration}")
+            print(f"Final estimated fidelity: {final_estimated_fidelity}")
+            print(f"Final fidelity: {final_fidelity}")
+            print(f"Final purified count: {final_purified_count}")
+            print(f"Final purified success count: {final_purified_success_count}")
+            experiment_result[i] = {"actual_fidelity": final_fidelity,
+                                    "estimated_fidelity": final_estimated_fidelity,
+                                    "purified_count": final_purified_count,
+                                    "purified_success_count": final_purified_success_count,
+                                    "experiment_duration": final_experiment_duration}
+            ns.sim_reset()
 
     with open(f"{save_dir}/purification_result_{max_node}_node.json", "w") as f:
         json.dump(experiment_result, f)

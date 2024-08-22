@@ -247,8 +247,12 @@ class EntanglementHandler(NodeProtocol):
                 # case we have entanglement signal
                 for event in expr.second_term.triggered_events:
                     source_protocol = event.source
-                    ready_signal = source_protocol.get_signal_by_event(
-                        event=event, receiver=self)
+                    try:
+                        ready_signal = source_protocol.get_signal_by_event(
+                            event=event, receiver=self)
+                    except Exception as e:
+                        self.logger.error(f"Error: {e}")
+                        continue
                     result = ready_signal.result
                     if ready_signal.label == MessageType.ENTANGLED:
                         result: ClassicalMessage
