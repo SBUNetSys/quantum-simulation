@@ -145,7 +145,7 @@ class PurificationExample(LocalProtocol):
                     q_b = self.all_nodes[i + 1].subcomponents[f"{node}_qmemory"].peek(mem_pos)[0]
                     q_a_name = str(q_a.name).split("#")[-1].split("-")[0]
                     q_b_name = str(q_b.name).split("#")[-1].split("-")[0]
-                    print(f"Qubit names: {q_a_name}, {q_b_name}")
+                    # print(f"Qubit names: {q_a_name}, {q_b_name}")
                     if q_a_name != q_b_name:
                         raise ValueError(f"Qubit names are not the same at {mem_pos}: {q_a_name}, {q_b_name}")
                     # if q_a.qstate != q_b.qstate:
@@ -153,7 +153,7 @@ class PurificationExample(LocalProtocol):
                     f = qapi.fidelity([q_a, q_b], ks.b00)
                     if 0 < f < 0.99:
                         raise ValueError(f"Fidelity is not correct: {f}")
-                    print(f"Actual fidelity at {mem_pos} is {f}, {q_a.qstate}, {q_b.qstate}")
+                    # print(f"Actual fidelity at {mem_pos} is {f}, {q_a.qstate}, {q_b.qstate}")
                     actual_fidelities[mem_pos] = f
                     theoretical_fidelities[mem_pos] = theoretical_fidelity
                 result_dic[f"{node}->{entangle_node}"] = {
@@ -161,7 +161,8 @@ class PurificationExample(LocalProtocol):
                     "theoretical_fidelities": theoretical_fidelities,
                     "purified_count": purified_count,
                     "purified_success_count": purified_success_count,
-                    "experiment_duration": finish_time - start_time}
+                    "experiment_duration": finish_time - start_time,
+                    "satisfied_pairs_count": len(node_pair_res)}
 
             print(result_dic)
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
@@ -217,6 +218,118 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_ent
     dc.collect_on(pd.EventExpression(source=purify_example,
                                      event_type=Signals.SUCCESS.value))
     return purify_example, dc
+
+
+def run_test(max_node):
+    # create a network
+    nodes_list = [f"Node_{i}" for i in range(max_node)]
+    network = setup_network(nodes_list, "hop-by-hop-purification",
+                            memory_capacity=512, memory_depolar_rate=100,
+                            node_distance=20, source_delay=1)
+    # create a protocol to entangle two nodes
+    sample_nodes = [node for node in network.nodes.values()]
+    experiment_result = {}
+    max_pairs = 257
+    for max_entangle_pair in range(5, max_pairs + 1, 2):
+        # process the collected data
+        # compute average for each column
+        all_node_actual_fidelity = []
+        all_node_estimated_fidelity = []
+        all_node_purified_count = []
+        all_node_purified_success_count = []
+        all_satisfied_pairs_count = []
+        all_experiment_duration = []
+        for _ in range(1000):
+            filt_example, dc = example_sim_run(sample_nodes[:max_node], num_runs=1, memory_depolar_rate=100,
+                                               node_distance=20,
+                                               max_entangle_pairs=max_entangle_pair, target_fidelity=0.995)
+            filt_example.start()
+            ns.sim_run()
+            collected_data = dc.dataframe
+            print(collected_data)
+
+            # pandas.set_option('display.precision', 10)
+            for column in dc.dataframe.columns:
+                # Flatten the lists in the column
+                # we have dictionary in the column
+                # {'actual_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
+                # 'theoretical_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
+                # 'purified_count': 0,
+                # 'purified_success_count': 0}
+
+                flattened_actual_fidelities = []
+                flattened_theoretical_fidelities = []
+                flattened_purified_count = []
+                flattened_purified_success_count = []
+                flattened_experiment_duration = []
+                flattened_satisfied_pairs_count = []
+                for result_data in dc.dataframe[column]:
+                    if isinstance(result_data, dict):
+                        for key, value in result_data.items():
+                            if "actual_fidelities" in key:
+                                flattened_actual_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
+                            elif "theoretical_fidelities" in key:
+                                flattened_theoretical_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
+                            elif "purified_count" in key:
+                                flattened_purified_count.append(value)
+                            elif "purified_success_count" in key:
+                                flattened_purified_success_count.append(value)
+                            elif "experiment_duration" in key:
+                                flattened_experiment_duration.append(value)
+                            elif "satisfied_pairs_count" in key:
+                                flattened_satisfied_pairs_count.append(value)
+
+                # calculate the average of the flattened values
+                # actual fidelities
+                actual_fidelities = np.mean(flattened_actual_fidelities, dtype=np.float64)
+                all_node_actual_fidelity.append(actual_fidelities)
+                # theoretical fidelities
+                estimated_fidelities = np.mean(flattened_theoretical_fidelities, dtype=np.float64)
+                all_node_estimated_fidelity.append(estimated_fidelities)
+                # purified count
+                purified_count = np.mean(flattened_purified_count, dtype=np.float64)
+                all_node_purified_count.append(purified_count)
+                # purified success count
+                purified_success_count = np.mean(flattened_purified_success_count, dtype=np.float64)
+                all_node_purified_success_count.append(purified_success_count)
+                # experiment duration
+                experiment_duration = np.mean(flattened_experiment_duration, dtype=np.float64)
+                all_experiment_duration.append(experiment_duration)
+                # satisfied pairs count
+                satisfied_pairs_count = np.mean(flattened_satisfied_pairs_count, dtype=np.float64)
+                all_satisfied_pairs_count.append(satisfied_pairs_count)
+
+            filt_example.stop()
+
+        # calculate the final fidelity
+        # final_fidelity = 1
+        # for fidelity in all_node_actual_fidelity:
+        #     final_fidelity *= fidelity
+        # final_estimated_fidelity = 1
+        # for fidelity in all_node_estimated_fidelity:
+        #     final_estimated_fidelity *= fidelity
+        final_fidelity = np.mean(all_node_actual_fidelity, dtype=np.float64)
+        final_estimated_fidelity = np.mean(all_node_estimated_fidelity, dtype=np.float64)
+        final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)
+        final_purified_success_count = np.mean(all_node_purified_success_count, dtype=np.float64)
+        final_experiment_duration = np.mean(all_experiment_duration, dtype=np.float64)
+        final_satisfied_pairs_count = np.mean(all_satisfied_pairs_count, dtype=np.float64)
+        print(f"-*-"*10)
+        print(f"Max entangle pair: {max_entangle_pair}")
+        print(f"Final Satisfied pairs count: {final_satisfied_pairs_count}")
+        print(f"Final experiment duration: {final_experiment_duration}")
+        print(f"Final estimated fidelity: {final_estimated_fidelity}")
+        print(f"Final fidelity: {final_fidelity}")
+        print(f"Final purified count: {final_purified_count}")
+        print(f"Final purified success count: {final_purified_success_count}")
+        experiment_result[max_entangle_pair] = {"actual_fidelity": final_fidelity,
+                                                "estimated_fidelity": final_estimated_fidelity,
+                                                "purified_count": final_purified_count,
+                                                "purified_success_count": final_purified_success_count,
+                                                "experiment_duration": final_experiment_duration/1e9,
+                                                "satisfied_pairs_count": final_satisfied_pairs_count}
+        with open(f"./purification_results/purification_result_{max_node}_node_{max_pairs}_pairs.json", "w") as f:
+            json.dump(experiment_result, f)
 
 
 def experiment_with_increasing_node(max_node, save_dir):
@@ -330,4 +443,5 @@ def experiment_with_increasing_node(max_node, save_dir):
 
 
 if __name__ == "__main__":
-    experiment_with_increasing_node(2, "purification_results")
+    # experiment_with_increasing_node(3, "purification_results")
+    run_test(2)
