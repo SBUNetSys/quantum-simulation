@@ -302,9 +302,14 @@ class GenEntanglement(NodeProtocol):
                     f"GenEntangle {self.name} -> Node {self.node.name} received re-entangle ready signal from "
                     f"{result.entangle_node}, mem_pos: {result.re_entangle_mem_poses}",
                     color="cyan")
+                # TODO: we need to check if we need to send the re-entangle signal or not
+                #       to trigger qubit generation. We cannot send the signal if we have available memory positions
+                #       or we already have re-entangle positions which the main loop will take care of it
+                send_signal = len(self.re_entangle_pos) == 0 and len(self.aval_mem_postions) == 0
                 # we need to add the memory position to the re-entangle position
                 self.re_entangle_position(result.re_entangle_mem_poses)
-                self.send_signal(MessageType.RE_ENTANGLE_READY_SOURCE, result)
+                if send_signal:
+                    self.send_signal(MessageType.RE_ENTANGLE_READY_SOURCE, result)
 
         except KeyError as e:
             self.logger.error(f"GenEntangle {self.name} -> Node {self.node.name} Signal not found in source protocol.",
@@ -432,28 +437,28 @@ class QubitGenerationProtocol(NodeProtocol):
 
     def run(self):
         while self.is_running:
-            yield self.await_signal(self.main_protocol, MessageType.GEN_ENTANGLE_READY)
-            self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
-                             f"\tSignal: {MessageType.GEN_ENTANGLE_READY}", color="red")
-            yield from self.main_protocol.handle_qubit_generation()
+            # yield self.await_signal(self.main_protocol, MessageType.GEN_ENTANGLE_READY)
+            # self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
+            #                  f"\tSignal: {MessageType.GEN_ENTANGLE_READY}", color="red")
+            # yield from self.main_protocol.handle_qubit_generation()
 
             # wait signals to generate qubits
-            # expr = (self.await_signal(self.main_protocol, MessageType.GEN_ENTANGLE_READY) |
-            #         self.await_signal(self.main_protocol, MessageType.RE_ENTANGLE_READY_SOURCE))
-            # yield expr
-            # if expr.first_term:
-            #     self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
-            #                      f"\tSignal: {expr.triggered_events[0].type}", color="red")
-            #     yield from self.main_protocol.handle_qubit_generation()
-            # elif expr.second_term:
-            #     self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
-            #                      f"\tSignal: {expr.triggered_events[0].type}", color="red")
+            expr = (self.await_signal(self.main_protocol, MessageType.GEN_ENTANGLE_READY) |
+                    self.await_signal(self.main_protocol, MessageType.RE_ENTANGLE_READY_SOURCE))
+            yield expr
+            if expr.first_term:
+                self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
+                                 f"\tSignal: {expr.triggered_events[0].type}", color="red")
+                yield from self.main_protocol.handle_qubit_generation()
+            elif expr.second_term:
+                self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
+                                 f"\tSignal: {expr.triggered_events[0].type}", color="red")
                 # check if we should trigger the re-entangle signal or not
-                # if len(self.main_protocol.aval_mem_postions) == 0:
-                #     self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} "
-                #                      f"No available memory positions\n"
-                #                      f"\tRe-entangle positions: {self.main_protocol.re_entangle_pos}", color="red")
-                    # yield from self.main_protocol.handle_qubit_generation()
+                if len(self.main_protocol.aval_mem_postions) == 0:
+                    self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} "
+                                     f"No available memory positions\n"
+                                     f"\tRe-entangle positions: {self.main_protocol.re_entangle_pos}", color="red")
+                    yield from self.main_protocol.handle_qubit_generation()
                     # self.main_protocol.aval_mem_postions = self.main_protocol.re_entangle_pos
                     # self.main_protocol.re_entangle_pos = []
 

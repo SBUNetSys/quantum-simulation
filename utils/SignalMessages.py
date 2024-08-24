@@ -79,6 +79,15 @@ class PurifyTargetMetSignalMessage(EntangleSignalMessage):
         self.fidelity = new_fidelity
 
 
+class PurifyFinishedSignalMessage:
+    """
+    Signal message for successful purification and stop the protocol
+    """
+
+    def __init__(self, entangle_node):
+        self.entangle_node = entangle_node
+
+
 class ReEntangleSignalMessage:
     """
     Signal message for re-entanglement, now we support list of re-entangle memory positions to avoid
@@ -88,3 +97,13 @@ class ReEntangleSignalMessage:
     def __init__(self, entangle_node, re_entangle_mem_poses: list):
         self.entangle_node = entangle_node
         self.re_entangle_mem_poses = re_entangle_mem_poses
+
+class ProtocolFinishedSignalMessage:
+    """
+    Signal message for protocol finished
+    """
+
+    def __init__(self, from_protocol, from_node):
+        self.from_protocol = from_protocol
+        self.from_node = from_node
+        self.timestamp = ns.sim_time()

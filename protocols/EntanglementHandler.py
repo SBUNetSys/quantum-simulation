@@ -63,8 +63,6 @@ class EntanglementHandler(NodeProtocol):
         self.entangled_pairs_count = 0
         # entangle_message_queue
         self.entangle_message_queue = []
-        # store the entangle nodes
-        self.entangled_nodes = entangle_node
         # store the depolar rate and node distance
         self.depolar_rate = memory_depolar_rate
         self.node_distance = node_distance
@@ -79,7 +77,7 @@ class EntanglementHandler(NodeProtocol):
 
         # set the logger
         if logger is None:
-            self.logger = Logging.Logger(f"{self.name}_logger", logging_enabled=False)
+            self.logger = Logging.Logger(f"{self.name}_logger", logging_enabled=True)
         else:
             self.logger = logger
 
@@ -159,7 +157,7 @@ class EntanglementHandler(NodeProtocol):
             self.entangled_pairs_count -= 1
         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal, entangle_node: {entangle_node},"
                          f" mem_pos: {mem_poses}", color="yellow")
-        self.send_signal(f"{self.entangled_nodes[entangle_node]}_re_entangle",
+        self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle",
                          message)
 
     def process_message_queue(self):
@@ -252,6 +250,14 @@ class EntanglementHandler(NodeProtocol):
                         self.logger.error(f"Error: {e}")
                         continue
                     result = ready_signal.result
+                    if isinstance(result, ClassicalMessage):
+                        if result.from_node != self.entangle_node:
+                            # we don't process the message that is not from the entangle node
+                            continue
+                    if isinstance(result, SignalMessages.ReEntangleSignalMessage):
+                        if result.entangle_node != self.entangle_node:
+                            # we don't process the message that is not for the current node
+                            continue
                     if ready_signal.label == MessageType.ENTANGLED:
                         result: ClassicalMessage
                         self.process_entangle_message(result)
