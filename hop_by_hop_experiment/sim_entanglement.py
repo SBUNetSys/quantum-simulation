@@ -3,17 +3,15 @@ import operator
 import os.path
 import sys
 from functools import reduce
+from uu import Error
 
 import numpy as np
 import pandas
 import pydynaa as pd
 import matplotlib.pyplot as plt
-from netsquid.components import ClassicalChannel, QuantumChannel
 from netsquid.util.simtools import sim_time
 from netsquid.util.datacollector import DataCollector
-from netsquid.qubits.ketutil import outerprod
-from netsquid.qubits.ketstates import s0, s1
-from netsquid.qubits import operators as ops, ketstates
+
 from netsquid.qubits import qubitapi as qapi
 from netsquid.protocols.nodeprotocols import NodeProtocol, LocalProtocol
 from netsquid.protocols.protocol import Signals
@@ -57,77 +55,87 @@ class ExampleEntanglement(LocalProtocol):
         # initialize the protocol for each node
         # Initialize the entangle protocol
         for index, node in enumerate(network_nodes):
-            qubit_input_signals = []
-            # dictionary to store the entangle node and the corresponding protocol name
-            entangle_nodes = {}
+            # Initialize the MessageHandler protocol
+            self.add_subprotocol(MessageHandler(node=node,
+                                                name=f"message_handler_{node.name}",
+                                                cc_ports=self.get_cc_ports(node)
+                                                ))
+            # Initialize the GenEntanglement protocol and EntanglementHandler protocol
             if index - 1 >= 0:
                 # case of we have a previous node
-                self.add_subprotocol(GenEntanglement(
+                gen_protocol = GenEntanglement(
                     input_mem_pos=0,
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index - 1].name,
                     node=node,
                     name=f"entangle_{node.name}->{network_nodes[index - 1].name}",
                     is_source=False,
-                ))
-                qubit_input_signals.append(self.subprotocols[f"entangle_{node.name}->{network_nodes[index - 1].name}"])
-                entangle_nodes[network_nodes[index - 1].name] = f"entangle_{node.name}->{network_nodes[index - 1].name}"
+                )
+                self.add_subprotocol(gen_protocol)
+                eh_handler = EntanglementHandler(node=node,
+                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
+                                                 num_pairs=self.max_entangle_pairs,
+                                                 qubit_input_protocol=gen_protocol,
+                                                 cc_message_handler=self.subprotocols[
+                                                     f"message_handler_{node.name}"],
+                                                 entangle_node=network_nodes[index - 1].name,
+                                                 memory_depolar_rate=memory_depolar_rate,
+                                                 node_distance=node_distance,
+                                                 is_top_layer=True
+                                                 )
+                self.add_subprotocol(eh_handler)
+                gen_protocol.entanglement_handler = eh_handler
+
             if index + 1 < len(network_nodes):
                 # case of we have a next node
-                self.add_subprotocol(GenEntanglement(
+                gen_protocol = GenEntanglement(
                     input_mem_pos=0,
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index + 1].name,
                     node=node,
                     name=f"entangle_{node.name}->{network_nodes[index + 1].name}",
                     is_source=True,
-                ))
-                qubit_input_signals.append(self.subprotocols[f"entangle_{node.name}->{network_nodes[index + 1].name}"])
-                entangle_nodes[network_nodes[index + 1].name] = f"entangle_{node.name}->{network_nodes[index + 1].name}"
-            # Initialize the MessageHandler protocol
-            self.add_subprotocol(MessageHandler(node=node,
-                                                name=f"message_handler_{node.name}",
-                                                cc_ports=self.get_cc_ports(node)
-                                                ))
-            # Initialize the swap protocol
-            self.add_subprotocol(EntanglementHandler(node=node,
-                                                     name=f"entanglement_handler_{node.name}",
-                                                     num_pairs=self.max_entangle_pairs,
-                                                     qubit_input_signals=qubit_input_signals,
-                                                     cc_message_handler=self.subprotocols[
-                                                         f"message_handler_{node.name}"],
-                                                     entangle_nodes=entangle_nodes,
-                                                     memory_depolar_rate=memory_depolar_rate,
-                                                     node_distance=node_distance,
-                                                     is_top_layer=True
-                                                     ))
-            # Add re-entangle protocol
-            for entangle_protocols in qubit_input_signals:
-                entangle_protocols.entanglement_handler = self.subprotocols[f"entanglement_handler_{node.name}"]
-                # no need to add new signal as the entanglement handler protocol will handle during initialization
-                # self.subprotocols[f"entanglement_handler_{node.name}"].add_new_signal(entangle_protocols.name)
+                )
+                self.add_subprotocol(gen_protocol)
+                eh_handler = EntanglementHandler(node=node,
+                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
+                                                 num_pairs=self.max_entangle_pairs,
+                                                 qubit_input_protocol=gen_protocol,
+                                                 cc_message_handler=self.subprotocols[
+                                                     f"message_handler_{node.name}"],
+                                                 entangle_node=network_nodes[index + 1].name,
+                                                 memory_depolar_rate=memory_depolar_rate,
+                                                 node_distance=node_distance,
+                                                 is_top_layer=True
+                                                 )
+                self.add_subprotocol(eh_handler)
+                gen_protocol.entanglement_handler = eh_handler
+
 
     def run(self):
         self.start_subprotocols()
         for _ in range(self.num_runs):
             start_time = sim_time()
             # set yield expression to wait for end of experiment
-            await_signals = [self.await_signal(self.subprotocols[f"entanglement_handler_{node.name}"],
-                                               MessageType.PROTOCOL_FINISHED)
-                             for node in self.all_nodes]
+            eh_protocols = []
+            for p in self.subprotocols.values():
+                if "entanglement_handler" in p.name:
+                    eh_protocols.append(p)
+
+            await_signals = [self.await_signal(p, MessageType.PROTOCOL_FINISHED)
+                             for p in eh_protocols]
             yield reduce(operator.and_, await_signals)
             end_time = sim_time()
             print_green(f"Entanglement time: {end_time - start_time}")
             # get all the entangled qubits and calculate the fidelity
-            results = [self.subprotocols[f"entanglement_handler_{node.name}"]
-                       .get_signal_result(MessageType.PROTOCOL_FINISHED, self)
-                       for node in self.all_nodes]
+            results = [p.get_signal_result(MessageType.PROTOCOL_FINISHED, self)
+                       for p in eh_protocols]
             result_dic = {}
             for i in range(0, len(results) - 1):
                 entangle_node = self.all_nodes[i + 1].name
                 node = self.all_nodes[i].name
-                node_res = results[i][entangle_node]
-                entangle_res = results[i + 1][node]
+                node_res = results[i]
+                entangle_res = results[i + 1]
 
                 fidelity = []
                 estimated_fidelity = []
@@ -136,8 +144,14 @@ class ExampleEntanglement(LocalProtocol):
                     qubit2, = self.nodes[entangle_node].subcomponents[f"{node}_qmemory"].peek(index)
                     estimated_fidelity.append(node_res[index])
                     f = qapi.fidelity([qubit1, qubit2], ks.b00)
+                    # sanity check
+                    q_a_name = str(qubit1.name).split("#")[-1].split("-")[0]
+                    q_b_name = str(qubit2.name).split("#")[-1].split("-")[0]
+                    # print(f"Qubit names: {q_a_name}, {q_b_name}")
+                    if q_a_name != q_b_name:
+                        raise ValueError(f"Qubit names are not the same at {index}: {q_a_name}, {q_b_name}")
                     if 0 < f < 0.99:
-                        print_red(f"Fidelity is not expected: {f}")
+                        raise ValueError(f"Fidelity is not expected: {f}")
                     fidelity.append(f)
 
                 result_dic[f"{node}->{entangle_node}"] = fidelity
@@ -222,7 +236,7 @@ def experiment_with_increasing_nodes(max_node, save_dir):
     data = {}
     for i in range(2, max_node + 1):
 
-        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=1,
+        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=100,
                                                 memory_depolar_rate=100,
                                                 node_distance=20,
                                                 max_entangle_pairs=2)

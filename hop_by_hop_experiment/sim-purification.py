@@ -84,7 +84,7 @@ class PurificationExample(LocalProtocol):
                                                      qubit_input_signals=qubit_input_signals,
                                                      cc_message_handler=self.subprotocols[
                                                          f"message_handler_{node.name}"],
-                                                     entangle_nodes=entangle_nodes,
+                                                     entangle_node=entangle_nodes,
                                                      memory_depolar_rate=memory_depolar_rate,
                                                      node_distance=node_distance,
                                                      is_top_layer=False,

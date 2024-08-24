@@ -12,13 +12,13 @@ from utils.ClassicalMessages import ClassicalMessage
 
 class EntanglementHandler(NodeProtocol):
     """
-    Protocol to manage entanglement for a node.
+    Protocol to manage entanglement for with a remote node.
     The protocol keeps track of the number of entangled pairs and the memory position for the qubit
     """
 
-    def __init__(self, node, name, num_pairs, entangle_nodes,
+    def __init__(self, node, name, num_pairs, entangle_node,
                  node_distance, memory_depolar_rate,
-                 qubit_input_signals, cc_message_handler,
+                 qubit_input_protocol, cc_message_handler,
                  logger=None, is_top_layer=False):
         """
         Initialize the protocol.
@@ -29,14 +29,14 @@ class EntanglementHandler(NodeProtocol):
             The node that the protocol is attached to.
         num_pairs : int
             The max number of qubits that can be entangled i.e qmemory size.
-        entangle_nodes : dict
-            A dict mapping of entangle node name to entangle node protocol name
+        entangle_node : str
+            The name of the node that the protocol will entangle with.
         node_distance : float
             The distance between the nodes in km.
         memory_depolar_rate : float
             The depolarization rate of the qubits in memory. (Hz)
-        qubit_input_signals : list
-            The signals that the protocol listens to for qubit input.
+        qubit_input_protocol : GenEntanglement
+            The lower layer protocol (GenEntanglement) for qubit generation success signal.
         cc_message_handler : MessageHandler
             The message handler for classical communication.
         logger : Logging.Logger
@@ -46,36 +46,34 @@ class EntanglementHandler(NodeProtocol):
             stop the simulation when the entanglement is complete. Otherwise, it will run forever and waiting for
             re-entangle process.
         """
-        if entangle_nodes is None or len(entangle_nodes) == 0:
+        if entangle_node is None:
             raise ValueError("entangle_node must be specified.")
 
         super().__init__(node=node, name=name)
         # since we will use on memory position for entanglement operation, therefore we need to subtract 1 for each node
         # in case of multiple entangle_node, we need to multiply by the number of entangle nodes
-        self.max_pairs = (num_pairs - 1) * len(entangle_nodes)
+        self.max_pairs = num_pairs-1
         # store the entangle nodes
-        self.entangle_nodes = entangle_nodes
-        # mapping of entangled qubits to memory positions key: node name, value: {memory position, fidelity}
-        self.entangled_qubits = {node: {} for node in entangle_nodes.keys()}
+        self.entangle_node = entangle_node
+        # mapping of entangled qubits to memory positions key: memory position, value: fidelity
+        self.entangled_qubits = {}
         # mapping of temporary qubits to memory positions
-        self.temp_qubits = {node: {} for node in entangle_nodes.keys()}
+        self.temp_qubits = {}
         # keep track of the number of entangled pairs
         self.entangled_pairs_count = 0
         # entangle_message_queue
         self.entangle_message_queue = []
         # store the entangle nodes
-        self.entangled_nodes = entangle_nodes
+        self.entangled_nodes = entangle_node
         # store the depolar rate and node distance
         self.depolar_rate = memory_depolar_rate
         self.node_distance = node_distance
-        # qubit input signal, which can be from source or remote node
-        await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_input_signals]
+        # store the qubit input protocol
+        self.qubit_input_protocol = qubit_input_protocol
         # re-entangle ready signal from GenEntanglement protocol
-        re_entangle_ready_signals = [self.await_signal(protocol, MessageType.RE_ENTANGLE_READY) for protocol in
-                                     qubit_input_signals]
-        self.re_entangle_ready_signals = reduce(operator.or_, re_entangle_ready_signals)
+        self.re_entangle_ready_signals = self.await_signal(qubit_input_protocol, MessageType.RE_ENTANGLE_READY)
         # have expression to wait for the qubit input signal
-        self.qubit_input_signal = reduce(operator.or_, await_signals)
+        self.qubit_input_signal = self.await_signal(qubit_input_protocol, signal_label=Signals.SUCCESS)
         # classical message handler
         self.cc_message_handler = cc_message_handler
 
@@ -86,9 +84,9 @@ class EntanglementHandler(NodeProtocol):
             self.logger = logger
 
         # add signals for sending
-        for entangle_protocol in self.entangle_nodes.values():
-            self.add_new_signal(f"{entangle_protocol}_re_entangle_ready")
-            self.add_new_signal(f"{entangle_protocol}_re_entangle")
+        self.add_new_signal(f"{qubit_input_protocol.name}_re_entangle_ready")
+        self.add_new_signal(f"{qubit_input_protocol.name}_re_entangle")
+
         self.add_new_signal(MessageType.ENTANGLED)
         self.add_new_signal(MessageType.PROTOCOL_FINISHED)
         self.shutdown = False
@@ -117,11 +115,11 @@ class EntanglementHandler(NodeProtocol):
         mem_pos = entangle_data.mem_pos
         self.logger.info(f"ManageEntangle {self.name} -> Entanglement signal from {from_node} to {to_node},"
                          f" mem_pos: {mem_pos}", color="blue")
-        if mem_pos in self.temp_qubits[from_node]:
+        if mem_pos in self.temp_qubits:
             # add the qubit to the entangled qubits
-            self.entangled_qubits[from_node][mem_pos] = self.temp_qubits[from_node][mem_pos]
+            self.entangled_qubits[mem_pos] = self.temp_qubits[mem_pos]
             # remove the temporary qubit
-            del self.temp_qubits[from_node][mem_pos]
+            del self.temp_qubits[mem_pos]
             self.entangled_pairs_count += 1
             self.logger.info(f"ManageEntangle {self.name} -> Entanglement Successful\n"
                              f"\tFrom: {from_node}\n"
@@ -135,7 +133,7 @@ class EntanglementHandler(NodeProtocol):
             # send the entangle pair to the upper layer
             self.send_signal(Signals.SUCCESS,
                              SignalMessages.EntangleSuccessSignalMessage(from_node, mem_pos,
-                                                                         self.entangled_qubits[from_node][mem_pos]))
+                                                                         self.entangled_qubits[mem_pos]))
             # send the entangled signal to lower layer, which is the source node
             self.send_signal(MessageType.ENTANGLED, None)
 
@@ -157,7 +155,7 @@ class EntanglementHandler(NodeProtocol):
         mem_poses = message.re_entangle_mem_poses
         # remove the qubits from the entangled qubits
         for mem_pos in mem_poses:
-            del self.entangled_qubits[entangle_node][mem_pos]
+            del self.entangled_qubits[mem_pos]
             self.entangled_pairs_count -= 1
         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal, entangle_node: {entangle_node},"
                          f" mem_pos: {mem_poses}", color="yellow")
@@ -217,11 +215,11 @@ class EntanglementHandler(NodeProtocol):
                     initial_fidelity = gen_data.init_fidelity
                     if is_source:
                         # store the qubit in the temporary qubits
-                        self.temp_qubits[entangle_node][mem_pos] = self.estimate_fidelity_theoretical(initial_fidelity)
+                        self.temp_qubits[mem_pos] = self.estimate_fidelity_theoretical(initial_fidelity)
                         self.logger.info(
                             f"ManageEntangle {self.name} -> Entangle signal from QSource, mem_pos: {mem_pos}\n"
                             f"\tInitial Fidelity: {initial_fidelity}\n "
-                            f"\tEstimated Fidelity: {self.temp_qubits[entangle_node][mem_pos]}", color="blue")
+                            f"\tEstimated Fidelity: {self.temp_qubits[mem_pos]}", color="blue")
                     else:
                         # add the qubit to the entangled qubits
                         self.logger.info(
@@ -229,7 +227,7 @@ class EntanglementHandler(NodeProtocol):
                             color="blue")
                         # we don't need to estimate the fidelity for the remote node
                         # as we don't know the initial fidelity. Here it will be None
-                        self.entangled_qubits[entangle_node][mem_pos] = initial_fidelity
+                        self.entangled_qubits[mem_pos] = initial_fidelity
                         self.entangled_pairs_count += 1
                         # send the entangled signal to the source node
                         self.cc_message_handler.send_message(MessageType.ENTANGLED, entangle_node,
@@ -284,7 +282,7 @@ class EntanglementHandler(NodeProtocol):
                                          f"{re_entangle_data.entangle_node},"
                                          f" mem_pos: {re_entangle_data.re_entangle_mem_poses}", color="purple")
                         # forwards the re-entangle signal to the source node
-                        self.send_signal(f"{self.entangled_nodes[re_entangle_data.entangle_node]}_re_entangle_ready",
+                        self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
                                          re_entangle_data)
                     elif ready_signal.label == MessageType.PROTOCOL_FINISHED:
                         self.logger.info(f"ManageEntangle {self.name} -> Entanglement Need Stop\n"
@@ -309,9 +307,9 @@ class EntanglementHandler(NodeProtocol):
 
     def reset(self):
         # mapping of entangled qubits to memory positions key: node name, value: {memory position, fidelity}
-        self.entangled_qubits = {node: {} for node in self.entangle_nodes.keys()}
+        self.entangled_qubits = {}
         # mapping of temporary qubits to memory positions
-        self.temp_qubits = {node: {} for node in self.entangle_nodes.keys()}
+        self.temp_qubits = {}
         # keep track of the number of entangled pairs
         self.entangled_pairs_count = 0
         # entangle_message_queue
@@ -325,10 +323,9 @@ class EntanglementHandler(NodeProtocol):
         if not super().is_connected:
             return False
         # check all entangled qmemory is connected
-        for node in self.entangled_nodes:
-            try:
-                memory = self.node.subcomponents[f"{node}_qmemory"]
-            except KeyError:
-                print(f"Memory {node}_qmemory not found")
-                return False
+        try:
+            memory = self.node.subcomponents[f"{self.entangle_node}_qmemory"]
+        except KeyError:
+            print(f"Memory {self.entangle_node}_qmemory not found")
+            return False
         return True
