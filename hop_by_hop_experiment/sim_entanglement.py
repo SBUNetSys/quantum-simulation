@@ -46,7 +46,7 @@ class ExampleEntanglement(LocalProtocol):
 
     def __init__(self, network_nodes, num_runs=1, max_entangle_pairs=2, memory_depolar_rate=1, node_distance=20):
         if len(network_nodes) < 1:
-            raise ValueError("This protocol requires at least nodes.")
+            raise ValueError("This protocol requires at least 2 nodes.")
         self.all_nodes = network_nodes
         self.num_runs = num_runs
         self.max_entangle_pairs = max_entangle_pairs
@@ -131,12 +131,13 @@ class ExampleEntanglement(LocalProtocol):
             results = [p.get_signal_result(MessageType.PROTOCOL_FINISHED, self)
                        for p in eh_protocols]
             result_dic = {}
-            for i in range(0, len(results) - 1):
-                entangle_node = self.all_nodes[i + 1].name
-                node = self.all_nodes[i].name
+            node_index = 0
+            for i in range(0, len(results), 2):
+                entangle_node = self.all_nodes[node_index + 1].name
+                node = self.all_nodes[node_index].name
                 node_res = results[i]
                 entangle_res = results[i + 1]
-
+                node_index += 1
                 fidelity = []
                 estimated_fidelity = []
                 for index in node_res.keys():
@@ -234,9 +235,8 @@ def experiment_with_increasing_nodes(max_node, save_dir):
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     data = {}
-    for i in range(2, max_node + 1):
-
-        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=100,
+    for i in range(3, max_node + 1):
+        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=10,
                                                 memory_depolar_rate=100,
                                                 node_distance=20,
                                                 max_entangle_pairs=2)
@@ -248,7 +248,7 @@ def experiment_with_increasing_nodes(max_node, save_dir):
         all_node_actual_fidelity = []
         all_node_estimated_fidelity = []
         # pandas.set_option('display.precision', 10)
-
+        print(dc.dataframe)
         for column in dc.dataframe.columns:
             # Flatten the lists in the column
             flattened_values = [item for sublist in dc.dataframe[column] for item in sublist]
@@ -265,13 +265,13 @@ def experiment_with_increasing_nodes(max_node, save_dir):
         print(f"Final estimated fidelity: {final_estimated_fidelity}")
         print(f"Final fidelity: {final_fidelity}")
         data[i] = {"actual_fidelity": final_fidelity, "estimated_fidelity": final_estimated_fidelity}
-
+        entangle_protocol.stop()
     with open(os.path.join(save_dir, f"entanglement_results_{max_node}_node.json"), "w") as f:
         json.dump(data, f)
 
 
 def main():
-    experiment_with_increasing_nodes(2, "./entanglement_results")
+    experiment_with_increasing_nodes(3, "./entanglement_results")
     # with open("entanglement_results_50_node.json", "r") as f:
     #     data = json.load(f)
     # xs = list(int(key) for key in data.keys())
