@@ -235,8 +235,8 @@ def experiment_with_increasing_nodes(max_node, save_dir):
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     data = {}
-    for i in range(3, max_node + 1):
-        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=10,
+    for i in range(2, max_node + 1):
+        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=100,
                                                 memory_depolar_rate=100,
                                                 node_distance=20,
                                                 max_entangle_pairs=2)
