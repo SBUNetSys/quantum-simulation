@@ -1,5 +1,6 @@
 import json
 import operator
+from collections import Counter
 from functools import reduce
 
 import numpy as np
@@ -19,6 +20,7 @@ from protocols.MessageHandler import MessageHandler, MessageType
 from protocols.EntanglementHandler import EntanglementHandler
 from protocols.GenEntanglement import GenEntanglement
 from protocols.Purification import PurifyEntangle
+import netsquid.qubits.operators as ops
 
 
 class PurificationExample(LocalProtocol):
@@ -78,7 +80,7 @@ class PurificationExample(LocalProtocol):
                 # add purification
                 prue_protocol = PurifyEntangle(node=node,
                                                name=f"purify_{node.name}->{network_nodes[index - 1].name}",
-                                               entangled_node=network_nodes[index-1].name,
+                                               entangled_node=network_nodes[index - 1].name,
                                                entanglement_handler=eh_handler,
                                                cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
                                                max_entangled_pair=self.max_entangle_pairs,
@@ -87,7 +89,6 @@ class PurificationExample(LocalProtocol):
                                                logger=self.logger
                                                )
                 self.add_subprotocol(prue_protocol)
-
 
             if index + 1 < len(network_nodes):
                 # case of we have a next node
@@ -119,7 +120,8 @@ class PurificationExample(LocalProtocol):
                                                     name=f"purify_{node.name}->{network_nodes[index + 1].name}",
                                                     entangled_node=network_nodes[index + 1].name,
                                                     entanglement_handler=eh_handler,
-                                                    cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
+                                                    cc_message_handler=self.subprotocols[
+                                                        f"message_handler_{node.name}"],
                                                     max_entangled_pair=self.max_entangle_pairs,
                                                     target_fidelity=target_fidelity,
                                                     is_top_layer=True,
@@ -167,6 +169,7 @@ class PurificationExample(LocalProtocol):
                 # measure the actual fidelity
                 actual_fidelities = {}
                 theoretical_fidelities = {}
+                teleport_success_count = 0
                 for mem_pos, theoretical_fidelity in node_pair_res.items():
                     q_a = self.all_nodes[i].subcomponents[f"{entangle_node}_qmemory"].peek(mem_pos)[0]
                     q_b = self.all_nodes[i + 1].subcomponents[f"{node}_qmemory"].peek(mem_pos)[0]
@@ -179,9 +182,18 @@ class PurificationExample(LocalProtocol):
                     #     raise ValueError(f"Qubit states are not the same: {q_a.qstate}, {q_b.qstate}")
                     f = qapi.fidelity([q_a, q_b], ks.b00)
                     if 0 < f < 0.99:
-                        # raise ValueError(f"Fidelity is not correct: {f}, \n\t{q_a.qstate}\n\t{q_b.qstate}")
-                        print_red(f"Fidelity is not correct: {f}, \n\t{q_a.qstate}\n\t{q_b.qstate}")
+                        raise ValueError(f"Fidelity is not correct: {f}, \n\t{q_a.qstate}\n\t{q_b.qstate}")
+                        # print_red(f"Fidelity is not correct: {f}, \n\t{q_a.qstate}\n\t{q_b.qstate}")
                     # print(f"Actual fidelity at {mem_pos} is {f}, {q_a.qstate}, {q_b.qstate}")
+                    # start_teleportation, generate a qubit for teleportation
+                    # rotate the qubit to y0 state
+                    qubit = qapi.create_qubits(1)[0]
+                    qapi.operate(qubit, ops.H)
+                    qapi.operate(qubit, ops.S)
+                    # teleport the qubit
+                    fid = self.test_teleportation(q_a, q_b, qubit)
+                    if fid > 0.99:
+                        teleport_success_count += 1
                     actual_fidelities[mem_pos] = f
                     theoretical_fidelities[mem_pos] = theoretical_fidelity
                 result_dic[f"{node}->{entangle_node}"] = {
@@ -190,7 +202,8 @@ class PurificationExample(LocalProtocol):
                     "purified_count": purified_count,
                     "purified_success_count": purified_success_count,
                     "experiment_duration": finish_time - start_time,
-                    "satisfied_pairs_count": len(node_pair_res)}
+                    "satisfied_pairs_count": len(node_pair_res),
+                    "teleport_success_count": teleport_success_count}
                 node_index += 1
 
             print(result_dic)
@@ -212,6 +225,33 @@ class PurificationExample(LocalProtocol):
             for subprotocol in self.subprotocols.values():
                 subprotocol.reset()
             # self.reset()
+
+
+    @staticmethod
+    def test_teleportation(qubit_a, qubit_b, teleport_qubit):
+        """
+        Test teleportation with two qubits
+        :return:
+        """
+        # Store the initial state
+        initial_state = teleport_qubit.qstate
+
+        # Perform teleportation
+        qapi.operate(qubits=[teleport_qubit, qubit_a], operator=ops.CNOT)
+        qapi.operate(teleport_qubit, ops.H)
+        m1, _ = qapi.measure(teleport_qubit)
+        m2, _ = qapi.measure(qubit_a)
+        if m1 == 1:
+            qapi.operate(qubit_b, ops.Z)
+        if m2 == 1:
+            qapi.operate(qubit_b, ops.X)
+
+        # Calculate fidelity
+        # teleported_state = qapi.reduced_dm(qubit_b)
+        # fidelity = qapi.fidelity(teleported_state, initial_state)
+        fidelity = qapi.fidelity(qubit_b, ns.y0)
+
+        return fidelity
 
     def get_cc_ports(self, node):
         cc_ports = {}
@@ -252,8 +292,6 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_ent
     return purify_example, dc
 
 
-
-
 def run_single_stack(nodes_count):
     # create a network
     nodes_list = [f"Node_{i}" for i in range(nodes_count)]
@@ -263,89 +301,126 @@ def run_single_stack(nodes_count):
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     experiment_result = {}
-    filt_example, dc = example_sim_run(sample_nodes, num_runs=10, memory_depolar_rate=100,
-                                       node_distance=20,
-                                       max_entangle_pairs=128, target_fidelity=0.995)
-    filt_example.start()
-    ns.sim_run()
-    collected_data = dc.dataframe
-    print(collected_data)
-    all_node_actual_fidelity = []
-    all_node_estimated_fidelity = []
-    all_node_purified_count = []
-    all_node_purified_success_count = []
-    all_satisfied_pairs_count = []
-    all_experiment_duration = []
-    # pandas.set_option('display.precision', 10)
-    for column in dc.dataframe.columns:
-        # Flatten the lists in the column
-        # we have dictionary in the column
-        # {'actual_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
-        # 'theoretical_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
-        # 'purified_count': 0,
-        # 'purified_success_count': 0}
+    max_pairs = 128
+    for entangle_pairs in range(4, max_pairs + 1, 2):
+        filt_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,
+                                           node_distance=20,
+                                           max_entangle_pairs=entangle_pairs, target_fidelity=0.995)
+        filt_example.start()
+        ns.sim_run()
+        collected_data = dc.dataframe
+        print(collected_data)
+        all_node_actual_fidelity = []
+        all_node_estimated_fidelity = []
+        all_node_purified_count = []
+        all_node_purified_success_count = []
+        all_satisfied_pairs_count = []
+        all_experiment_duration = []
+        all_teleport_success_count = []
+        all_raw_fidelity_count = []
+        all_raw_estimated_fidelity = []
+        all_raw_teleport_success_count = []
+        all_raw_purified_count = []
+        all_raw_purified_success_count = []
+        all_raw_satisfied_pairs_count = []
+        # pandas.set_option('display.precision', 10)
+        for column in dc.dataframe.columns:
+            # Flatten the lists in the column
+            # we have dictionary in the column
+            # {'actual_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
+            # 'theoretical_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
+            # 'purified_count': 0,
+            # 'purified_success_count': 0}
 
-        flattened_actual_fidelities = []
-        flattened_theoretical_fidelities = []
-        flattened_purified_count = []
-        flattened_purified_success_count = []
-        flattened_experiment_duration = []
-        flattened_satisfied_pairs_count = []
-        for result_data in dc.dataframe[column]:
-            if isinstance(result_data, dict):
-                for key, value in result_data.items():
-                    if "actual_fidelities" in key:
-                        flattened_actual_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
-                    elif "theoretical_fidelities" in key:
-                        flattened_theoretical_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
-                    elif "purified_count" in key:
-                        flattened_purified_count.append(value)
-                    elif "purified_success_count" in key:
-                        flattened_purified_success_count.append(value)
-                    elif "experiment_duration" in key:
-                        flattened_experiment_duration.append(value)
-                    elif "satisfied_pairs_count" in key:
-                        flattened_satisfied_pairs_count.append(value)
+            flattened_actual_fidelities = []
+            flattened_theoretical_fidelities = []
+            flattened_purified_count = []
+            flattened_purified_success_count = []
+            flattened_experiment_duration = []
+            flattened_satisfied_pairs_count = []
+            flattened_teleport_success_count = []
+            for result_data in dc.dataframe[column]:
+                if isinstance(result_data, dict):
+                    for key, value in result_data.items():
+                        if "actual_fidelities" in key:
+                            flattened_actual_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
+                            all_raw_fidelity_count.append(Counter(value.values()))
+                        elif "theoretical_fidelities" in key:
+                            flattened_theoretical_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
+                            all_raw_estimated_fidelity.append(Counter(value.values()))
+                        elif "purified_count" in key:
+                            flattened_purified_count.append(value)
+                            all_raw_purified_count.append(value)
+                        elif "purified_success_count" in key:
+                            flattened_purified_success_count.append(value)
+                            all_raw_purified_success_count.append(value)
+                        elif "experiment_duration" in key:
+                            flattened_experiment_duration.append(value)
+                        elif "satisfied_pairs_count" in key:
+                            flattened_satisfied_pairs_count.append(value)
+                            all_raw_satisfied_pairs_count.append(value)
+                        elif "teleport_success_count" in key:
+                            flattened_teleport_success_count.append(value)
+                            all_raw_teleport_success_count.append(value)
+            # calculate the average of the flattened values
+            # actual fidelities
+            actual_fidelities = np.mean(flattened_actual_fidelities, dtype=np.float64)
+            all_node_actual_fidelity.append(actual_fidelities)
+            # theoretical fidelities
+            estimated_fidelities = np.mean(flattened_theoretical_fidelities, dtype=np.float64)
+            all_node_estimated_fidelity.append(estimated_fidelities)
+            # purified count
+            purified_count = np.mean(flattened_purified_count, dtype=np.float64)
+            all_node_purified_count.append(purified_count)
 
-        # calculate the average of the flattened values
-        # actual fidelities
-        actual_fidelities = np.mean(flattened_actual_fidelities, dtype=np.float64)
-        all_node_actual_fidelity.append(actual_fidelities)
-        # theoretical fidelities
-        estimated_fidelities = np.mean(flattened_theoretical_fidelities, dtype=np.float64)
-        all_node_estimated_fidelity.append(estimated_fidelities)
-        # purified count
-        purified_count = np.mean(flattened_purified_count, dtype=np.float64)
-        all_node_purified_count.append(purified_count)
-        # purified success count
-        purified_success_count = np.mean(flattened_purified_success_count, dtype=np.float64)
-        all_node_purified_success_count.append(purified_success_count)
-        # experiment duration
-        experiment_duration = np.mean(flattened_experiment_duration, dtype=np.float64)
-        all_experiment_duration.append(experiment_duration)
-        # satisfied pairs count
-        satisfied_pairs_count = np.mean(flattened_satisfied_pairs_count, dtype=np.float64)
-        all_satisfied_pairs_count.append(satisfied_pairs_count)
+            # purified success count
+            purified_success_count = np.mean(flattened_purified_success_count, dtype=np.float64)
+            all_node_purified_success_count.append(purified_success_count)
+            # experiment duration
+            experiment_duration = np.mean(flattened_experiment_duration, dtype=np.float64)
+            all_experiment_duration.append(experiment_duration)
+            # satisfied pairs count
+            satisfied_pairs_count = np.mean(flattened_satisfied_pairs_count, dtype=np.float64)
+            all_satisfied_pairs_count.append(satisfied_pairs_count)
+            # teleport success count
+            teleport_success_count = np.mean(flattened_teleport_success_count, dtype=np.float64)
+            all_teleport_success_count.append(teleport_success_count)
+        filt_example.stop()
 
-    final_fidelity = np.mean(all_node_actual_fidelity, dtype=np.float64)
-    final_estimated_fidelity = np.mean(all_node_estimated_fidelity, dtype=np.float64)
-    final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)
-    final_purified_success_count = np.mean(all_node_purified_success_count, dtype=np.float64)
-    final_experiment_duration = np.mean(all_experiment_duration, dtype=np.float64)
-    final_satisfied_pairs_count = np.mean(all_satisfied_pairs_count, dtype=np.float64)
-    print(f"-*-" * 10)
-    print(f"Final Satisfied pairs count: {final_satisfied_pairs_count}")
-    print(f"Final experiment duration: {final_experiment_duration}")
-    print(f"Final estimated fidelity: {final_estimated_fidelity}")
-    print(f"Final fidelity: {final_fidelity}")
-    print(f"Final purified count: {final_purified_count}")
-    print(f"Final purified success count: {final_purified_success_count}")
-    # experiment_result[max_entangle_pair] = {"actual_fidelity": final_fidelity,
-    #                                         "estimated_fidelity": final_estimated_fidelity,
-    #                                         "purified_count": final_purified_count,
-    #                                         "purified_success_count": final_purified_success_count,
-    #                                         "experiment_duration": final_experiment_duration / 1e9,
-    #                                         "satisfied_pairs_count": final_satisfied_pairs_count}
+        final_fidelity = np.mean(all_node_actual_fidelity, dtype=np.float64)
+        final_estimated_fidelity = np.mean(all_node_estimated_fidelity, dtype=np.float64)
+        final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)
+        final_purified_success_count = np.mean(all_node_purified_success_count, dtype=np.float64)
+        final_experiment_duration = np.mean(all_experiment_duration, dtype=np.float64)
+        final_satisfied_pairs_count = np.mean(all_satisfied_pairs_count, dtype=np.float64)
+        final_teleport_success_count = np.mean(all_teleport_success_count, dtype=np.float64)
+        print(f"-*-" * 10)
+        print(f"Final Satisfied pairs count: {final_satisfied_pairs_count}")
+        print(f"Final experiment duration: {final_experiment_duration}")
+        print(f"Final estimated fidelity: {final_estimated_fidelity}")
+        print(f"Final fidelity: {final_fidelity}")
+        print(f"Final purified count: {final_purified_count}")
+        print(f"Final purified success count: {final_purified_success_count}")
+        print(f"Final teleport success count: {final_teleport_success_count}")
+        experiment_result[entangle_pairs] = {"actual_fidelity": final_fidelity,
+                                                "estimated_fidelity": final_estimated_fidelity,
+                                                "purified_count": final_purified_count,
+                                                "purified_success_count": final_purified_success_count,
+                                                "experiment_duration": final_experiment_duration / 1e9,
+                                                "satisfied_pairs_count": final_satisfied_pairs_count,
+                                                "teleport_success_count": final_teleport_success_count,
+                                                "raw_data": {
+                                                    "actual_fidelity": all_raw_fidelity_count,
+                                                    "estimated_fidelity": all_raw_estimated_fidelity,
+                                                    "purified_count": Counter(all_raw_purified_count),
+                                                    "purified_success_count": Counter(all_raw_purified_success_count),
+                                                    "experiment_duration": all_experiment_duration,
+                                                    "satisfied_pairs_count": Counter(all_raw_satisfied_pairs_count),
+                                                    "teleport_success_count": Counter(all_raw_teleport_success_count)}
+                                                }
+        with open(f"./purification_results/purification_results_2_nodes_{max_pairs}_paris.json", "w") as f:
+            json.dump(experiment_result, f, indent=4)
+
 if __name__ == "__main__":
     # experiment_with_increasing_node(3, "purification_results")
     # run_test(2)
