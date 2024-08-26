@@ -74,16 +74,16 @@ def main():
                "Count",
                ["Satisfied Pairs", "Teleportation Success"],
                save_dir="./purification_results/figures")
-    # plot_lines([x, x], [purified_count, purified_success_count], "Purified Count vs Pair",
-    #            "Numb of Pairs Qubits",
-    #            "Purified Count",
-    #            ["Purified Count", "Purified Success Count"],
-    #            save_dir="./purification_results/figures")
-    # plot_lines([x], [experiment_duration], "Experiment Duration vs Pair",
-    #            "Numb of Pairs Qubits",
-    #            "Experiment Duration (s)",
-    #            ["Experiment Duration"],
-    #            save_dir="./purification_results/figures")
+    plot_lines([x, x], [purified_count, purified_success_count], "Purified Count vs Pair",
+               "Numb of Entangled Pairs",
+               "Purified Count",
+               ["Purified Count", "Purified Success Count"],
+               save_dir="./purification_results/figures")
+    plot_lines([x], [experiment_duration], "Experiment Duration vs Pair",
+               "Numb of Entangled Pairs",
+               "Experiment Duration (s)",
+               ["Experiment Duration"],
+               save_dir="./purification_results/figures")
 
 
 if __name__ == '__main__':
