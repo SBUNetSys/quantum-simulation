@@ -25,6 +25,8 @@ class MessageType(Enum):
     PURIFICATION_RESULT = auto()
     PURIFICATION_TARGET_MET = auto()
     # verification signals
+    VERIFICATION_REQUEST = auto()
+    VERIFICATION_READY = auto()
     VERIFICATION_START = auto()
     VERIFICATION_RESULT = auto()
     # swap signals

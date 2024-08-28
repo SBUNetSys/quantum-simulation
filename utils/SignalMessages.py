@@ -78,10 +78,12 @@ class PurifyTargetMetSignalMessage(EntangleSignalMessage):
         super().__init__(entangle_node, mem_pos)
         self.fidelity = new_fidelity
 
+
 class PurifySuccessSignalMessage(EntangleSignalMessage):
     """
     Signal message for successful purification and sent to upper layer
     """
+
     def __init__(self, entangle_node, mem_pos, new_fidelity, is_source):
         super().__init__(entangle_node, mem_pos)
         self.fidelity = new_fidelity
@@ -107,6 +109,7 @@ class ReEntangleSignalMessage:
         self.entangle_node = entangle_node
         self.re_entangle_mem_poses = re_entangle_mem_poses
 
+
 class ProtocolFinishedSignalMessage:
     """
     Signal message for protocol finished
@@ -116,13 +119,35 @@ class ProtocolFinishedSignalMessage:
         self.from_protocol = from_protocol
         self.from_node = from_node
         self.timestamp = ns.sim_time()
-class VerificationStartSignalMessage:
+
+
+class VerificationSignalMessage:
     """
-    Signal message for starting verification
+    Base class for verification signal messages
     """
-    def __init__(self, entangle_node, verification_batch_id, verification_batch_poses:list,
-                 verification_teleport_measurement:dict):
+
+    def __init__(self, entangle_node, verification_batch_id, verification_batch_poses: list):
         self.entangle_node = entangle_node
         self.verif_batch_id = verification_batch_id
         self.verif_batch_poses = verification_batch_poses
+
+
+class VerificationStartSignalMessage(VerificationSignalMessage):
+    """
+    Signal message for starting verification
+    """
+
+    def __init__(self, entangle_node, verification_batch_id, verification_batch_poses: list,
+                 verification_teleport_measurement: dict):
+        super().__init__(entangle_node, verification_batch_id, verification_batch_poses)
         self.verif_teleport_measurement = verification_teleport_measurement
+
+class VerificationResultSignalMessage(VerificationSignalMessage):
+    """
+    Signal message for verification result
+    """
+
+    def __init__(self, entangle_node, verification_batch_id, verification_batch_poses: list,
+                 verification_result: dict):
+        super().__init__(entangle_node, verification_batch_id, verification_batch_poses)
+        self.verif_result = verification_result
