@@ -14,14 +14,19 @@ class MessageType(Enum):
     # entanglement signals
     GEN_ENTANGLE_READY = auto()
     ENTANGLED = auto()
+    # re-entanglement signals
     RE_ENTANGLE = auto()
     RE_ENTANGLE_READY = auto()
     RE_ENTANGLE_READY_REMOTE = auto()
     RE_ENTANGLE_READY_SOURCE = auto()
+    RE_ENTANGLE_FROM_UPPER_LAYER = auto()
     # purification signals
     PURIFICATION_START = auto()
     PURIFICATION_RESULT = auto()
     PURIFICATION_TARGET_MET = auto()
+    # verification signals
+    VERIFICATION_START = auto()
+    VERIFICATION_RESULT = auto()
     # swap signals
     SWAP_NEED = auto()
     SWAP_READY = auto()

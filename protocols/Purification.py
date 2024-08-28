@@ -1,14 +1,7 @@
-import numpy as np
-
 from netsquid.util.simtools import sim_time
 from netsquid.protocols.nodeprotocols import NodeProtocol
 from netsquid.protocols.protocol import Signals
 from netsquid.components.instructions import INSTR_CNOT, INSTR_H
-from netsquid.components.component import Message, Port
-
-from pydynaa import EventExpression
-
-from netsquid.components.instructions import INSTR_MEASURE
 
 from protocols.MessageHandler import MessageType
 from utils import Logging, SignalMessages
@@ -125,6 +118,10 @@ class PurifyEntangle(NodeProtocol):
                                                              mem_pos=message.mem_pos,
                                                              new_fidelity=message.fidelity)
                                                      ))
+                # send signal to upper layer
+                self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
+                    entangle_node=entangled_node, mem_pos=message.mem_pos, new_fidelity=message.fidelity,
+                    is_source=True))
             else:
                 self.entangled_pairs[message.mem_pos] = message.fidelity
 
@@ -239,8 +236,11 @@ class PurifyEntangle(NodeProtocol):
                                                      )
                                                      )
                 # emit signal to upper layer
-                self.send_signal(Signals.SUCCESS, SignalMessages.PurifyTargetMetSignalMessage(
-                    entangle_node=message.entangle_node, mem_pos=message.qubit1_pos, new_fidelity=new_fidelity))
+                self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
+                    entangle_node=message.entangle_node,
+                    mem_pos=message.qubit1_pos,
+                    new_fidelity=new_fidelity,
+                    is_source=True))
             else:
                 self.entangled_pairs[message.qubit1_pos] = new_fidelity
             # re-entangle the second qubit
@@ -281,9 +281,10 @@ class PurifyEntangle(NodeProtocol):
             return
         self.satisfied_pairs[message.mem_pos] = message.fidelity
         # emit signal to upper layer
-        self.send_signal(Signals.SUCCESS, SignalMessages.PurifyTargetMetSignalMessage(
+        self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
             entangle_node=message.entangle_node, mem_pos=message.mem_pos,
-            new_fidelity=message.fidelity))
+            new_fidelity=message.fidelity,
+            is_source=False))
         # delete the pair from the entangled pairs
         del self.entangled_pairs[message.mem_pos]
 
@@ -312,7 +313,9 @@ class PurifyEntangle(NodeProtocol):
                              self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_RESULT) |
                              self.await_signal(self.cc_message_handler,
                                                signal_label=MessageType.PURIFICATION_TARGET_MET) |
-                             self.await_signal(self.cc_message_handler, signal_label=MessageType.PROTOCOL_FINISHED))
+                             self.await_signal(self.cc_message_handler, signal_label=MessageType.PROTOCOL_FINISHED) |
+                             self.await_signal(self.cc_message_handler,
+                                               signal_label=MessageType.RE_ENTANGLE_FROM_UPPER_LAYER))
         while True:
             expr = yield entangle_signal | cc_message_signal
             if expr.first_term.value:
@@ -378,6 +381,15 @@ class PurifyEntangle(NodeProtocol):
                                          f"\tFidelity: {result.fidelity}",
                                          color="green")
                         self.handle_purify_target_met_signal(result)
+                    elif ready_signal.label == MessageType.RE_ENTANGLE_FROM_UPPER_LAYER:
+                        # handle the re-entangle signal from the upper layer
+                        result: SignalMessages.ReEntangleSignalMessage = result
+                        self.logger.info(f"Purify {self.name} -> "
+                                         f"Node {self.node.name} received re-entangle from upper layer signal:\n"
+                                         f"\tFrom:{result.entangle_node}\n"
+                                         f"\tMem pos: {result.re_entangle_mem_poses}",
+                                         color="green")
+                        self.re_entangle(result.entangle_node, result.re_entangle_mem_poses)
                     elif ready_signal.label == MessageType.PROTOCOL_FINISHED:
                         # handle the protocol finished signal
                         self.logger.info(f"Purify {self.name} -> "

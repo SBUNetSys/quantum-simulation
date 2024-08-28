@@ -78,6 +78,15 @@ class PurifyTargetMetSignalMessage(EntangleSignalMessage):
         super().__init__(entangle_node, mem_pos)
         self.fidelity = new_fidelity
 
+class PurifySuccessSignalMessage(EntangleSignalMessage):
+    """
+    Signal message for successful purification and sent to upper layer
+    """
+    def __init__(self, entangle_node, mem_pos, new_fidelity, is_source):
+        super().__init__(entangle_node, mem_pos)
+        self.fidelity = new_fidelity
+        self.is_source = is_source
+
 
 class PurifyFinishedSignalMessage:
     """
@@ -107,3 +116,13 @@ class ProtocolFinishedSignalMessage:
         self.from_protocol = from_protocol
         self.from_node = from_node
         self.timestamp = ns.sim_time()
+class VerificationStartSignalMessage:
+    """
+    Signal message for starting verification
+    """
+    def __init__(self, entangle_node, verification_batch_id, verification_batch_poses:list,
+                 verification_teleport_measurement:dict):
+        self.entangle_node = entangle_node
+        self.verif_batch_id = verification_batch_id
+        self.verif_batch_poses = verification_batch_poses
+        self.verif_teleport_measurement = verification_teleport_measurement
