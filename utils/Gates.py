@@ -76,11 +76,11 @@ if __name__ == '__main__':
         qapi.operate(qubit1, op.H)
         qapi.operate([qubit1, qubit2], op.CNOT)
         entangle_paris.append([qubit1, qubit2])
-    # qapi.operate(entangle_paris[0][1], op.X)
-    # qapi.operate(entangle_paris[1][1], op.X)
-    # qapi.operate(entangle_paris[2][1], op.X)
-    # qapi.operate(entangle_paris[3][1], op.X)
-    # qapi.operate(entangle_paris[4][1], op.X)
+    qapi.operate(entangle_paris[0][1], op.X)
+    qapi.operate(entangle_paris[1][1], op.X)
+    qapi.operate(entangle_paris[2][1], op.X)
+    qapi.operate(entangle_paris[3][1], op.X)
+    qapi.operate(entangle_paris[4][1], op.X)
     unitary_qubits = []
     for i in range(3):
         qubit, = qapi.create_qubits(1)
@@ -97,8 +97,8 @@ if __name__ == '__main__':
     qapi.operate(alice_qubits, CU_Gate)
 
     # bob's side
-    CCU = np.conjugate(CU)
-    CCU_Gate = op.Operator("CCU", CCU)
+    # CCU = np.conjugate(CU)
+    CCU_Gate = CU_Gate.conj
     bob_qubits = alice_qubits[:3]
     for i in entangle_paris:
         bob_qubits.append(i[1])

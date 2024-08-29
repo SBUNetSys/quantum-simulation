@@ -1,3 +1,4 @@
+import copy
 import operator
 from functools import reduce
 
@@ -52,7 +53,7 @@ class EntanglementHandler(NodeProtocol):
         super().__init__(node=node, name=name)
         # since we will use on memory position for entanglement operation, therefore we need to subtract 1 for each node
         # in case of multiple entangle_node, we need to multiply by the number of entangle nodes
-        self.max_pairs = num_pairs-1
+        self.max_pairs = num_pairs - 1
         # store the entangle nodes
         self.entangle_node = entangle_node
         # mapping of entangled qubits to memory positions key: memory position, value: fidelity
@@ -153,11 +154,9 @@ class EntanglementHandler(NodeProtocol):
         mem_poses = message.re_entangle_mem_poses
         # remove the qubits from the entangled qubits
         for mem_pos in mem_poses:
-            try:
-                del self.entangled_qubits[mem_pos]
-            except KeyError:
-                self.logger.error(f"Memory position {mem_pos} not found in entangled qubits")
+            del self.entangled_qubits[mem_pos]
             self.entangled_pairs_count -= 1
+
         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal, entangle_node: {entangle_node},"
                          f" mem_pos: {mem_poses}", color="yellow")
         self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle",
@@ -165,7 +164,7 @@ class EntanglementHandler(NodeProtocol):
 
     def process_message_queue(self):
 
-        temp = self.entangle_message_queue
+        temp = copy.deepcopy(self.entangle_message_queue)
         self.entangle_message_queue = []
         for message in temp:
             self.process_entangle_message(message)

@@ -148,6 +148,7 @@ class VerificationResultSignalMessage(VerificationSignalMessage):
     """
 
     def __init__(self, entangle_node, verification_batch_id, verification_batch_poses: list,
-                 verification_result: dict):
+                 verification_result: int, result_probability: float):
         super().__init__(entangle_node, verification_batch_id, verification_batch_poses)
         self.verif_result = verification_result
+        self.result_probability = result_probability

@@ -364,6 +364,7 @@ class GenEntanglement(NodeProtocol):
 
     def reset_memory_positions(self):
         # unclaim used memory positions again in case of stop was not called
+        self.qmemory.reset()
         for i in self.qmemory.used_positions:
             self.qmemory.mem_positions[i].in_use = False
         self.used_mem_positions = []

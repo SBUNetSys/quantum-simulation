@@ -1,3 +1,7 @@
+import copy
+import gc
+
+from netsquid.components import INSTR_MEASURE
 from netsquid.util.simtools import sim_time
 from netsquid.protocols.nodeprotocols import NodeProtocol
 from netsquid.protocols.protocol import Signals
@@ -259,7 +263,7 @@ class Purification(NodeProtocol):
         del self.purifying_paris[(message.qubit1_pos, message.qubit2_pos)]
 
     def process_classical_message(self):
-        temp = self.classical_messages_queue
+        temp = copy.deepcopy(self.classical_messages_queue)
         self.classical_messages_queue = []
         for message in temp:
             if isinstance(message, SignalMessages.PurifyStartSignalMessage):
@@ -611,9 +615,11 @@ class Purification(NodeProtocol):
                          color="yellow")
         if qmemory.busy:
             yield self.await_program(qmemory)
-        measured_result, _ = qmemory.measure(q2_pos)
+        # measured_result, _ = qmemory.measure(q2_pos)
+        measured_result, _ = qmemory.execute_instruction(INSTR_MEASURE, [q2_pos], output_key="M")
         # TODO: can we remove q2 from the memory? since we measured it
-        return measured_result[0]
+        res = measured_result["M"][0]
+        return res
 
     @staticmethod
     def calculate_purified_fidelity(initial_fidelity):
@@ -635,7 +641,9 @@ class Purification(NodeProtocol):
         self.purification_count = 0
         self.purification_success_count = 0
         self.classical_messages_queue = []
+        self.re_entangle_pairs = {}
         self.finished = False
+        gc.collect()
         super().reset()
 
     def stop(self):
