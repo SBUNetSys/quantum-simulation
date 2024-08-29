@@ -153,7 +153,10 @@ class EntanglementHandler(NodeProtocol):
         mem_poses = message.re_entangle_mem_poses
         # remove the qubits from the entangled qubits
         for mem_pos in mem_poses:
-            del self.entangled_qubits[mem_pos]
+            try:
+                del self.entangled_qubits[mem_pos]
+            except KeyError:
+                self.logger.error(f"Memory position {mem_pos} not found in entangled qubits")
             self.entangled_pairs_count -= 1
         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal, entangle_node: {entangle_node},"
                          f" mem_pos: {mem_poses}", color="yellow")

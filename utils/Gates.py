@@ -13,7 +13,7 @@ def controlled_unitary(number_of_qubits):
     for j in range(N):
         for k in range(N):
             Fourier_matrix[k, j] = np.round(1 / np.sqrt(N) * np.exp(1j * 2 * np.pi / N * j * k), 12)
-    print(np.round(Fourier_matrix, 12))
+    # print(np.round(Fourier_matrix, 12))
     Fourier_matrix_inverse = np.conjugate(np.transpose(Fourier_matrix))
     # print(Fourier_matrix@Fourier_matrix_inverse)
     S1 = np.zeros((N, N), dtype=complex)

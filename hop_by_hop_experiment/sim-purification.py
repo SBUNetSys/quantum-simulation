@@ -19,7 +19,7 @@ from utils import Logging
 from protocols.MessageHandler import MessageHandler, MessageType
 from protocols.EntanglementHandler import EntanglementHandler
 from protocols.GenEntanglement import GenEntanglement
-from protocols.Purification import PurifyEntangle
+from protocols.Purification import Purification
 import netsquid.qubits.operators as ops
 
 
@@ -78,16 +78,16 @@ class PurificationExample(LocalProtocol):
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 # add purification
-                prue_protocol = PurifyEntangle(node=node,
-                                               name=f"purify_{node.name}->{network_nodes[index - 1].name}",
-                                               entangled_node=network_nodes[index - 1].name,
-                                               entanglement_handler=eh_handler,
-                                               cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                               max_entangled_pair=self.max_entangle_pairs,
-                                               target_fidelity=target_fidelity,
-                                               is_top_layer=True,
-                                               logger=self.logger
-                                               )
+                prue_protocol = Purification(node=node,
+                                             name=f"purify_{node.name}->{network_nodes[index - 1].name}",
+                                             entangled_node=network_nodes[index - 1].name,
+                                             entanglement_handler=eh_handler,
+                                             cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
+                                             max_entangled_pair=self.max_entangle_pairs,
+                                             target_fidelity=target_fidelity,
+                                             is_top_layer=True,
+                                             logger=self.logger
+                                             )
                 self.add_subprotocol(prue_protocol)
 
             if index + 1 < len(network_nodes):
@@ -116,17 +116,17 @@ class PurificationExample(LocalProtocol):
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 # Initialize the purification protocol
-                self.add_subprotocol(PurifyEntangle(node=node,
-                                                    name=f"purify_{node.name}->{network_nodes[index + 1].name}",
-                                                    entangled_node=network_nodes[index + 1].name,
-                                                    entanglement_handler=eh_handler,
-                                                    cc_message_handler=self.subprotocols[
+                self.add_subprotocol(Purification(node=node,
+                                                  name=f"purify_{node.name}->{network_nodes[index + 1].name}",
+                                                  entangled_node=network_nodes[index + 1].name,
+                                                  entanglement_handler=eh_handler,
+                                                  cc_message_handler=self.subprotocols[
                                                         f"message_handler_{node.name}"],
-                                                    max_entangled_pair=self.max_entangle_pairs,
-                                                    target_fidelity=target_fidelity,
-                                                    is_top_layer=True,
-                                                    logger=self.logger
-                                                    ))
+                                                  max_entangled_pair=self.max_entangle_pairs,
+                                                  target_fidelity=target_fidelity,
+                                                  is_top_layer=True,
+                                                  logger=self.logger
+                                                  ))
 
     def run(self):
         self.start_subprotocols()

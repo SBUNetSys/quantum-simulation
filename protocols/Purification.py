@@ -8,7 +8,7 @@ from utils import Logging, SignalMessages
 from utils.ClassicalMessages import ClassicalMessage
 
 
-class PurifyEntangle(NodeProtocol):
+class Purification(NodeProtocol):
     """
     Protocol for entanglement purification.
     Only care about the entangled node, no need to care about left and right nodes.
@@ -47,7 +47,7 @@ class PurifyEntangle(NodeProtocol):
                 when all the entangled pairs are purified to the target fidelity.
         """
 
-        super().__init__(node, name)
+        super().__init__(node=node, name=name)
 
         # set variables
         self.entangled_node = entangled_node
@@ -301,6 +301,8 @@ class PurifyEntangle(NodeProtocol):
             # remove the pair from the entangled pairs
             if mem_pos in self.entangled_pairs:
                 del self.entangled_pairs[mem_pos]
+            if mem_pos in self.satisfied_pairs:
+                del self.satisfied_pairs[mem_pos]
             # add the pair to the re-entangle pairs
             self.re_entangle_pairs[mem_pos] = None
         # re-entangle the memory position
@@ -345,7 +347,7 @@ class PurifyEntangle(NodeProtocol):
                                           f"Node {self.node.name} error processing classical message: {e}",
                                           color="red")
                         continue
-                    if result.from_node != self.entangled_node:
+                    if isinstance(result, ClassicalMessage) and result.from_node != self.entangled_node:
                         # we do not care about the message from other nodes
                         continue
                     if ready_signal.label == MessageType.PURIFICATION_START:
