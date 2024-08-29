@@ -31,6 +31,8 @@ class Verification(NodeProtocol):
         self.entangled_pairs = {}
         self.entangled_node = entangled_node
         self.max_entangle_pairs = max_entangled_pairs - 1 # mem_pos 0 always is temp qubit
+        # TODO: Can not just use memory positions, because purification does not guarantee the same memory positions
+        #  for the same entangled qubits. We need perhaps to use an counter to keep track of the re-entangle qubits
         self.re_entangle_positions = []
         # m_size is the number of qubits in the register
         self.m_size = m_size
