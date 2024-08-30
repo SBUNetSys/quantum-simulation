@@ -346,8 +346,8 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
 
 
 def main():
-    experiment_with_increasing_nodes(2, "./entanglement_results")
-    exit(0)
+    # experiment_with_increasing_nodes(2, "./entanglement_results")
+    # exit(0)
     if len(sys.argv) < 2:
         print("Please provide an argument to skip noise")
         exit(0)
