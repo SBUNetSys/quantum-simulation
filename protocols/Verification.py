@@ -21,9 +21,13 @@ class Verification(NodeProtocol):
     def __init__(self, node, name, entangled_node, purification_protocol, cc_message_handler,
                  m_size,
                  batch_size,
-                 logger=None,
                  is_top_layer=False,
-                 max_entangled_pairs=2):
+                 max_entangled_pairs=2,
+                 CU_Gate=None,
+                 CCU_Gate=None,
+                 measurement_m0=None,
+                 measurement_m1=None,
+                 logger=None):
         super().__init__(node=node, name=name)
 
         self.purification_protocol = purification_protocol
@@ -56,11 +60,10 @@ class Verification(NodeProtocol):
         # # self.CCU_Gate = ops.Operator("CCU", CCU)
         # self.CCU_Gate = self.CU_Gate.conj
 
-        self.measurement_m0 = None
-        self.measurement_m1 = None
-        self.CU_Gate = None
-        self.CCU_Gate = None
-        self.CU_matrix = None
+        self.measurement_m0 = measurement_m0
+        self.measurement_m1 = measurement_m1
+        self.CU_Gate = CU_Gate
+        self.CCU_Gate = CCU_Gate
 
         # classical message queue
         self.cc_message_queue = []
@@ -76,17 +79,17 @@ class Verification(NodeProtocol):
         self.is_top_layer = is_top_layer
 
         if self.is_top_layer:
-            self.add_signal(MessageType.PROTOCOL_FINISHED)
+            self.add_signal(MessageType.VERIFICATION_FINISHED)
 
-    def start(self):
-        self.measurement_m0, self.measurement_m1 = measure_operator()
-        # controlled unitary gate operator
-        self.CU_matrix = controlled_unitary(self.batch_size)
-        self.CU_Gate = ops.Operator("CU", self.CU_matrix)
-        # CCU = np.conjugate(self.CU_matrix)
-        # self.CCU_Gate = ops.Operator("CCU", CCU)
-        self.CCU_Gate = self.CU_Gate.conj
-        super().start()
+    # def start(self):
+    #     self.measurement_m0, self.measurement_m1 = measure_operator()
+    #     # controlled unitary gate operator
+    #     self.CU_matrix = controlled_unitary(self.batch_size)
+    #     self.CU_Gate = ops.Operator("CU", self.CU_matrix)
+    #     # CCU = np.conjugate(self.CU_matrix)
+    #     # self.CCU_Gate = ops.Operator("CCU", CCU)
+    #     self.CCU_Gate = self.CU_Gate.conj
+    #     super().start()
 
     def handle_entanglement_signal(self, message):
         """
@@ -159,16 +162,26 @@ class Verification(NodeProtocol):
                         self.handle_verification_result(message)
             self.process_cc_message_queue()
             if self.is_source:
-                self.check_need_verification()
+                self.check_available_verification()
             if self.is_top_layer:
                 if self.check_end_condition():
                     self.logger.info(f"{self.name} -> {self.node.name} "
                                      f"verification protocol finished", color="green")
-                    self.send_signal(MessageType.PROTOCOL_FINISHED,
+
+                    # broadcast the verification finished signal to lower layer
+                    self.cc_message_handler.send_signal(MessageType.VERIFICATION_FINISHED,
+                                                        SignalMessages.ProtocolFinishedSignalMessage(
+                                                            from_protocol=self,
+                                                            from_node=self.node.name
+                                                        ))
+
+                    self.send_signal(MessageType.VERIFICATION_FINISHED,
                                      {"verification_probability": self.successful_verification_probability,
                                       "verification_success_count": self.successful_verification_counter,
                                       "verification_total_count": self.verification_counter,
                                       "verification_batches": self.successful_verification_batches})
+
+
                     break
 
     def process_cc_message_queue(self):
@@ -256,7 +269,7 @@ class Verification(NodeProtocol):
             # we have failed the verification process, re-entangle the qubits
             self.handle_verification_failed(message.verif_batch_id)
 
-    def check_need_verification(self):
+    def check_available_verification(self):
         """
         Check if we can start the verification process.
         :return:
@@ -506,7 +519,8 @@ class Verification(NodeProtocol):
         success_verification_pairs = 0
         for batch_id, batch_poses in self.successful_verification_batches.items():
             success_verification_pairs += len(batch_poses)
-        if current_entangled_count + success_verification_pairs == self.max_entangle_pairs:
+        done_entangle = current_entangled_count + success_verification_pairs == self.max_entangle_pairs
+        if done_entangle is True and current_entangled_count < self.batch_size + self.m_size:
             return True
         # if self.max_entangle_pairs - success_verification_pairs < self.batch_size + self.m_size and \
         #     len(self.re_entangle_positions) == 0:
@@ -514,16 +528,16 @@ class Verification(NodeProtocol):
         return False
 
     def reset(self):
-        del self.measurement_m0
-        del self.measurement_m1
-        del self.CU_Gate
-        del self.CCU_Gate
-        del self.CU_matrix
-        self.measurement_m0 = None
-        self.measurement_m1 = None
-        self.CU_Gate = None
-        self.CCU_Gate = None
-        self.CU_matrix = None
+        # del self.measurement_m0
+        # del self.measurement_m1
+        # del self.CU_Gate
+        # del self.CCU_Gate
+        # del self.CU_matrix
+        # self.measurement_m0 = None
+        # self.measurement_m1 = None
+        # self.CU_Gate = None
+        # self.CCU_Gate = None
+        # self.CU_matrix = None
         gc.collect()
 
         self.entangled_pairs = {}
@@ -537,18 +551,16 @@ class Verification(NodeProtocol):
         gc.collect()
         super().reset()
 
-
     def stop(self):
-        del self.measurement_m0
-        del self.measurement_m1
-        del self.CU_Gate
-        del self.CCU_Gate
-        del self.CU_matrix
-        self.measurement_m0 = None
-        self.measurement_m1 = None
-        self.CU_Gate = None
-        self.CCU_Gate = None
-        self.CU_matrix = None
+        # del self.measurement_m0
+        # del self.measurement_m1
+        # del self.CU_Gate
+        # del self.CCU_Gate
+        # del self.CU_matrix
+        # self.measurement_m0 = None
+        # self.measurement_m1 = None
+        # self.CU_Gate = None
+        # self.CCU_Gate = None
+        # self.CU_matrix = None
         gc.collect()
         super().stop()
-

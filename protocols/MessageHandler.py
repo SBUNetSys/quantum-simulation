@@ -24,6 +24,7 @@ class MessageType(Enum):
     PURIFICATION_START = auto()
     PURIFICATION_RESULT = auto()
     PURIFICATION_TARGET_MET = auto()
+    PURIFICATION_NEED_SHUTDOWN = auto()
     # verification signals
     VERIFICATION_REQUEST = auto()
     VERIFICATION_READY = auto()
@@ -36,8 +37,10 @@ class MessageType(Enum):
     SWAP_FAILED = auto()
     CORRECTION_SUCCESS = auto()
 
-    # general signals
-    PROTOCOL_FINISHED = auto()
+    # termination signals
+    ENTANGLEMENT_HANDLER_FINISHED = auto()
+    PURIFICATION_FINISHED = auto()
+    VERIFICATION_FINISHED = auto()
 
 
 class MessageHandler(NodeProtocol):

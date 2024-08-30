@@ -91,7 +91,7 @@ class EntanglementHandler(NodeProtocol):
         self.add_new_signal(f"{qubit_input_protocol.name}_re_entangle")
 
         self.add_new_signal(MessageType.ENTANGLED)
-        self.add_new_signal(MessageType.PROTOCOL_FINISHED)
+        self.add_new_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED)
         self.shutdown = False
 
         self.is_top_layer = is_top_layer
@@ -213,7 +213,7 @@ class EntanglementHandler(NodeProtocol):
                             self.await_signal(self.cc_message_handler, signal_label=MessageType.RE_ENTANGLE) |
                             self.await_signal(self.cc_message_handler,
                                               signal_label=MessageType.RE_ENTANGLE_READY_REMOTE) |
-                            self.await_signal(self.cc_message_handler, signal_label=MessageType.PROTOCOL_FINISHED) |
+                            self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_FINISHED) |
                             self.re_entangle_ready_signals)
         while True:
             # wait for entanglement
@@ -311,12 +311,13 @@ class EntanglementHandler(NodeProtocol):
                         # forwards the re-entangle signal to the source node
                         self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
                                          re_entangle_data)
-                    elif ready_signal.label == MessageType.PROTOCOL_FINISHED:
+                    elif ready_signal.label == MessageType.PURIFICATION_FINISHED:
+                        # we upper layer is finished, we need gracefully shutdown
                         self.logger.info(f"ManageEntangle {self.name} -> Entanglement Need Stop\n"
                                          f"\t{self.entangled_qubits}"
                                          f"\t{self.entangled_pairs_count}", color="orange")
                         self.shutdown = True
-                        # gracefully stop the simulation
+                        
 
             self.process_message_queue()
             self.process_re_entangle_message_queue()
@@ -324,13 +325,13 @@ class EntanglementHandler(NodeProtocol):
                 # check if we need to stop the simulation
                 if self.entangled_pairs_count >= self.max_pairs and len(self.entangle_message_queue) == 0:
                     self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="green")
-                    self.send_signal(MessageType.PROTOCOL_FINISHED, self.entangled_qubits)
+                    self.send_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED, self.entangled_qubits)
 
             if self.is_top_layer:
                 if self.entangled_pairs_count >= self.max_pairs:
                     # send finish signal to the source node
                     self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="green")
-                    self.send_signal(MessageType.PROTOCOL_FINISHED, self.entangled_qubits)
+                    self.send_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED, self.entangled_qubits)
                     break
 
     def reset(self):
@@ -345,6 +346,7 @@ class EntanglementHandler(NodeProtocol):
         # reset the shutdown flag
         self.re_entangle_message_queue = []
         self.re_entangle_flush_time = None
+        # reset the shutdown flag
         self.shutdown = False
         super().reset()
 

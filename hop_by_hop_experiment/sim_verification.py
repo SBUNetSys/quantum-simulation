@@ -16,11 +16,11 @@ from netsquid.qubits import qubitapi as qapi
 from netsquid.protocols.nodeprotocols import LocalProtocol
 from netsquid.protocols.protocol import Signals
 from netsquid.qubits import ketstates as ks
-from setuptools.namespaces import flatten
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network
 from utils import Logging
+from utils.Gates import controlled_unitary, measure_operator
 from protocols.MessageHandler import MessageHandler, MessageType
 from protocols.EntanglementHandler import EntanglementHandler
 from protocols.GenEntanglement import GenEntanglement
@@ -55,6 +55,11 @@ class VerifyExample(LocalProtocol):
         null_logger = Logging.Logger("null", logging_enabled=False)
         # initialize the protocol for each node
         # Initialize the entangle protocol
+        CU_matrix = controlled_unitary(batch_size)
+        measurement_m0, measurement_m1 = measure_operator()
+        CU_gate = ops.Operator("CU_Gate", CU_matrix)
+        CCU_gate = CU_gate.conj
+
         for index, node in enumerate(network_nodes):
             # Initialize the MessageHandler protocol
             self.add_subprotocol(MessageHandler(node=node,
@@ -97,7 +102,7 @@ class VerifyExample(LocalProtocol):
                                              max_entangled_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
-                                             logger=null_logger
+                                             logger=self.logger
                                              )
                 self.add_subprotocol(pure_protocol)
                 verify_protocol = Verification(node=node,
@@ -107,6 +112,10 @@ class VerifyExample(LocalProtocol):
                                                cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
                                                m_size=m_size,
                                                batch_size=batch_size,
+                                               CU_Gate=CU_gate,
+                                               CCU_Gate=CCU_gate,
+                                               measurement_m0=measurement_m0,
+                                               measurement_m1=measurement_m1,
                                                logger=self.logger,
                                                is_top_layer=True,
                                                max_entangled_pairs=self.max_entangle_pairs,
@@ -149,7 +158,7 @@ class VerifyExample(LocalProtocol):
                                              max_entangled_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
-                                             logger=null_logger
+                                             logger=self.logger
                                              )
                 self.add_subprotocol(pure_protocol)
                 verify_protocol = Verification(node=node,
@@ -159,6 +168,10 @@ class VerifyExample(LocalProtocol):
                                                cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
                                                m_size=m_size,
                                                batch_size=batch_size,
+                                               CU_Gate=CU_gate,
+                                               CCU_Gate=CCU_gate,
+                                               measurement_m0=measurement_m0,
+                                               measurement_m1=measurement_m1,
                                                logger=self.logger,
                                                is_top_layer=True,
                                                max_entangled_pairs=self.max_entangle_pairs,
@@ -179,12 +192,12 @@ class VerifyExample(LocalProtocol):
                 if "verify" in subprotocol.name:
                     verify_protocols.append(subprotocol)
 
-            wait_signals = [self.await_signal(p, MessageType.PROTOCOL_FINISHED)
+            wait_signals = [self.await_signal(p, MessageType.VERIFICATION_FINISHED)
                             for p in verify_protocols]
 
             yield reduce(operator.and_, wait_signals)
 
-            results = [p.get_signal_result(MessageType.PROTOCOL_FINISHED)
+            results = [p.get_signal_result(MessageType.VERIFICATION_FINISHED)
                        for p in verify_protocols]
             """
             result = {batch_id: [mem_pos1, mem_pos2, ...]}
@@ -252,6 +265,12 @@ class VerifyExample(LocalProtocol):
                     "teleport_success_count": teleport_success_count
                 }
             print(result_dic)
+            # we need to do safety layer to make sure we have gracefully shutdown the subprotocols
+            for subprotocol_name, subprotocol in self.subprotocols.items():
+                if "purify" in subprotocol_name and subprotocol.is_running:
+                    yield self.await_signal(subprotocol, MessageType.PURIFICATION_FINISHED)
+
+
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": index})
 
@@ -371,7 +390,7 @@ def run_experiment_multi(nodes_count):
         all_teleport_success_count = []
 
         for _ in range(1):
-            verify_example, dc = example_sim_run(sample_nodes, num_runs=1, memory_depolar_rate=100,
+            verify_example, dc = example_sim_run(sample_nodes, num_runs=2, memory_depolar_rate=100,
                                                  node_distance=20,
                                                  max_entangle_pairs=16, target_fidelity=0.995, m_size=3,
                                                  batch_size=batch_size)
@@ -429,7 +448,10 @@ def run_experiment_multi(nodes_count):
                            "success_verification_count": all_success_verification_count,
                            "teleport_success_count": all_teleport_success_count}
                       }
-        print(f"Batch size: {batch_size}\n"
+        print("*" * 50)
+        print(f"\tEntangle Pairs: {16}\n"
+              f"\tPurified Pairs: {16 - 3}\n"
+              f"\tBatch size: {batch_size}\n"
               f"\tActual Fidelities: {batch_data['actual_fidelities']}\n"
               f"\tTotal Verified Pairs: {batch_data['total_verified_pairs']}\n"
               f"\tTeleport Success Count: {batch_data['teleport_success_count']}\n"
@@ -437,8 +459,8 @@ def run_experiment_multi(nodes_count):
               f"\tSuccess Verification Count: {batch_data['success_verification_count']}\n"
               f"\tSuccess Verification Probability: {batch_data['success_verification_probability']}\n")
         experiment_data[batch_size] = batch_data
-        with open(f"./verification_results/batch_data_{max_batch_size}.json", "w") as f:
-            json.dump(experiment_data, f)
+        # with open(f"./verification_results/batch_data_{max_batch_size}.json", "w") as f:
+        #     json.dump(experiment_data, f)
 
 
 if __name__ == '__main__':

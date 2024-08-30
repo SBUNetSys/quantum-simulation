@@ -148,12 +148,12 @@ class PurificationExample(LocalProtocol):
                 if "purify" in subprotocol.name:
                     pure_protocols.append(subprotocol)
 
-            wait_signals = [self.await_signal(p, MessageType.PROTOCOL_FINISHED)
+            wait_signals = [self.await_signal(p, MessageType.PURIFICATION_FINISHED)
                             for p in pure_protocols]
 
             yield reduce(operator.and_, wait_signals)
 
-            results = [p.get_signal_result(MessageType.PROTOCOL_FINISHED)
+            results = [p.get_signal_result(MessageType.PURIFICATION_FINISHED)
                        for p in pure_protocols]
             result_dic = {}
             """
@@ -298,7 +298,7 @@ def run_single_stack(nodes_count, skip_noise=False):
     experiment_result = {}
     max_pairs = 128
     from rich.progress import Progress, BarColumn
-    with Progress(BarColumn(), transient=True) as progress:
+    with Progress(transient=True) as progress:
         task = progress.add_task("[green]Paris...", total=max_pairs)
         for entangle_pairs in range(4, max_pairs + 1, 2):
             filt_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,

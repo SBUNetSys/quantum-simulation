@@ -131,13 +131,13 @@ class ExampleEntanglement(LocalProtocol):
                 if "entanglement_handler" in p.name:
                     eh_protocols.append(p)
 
-            await_signals = [self.await_signal(p, MessageType.PROTOCOL_FINISHED)
+            await_signals = [self.await_signal(p, MessageType.ENTANGLEMENT_HANDLER_FINISHED)
                              for p in eh_protocols]
             yield reduce(operator.and_, await_signals)
             end_time = sim_time()
             # print_green(f"Entanglement time: {end_time - start_time}")
             # get all the entangled qubits and calculate the fidelity
-            results = [p.get_signal_result(MessageType.PROTOCOL_FINISHED, self)
+            results = [p.get_signal_result(MessageType.ENTANGLEMENT_HANDLER_FINISHED, self)
                        for p in eh_protocols]
             result_dic = {}
             node_index = 0
@@ -294,7 +294,7 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
     data = {}
     max_pairs = 128
     from rich.progress import Progress, BarColumn
-    with Progress(BarColumn(), transient=True) as progress:
+    with Progress(transient=True) as progress:
         task = progress.add_task("[green]Paris...", total=max_pairs)
         for entangle_pairs in range(2, max_pairs + 1):
             entangle_protocol, dc = example_sim_run(sample_nodes, num_runs=1000,
