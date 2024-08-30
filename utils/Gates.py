@@ -71,23 +71,33 @@ def measure_operator():
 if __name__ == '__main__':
 
     entangle_paris = []
-    for i in range(5):
+    for i in range(8):
         qubit1, qubit2 = qapi.create_qubits(2)
         qapi.operate(qubit1, op.H)
         qapi.operate([qubit1, qubit2], op.CNOT)
         entangle_paris.append([qubit1, qubit2])
-    qapi.operate(entangle_paris[0][1], op.X)
-    qapi.operate(entangle_paris[1][1], op.X)
-    qapi.operate(entangle_paris[2][1], op.X)
-    qapi.operate(entangle_paris[3][1], op.X)
-    qapi.operate(entangle_paris[4][1], op.X)
+    teleport_entangle = []
+    for i in range(3):
+        qubit1, qubit2 = qapi.create_qubits(2)
+        qapi.operate(qubit1, op.H)
+        qapi.operate([qubit1, qubit2], op.CNOT)
+        teleport_entangle.append([qubit1, qubit2])
+
+    # qapi.operate(entangle_paris[0][1], op.X)
+    # qapi.operate(entangle_paris[1][1], op.X)
+    # qapi.operate(entangle_paris[2][1], op.X)
+    # qapi.operate(entangle_paris[3][1], op.X)
+    # qapi.operate(entangle_paris[4][1], op.X)
+    # qapi.operate(entangle_paris[5][1], op.X)
+    # qapi.operate(entangle_paris[6][1], op.X)
+    # qapi.operate(entangle_paris[7][1], op.X)
     unitary_qubits = []
     for i in range(3):
         qubit, = qapi.create_qubits(1)
         qapi.operate(qubit, op.H)
         unitary_qubits.append(qubit)
 
-    CU = controlled_unitary(5)
+    CU = controlled_unitary(8)
     # Example: Controlled-Y gate
     # Y = np.array([[0, -1j], [1j, 0]])
     CU_Gate = op.Operator("CU", CU)
@@ -96,15 +106,34 @@ if __name__ == '__main__':
         alice_qubits.append(i[0])
     qapi.operate(alice_qubits, CU_Gate)
 
+    # teleportation
+    need_teleport_qubit = unitary_qubits[:3]
+    measurement_info = []
+    for qubit_a, qubit_b in zip(need_teleport_qubit, teleport_entangle):
+        qapi.operate([qubit_a, qubit_b[0]], op.CNOT)
+        qapi.operate(qubit_a, op.H)
+        m1, _ = qapi.measure(qubit_a)
+        m2, _ = qapi.measure(qubit_b[0])
+        measurement_info.append([m1, m2])
+
     # bob's side
+    bob_qubits = []
+    for result, qubit_b in zip(measurement_info, teleport_entangle):
+        if result[0] == 1:
+            qapi.operate(qubit_b[1], op.Z)
+        if result[1] == 1:
+            qapi.operate(qubit_b[1], op.X)
+        bob_qubits.append(qubit_b[1])
     # CCU = np.conjugate(CU)
     CCU_Gate = CU_Gate.conj
-    bob_qubits = alice_qubits[:3]
+    # bob_qubits = alice_qubits[:3]
     for i in entangle_paris:
         bob_qubits.append(i[1])
     qapi.operate(bob_qubits, CCU_Gate)
+
     for i in range(3):
         qapi.operate(bob_qubits[i], op.H)
+
     list_qubit = bob_qubits[:3]
 
     # for i in range(3):

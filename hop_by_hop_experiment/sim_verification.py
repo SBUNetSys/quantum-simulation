@@ -1,3 +1,4 @@
+import copy
 import gc
 import json
 import operator
@@ -205,7 +206,8 @@ class VerifyExample(LocalProtocol):
                 total_batch = len(node_pair_res)
                 teleport_success_count = 0
                 for mem_pos in node_pair_res:
-                    qubit_a = self.all_nodes[i].subcomponents[f"{entangle_node}_qmemory"].pop(mem_pos)[0]
+                    qubit_a = self.all_nodes[i].subcomponents[f"{entangle_node}_qmemory"].pop(mem_pos)[
+                        0]
                     qubit_b = self.all_nodes[i + 1].subcomponents[f"{node}_qmemory"].pop(mem_pos)[0]
                     q_a_name = str(qubit_a.name).split("#")[-1].split("-")[0]
                     q_b_name = str(qubit_b.name).split("#")[-1].split("-")[0]
@@ -215,8 +217,14 @@ class VerifyExample(LocalProtocol):
                     # if q_a.qstate != q_b.qstate:
                     #     raise ValueError(f"Qubit states are not the same: {q_a.qstate}, {q_b.qstate}")
                     f = qapi.fidelity([qubit_a, qubit_b], ks.b00)
-                    if 0 < f < 0.99:
-                        raise ValueError(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}")
+                    if 0.01 < f < 0.99:
+                        # raise ValueError(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}")
+                        self.logger.error(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
+                                          color="red")
+                    if not isinstance(f, float):
+                        f = 0
+                        self.logger.error(f"Fidelity is Nan, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
+                                          color="red")
                     actual_fidelities[mem_pos] = f
                     # start_teleportation, generate a qubit for teleportation
                     # rotate the qubit to y0 state
@@ -225,6 +233,14 @@ class VerifyExample(LocalProtocol):
                     qapi.operate(qubit, ops.S)
                     # teleport the qubit
                     fid = self.test_teleportation(qubit_a, qubit_b, qubit)
+                    # if str(fid) == "nan":
+                    #     fid = 0
+                    #     self.logger.error(f"Teleportation fidelity is Nan, type {type(fid)}, "
+                    #                       f"\n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
+                    #                       color="red")
+                    #     if not isinstance(fid, float):
+                    #         raise ValueError(f"Teleportation fidelity is not float: {fid}")
+                    print(f"Teleportation fidelity: {fid}")
                     if fid > 0.99:
                         teleport_success_count += 1
                 result_dic[f"{node}->{entangle_node}"] = {
@@ -240,11 +256,7 @@ class VerifyExample(LocalProtocol):
                                                "run_index": index})
 
             for subprotocol in self.subprotocols.values():
-                if "verify" not in subprotocol.name:
-                    subprotocol.reset()
-            for subprotocol in verify_protocols:
                 subprotocol.reset()
-            gc.collect()
 
     def get_cc_ports(self, node):
         cc_ports = {}
@@ -278,6 +290,10 @@ class VerifyExample(LocalProtocol):
         fidelity = qapi.fidelity(qubit_b, ns.y0)
 
         return fidelity
+
+    def stop(self):
+        for subprotocol in self.subprotocols.values():
+            subprotocol.stop()
 
 
 def example_sim_run(nodes, num_runs, memory_depolar_rate,
@@ -321,13 +337,13 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate,
 def run_experiment(nodes_count):
     nodes_list = [f"Node_{i}" for i in range(nodes_count)]
     network = setup_network(nodes_list, "hop-by-hop-verification",
-                            memory_capacity=16, memory_depolar_rate=100,
+                            memory_capacity=16, memory_depolar_rate=10e-6,
                             node_distance=20, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
-    verify_example, dc = example_sim_run(sample_nodes, num_runs=1, memory_depolar_rate=100,
+    verify_example, dc = example_sim_run(sample_nodes, num_runs=2, memory_depolar_rate=10e-6,
                                          node_distance=20,
-                                         max_entangle_pairs=16, target_fidelity=0.995, m_size=3, batch_size=10)
+                                         max_entangle_pairs=16, target_fidelity=0.995, m_size=3, batch_size=8)
     # Run the simulation
     verify_example.start()
     ns.sim_run()
@@ -343,9 +359,9 @@ def run_experiment_multi(nodes_count):
                             node_distance=20, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
-    max_batch_size = 10
+    max_batch_size = 8
     experiment_data = {}
-    for batch_size in range(2, max_batch_size + 1, 2):
+    for batch_size in range(8, max_batch_size + 1, 2):
 
         all_actual_fidelities = []
         all_total_verified_pairs = []
@@ -354,7 +370,7 @@ def run_experiment_multi(nodes_count):
         all_success_verification_count = []
         all_teleport_success_count = []
 
-        for i in range(100):
+        for _ in range(1):
             verify_example, dc = example_sim_run(sample_nodes, num_runs=1, memory_depolar_rate=100,
                                                  node_distance=20,
                                                  max_entangle_pairs=16, target_fidelity=0.995, m_size=3,
@@ -393,6 +409,7 @@ def run_experiment_multi(nodes_count):
                 all_success_verification_count += flattened_success_verification_count
                 all_teleport_success_count += flattened_teleport_success_count
             verify_example.stop()
+
         batch_data = {"actual_fidelities":
                           np.mean(all_actual_fidelities, dtype=np.float64),
                       "total_verified_pairs":
@@ -412,6 +429,13 @@ def run_experiment_multi(nodes_count):
                            "success_verification_count": all_success_verification_count,
                            "teleport_success_count": all_teleport_success_count}
                       }
+        print(f"Batch size: {batch_size}\n"
+              f"\tActual Fidelities: {batch_data['actual_fidelities']}\n"
+              f"\tTotal Verified Pairs: {batch_data['total_verified_pairs']}\n"
+              f"\tTeleport Success Count: {batch_data['teleport_success_count']}\n"
+              f"\tTotal Verification Count: {batch_data['total_verification_count']}\n"
+              f"\tSuccess Verification Count: {batch_data['success_verification_count']}\n"
+              f"\tSuccess Verification Probability: {batch_data['success_verification_probability']}\n")
         experiment_data[batch_size] = batch_data
         with open(f"./verification_results/batch_data_{max_batch_size}.json", "w") as f:
             json.dump(experiment_data, f)
@@ -419,3 +443,4 @@ def run_experiment_multi(nodes_count):
 
 if __name__ == '__main__':
     run_experiment_multi(2)
+    # run_experiment(2)

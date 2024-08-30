@@ -9,6 +9,8 @@ Logging class to log messages to stdout for debugging purposes.
 class Logger:
     def __init__(self, name, level=logging.DEBUG, logging_enabled=True, save_to_file=False, file_name="log.txt"):
         self.logger = logging.getLogger(name)
+        if self.logger.handlers:
+            self.logger.handlers.clear()
         self.logger.setLevel(level)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         if logging_enabled:
