@@ -17,9 +17,11 @@ from netsquid.protocols.nodeprotocols import NodeProtocol, LocalProtocol
 from netsquid.protocols.protocol import Signals
 import netsquid as ns
 import netsquid.qubits.ketstates as ks
+from scipy.cluster.hierarchy import average
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network
+from utils import Logging
 from protocols.GenEntanglement import GenEntanglement
 from protocols.MessageHandler import MessageHandler, MessageType
 from protocols.EntanglementHandler import EntanglementHandler
@@ -44,12 +46,16 @@ class ExampleEntanglement(LocalProtocol):
     Protocol to create entanglement between two nodes.
     """
 
-    def __init__(self, network_nodes, num_runs=1, max_entangle_pairs=2, memory_depolar_rate=1, node_distance=20):
+    def __init__(self, network_nodes, num_runs=1, max_entangle_pairs=2, memory_depolar_rate=1,
+                 node_distance=20,
+                 skip_noise=False):
         if len(network_nodes) < 1:
             raise ValueError("This protocol requires at least 2 nodes.")
         self.all_nodes = network_nodes
         self.num_runs = num_runs
         self.max_entangle_pairs = max_entangle_pairs
+        self.skip_noise = skip_noise
+        self.logger = Logging.Logger("ExampleEntanglement", logging_enabled=False)
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleEntanglement")
 
         # initialize the protocol for each node
@@ -70,6 +76,7 @@ class ExampleEntanglement(LocalProtocol):
                     node=node,
                     name=f"entangle_{node.name}->{network_nodes[index - 1].name}",
                     is_source=False,
+                    logger=self.logger
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandler(node=node,
@@ -81,7 +88,8 @@ class ExampleEntanglement(LocalProtocol):
                                                  entangle_node=network_nodes[index - 1].name,
                                                  memory_depolar_rate=memory_depolar_rate,
                                                  node_distance=node_distance,
-                                                 is_top_layer=True
+                                                 is_top_layer=True,
+                                                 logger=self.logger
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
@@ -95,6 +103,7 @@ class ExampleEntanglement(LocalProtocol):
                     node=node,
                     name=f"entangle_{node.name}->{network_nodes[index + 1].name}",
                     is_source=True,
+                    logger=self.logger
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandler(node=node,
@@ -106,11 +115,11 @@ class ExampleEntanglement(LocalProtocol):
                                                  entangle_node=network_nodes[index + 1].name,
                                                  memory_depolar_rate=memory_depolar_rate,
                                                  node_distance=node_distance,
-                                                 is_top_layer=True
+                                                 is_top_layer=True,
+                                                 logger=self.logger
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
-
 
     def run(self):
         self.start_subprotocols()
@@ -126,7 +135,7 @@ class ExampleEntanglement(LocalProtocol):
                              for p in eh_protocols]
             yield reduce(operator.and_, await_signals)
             end_time = sim_time()
-            print_green(f"Entanglement time: {end_time - start_time}")
+            # print_green(f"Entanglement time: {end_time - start_time}")
             # get all the entangled qubits and calculate the fidelity
             results = [p.get_signal_result(MessageType.PROTOCOL_FINISHED, self)
                        for p in eh_protocols]
@@ -141,8 +150,10 @@ class ExampleEntanglement(LocalProtocol):
                 fidelity = []
                 estimated_fidelity = []
                 for index in node_res.keys():
-                    qubit1, = self.nodes[node].subcomponents[f"{entangle_node}_qmemory"].peek(index)
-                    qubit2, = self.nodes[entangle_node].subcomponents[f"{node}_qmemory"].peek(index)
+                    qubit1, = self.nodes[node].subcomponents[f"{entangle_node}_qmemory"].pop(index,
+                                                                                             skip_noise=self.skip_noise)
+                    qubit2, = self.nodes[entangle_node].subcomponents[f"{node}_qmemory"].pop(index,
+                                                                                             skip_noise=self.skip_noise)
                     estimated_fidelity.append(node_res[index])
                     f = qapi.fidelity([qubit1, qubit2], ks.b00)
                     # sanity check
@@ -156,9 +167,10 @@ class ExampleEntanglement(LocalProtocol):
                     fidelity.append(f)
 
                 result_dic[f"{node}->{entangle_node}"] = fidelity
-                print_green(f"Actual fidelity: {sum(fidelity) / len(fidelity)}")
+                # print_green(f"Actual fidelity: {sum(fidelity) / len(fidelity)}")
                 result_dic[f"{node}->{entangle_node} Estimated"] = estimated_fidelity
-                print_green(f"Estimated fidelity: {sum(estimated_fidelity) / len(estimated_fidelity)}")
+                result_dic[f"{node}->{entangle_node} Duration"] = end_time - start_time
+                # print_green(f"Estimated fidelity: {sum(estimated_fidelity) / len(estimated_fidelity)}")
             self.send_signal(Signals.SUCCESS, {"results": result_dic})
             # reset the manage entangle protocol first
             # for node in self.all_nodes:
@@ -179,16 +191,17 @@ class ExampleEntanglement(LocalProtocol):
         return cc_ports
 
 
-def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_entangle_pairs):
+def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_entangle_pairs, skip_noise=False):
     entangle_example = ExampleEntanglement(nodes, num_runs=num_runs,
                                            max_entangle_pairs=max_entangle_pairs,
                                            memory_depolar_rate=memory_depolar_rate,
-                                           node_distance=node_distance)
+                                           node_distance=node_distance,
+                                           skip_noise=skip_noise)
 
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Run completed: {result}")
+        # print(f"Run completed: {result}")
         return result["results"]
 
     dc = DataCollector(record_run, include_time_stamp=False,
@@ -270,8 +283,81 @@ def experiment_with_increasing_nodes(max_node, save_dir):
         json.dump(data, f)
 
 
+def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
+    # create a network
+    nodes_list = [f"Node_{i}" for i in range(max_node)]
+    network = setup_network(nodes_list, "hop-by-hop-entangle",
+                            memory_capacity=128, memory_depolar_rate=100,
+                            node_distance=20, source_delay=1e5)
+    # create a protocol to entangle two nodes
+    sample_nodes = [node for node in network.nodes.values()]
+    data = {}
+    max_pairs = 128
+    from rich.progress import Progress, BarColumn
+    with Progress(BarColumn(), transient=True) as progress:
+        task = progress.add_task("[green]Paris...", total=max_pairs)
+        for entangle_pairs in range(2, max_pairs + 1):
+            entangle_protocol, dc = example_sim_run(sample_nodes, num_runs=1000,
+                                                    memory_depolar_rate=100,
+                                                    node_distance=20,
+                                                    max_entangle_pairs=entangle_pairs,
+                                                    skip_noise=skip_noise
+                                                    )
+            entangle_protocol.start()
+            # run the protocol
+            ns.sim_run()
+
+            # compute average for each column
+            all_node_actual_fidelity = []
+            all_node_estimated_fidelity = []
+            all_node_duration = []
+            # print(dc.dataframe)
+            for column in dc.dataframe.columns:
+                # Flatten the lists in the column
+                if "Estimated" in column:
+                    flattened_values = [item for sublist in dc.dataframe[column] for item in sublist]
+                    all_node_estimated_fidelity.append(sum(flattened_values) / len(flattened_values))
+                elif "Duration" in column:
+                    all_node_duration.append(sum(dc.dataframe[column]) / len(dc.dataframe[column]))
+                else:
+                    flattened_values = [item for sublist in dc.dataframe[column] for item in sublist]
+                    all_node_actual_fidelity.append(sum(flattened_values) / len(flattened_values))
+            final_fidelity = 1
+            for fidelity in all_node_actual_fidelity:
+                final_fidelity *= fidelity
+            final_estimated_fidelity = 1
+            for fidelity in all_node_estimated_fidelity:
+                final_estimated_fidelity *= fidelity
+            average_duration = sum(all_node_duration) / len(all_node_duration)
+            print("*" * 50)
+            print(f"Skip noise: {skip_noise}")
+            print(f"Entangle pairs: {entangle_pairs}")
+            print(f"Final estimated fidelity: {final_estimated_fidelity}")
+            print(f"Final fidelity: {final_fidelity}")
+            print("Average duration: ", average_duration)
+            data[entangle_pairs] = {"actual_fidelity": final_fidelity,
+                                    "estimated_fidelity": final_estimated_fidelity,
+                                    "average_duration": average_duration}
+            entangle_protocol.stop()
+            progress.update(task, advance=1)
+        with open(os.path.join(save_dir, f"entanglement_results_2_node_{max_pairs}_pairs_noise_{skip_noise}.json"),
+                  "w") as f:
+            json.dump(data, f, indent=4)
+
+
 def main():
-    experiment_with_increasing_nodes(3, "./entanglement_results")
+    if len(sys.argv) < 2:
+        print("Please provide an argument to skip noise")
+        exit(0)
+    if sys.argv[1] == "true":
+        pop_noise = True
+    elif sys.argv[1] == "false":
+        pop_noise = False
+    else:
+        print("Invalid argument. Please use 'true' or 'false'")
+        exit(0)
+    experiment_with_increasing_pairs(2, "./entanglement_results", skip_noise=pop_noise)
+    # experiment_with_increasing_nodes(3, "./entanglement_results")
     # with open("entanglement_results_50_node.json", "r") as f:
     #     data = json.load(f)
     # xs = list(int(key) for key in data.keys())

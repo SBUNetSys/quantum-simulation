@@ -36,12 +36,14 @@ class PurificationExample(LocalProtocol):
                  max_entangle_pairs=2,
                  memory_depolar_rate=1,
                  node_distance=20,
-                 target_fidelity=0.99):
+                 target_fidelity=0.99,
+                 skip_noise=False):
         if len(network_nodes) < 1:
             raise ValueError("This protocol requires at least nodes.")
         self.all_nodes = network_nodes
         self.num_runs = num_runs
         self.max_entangle_pairs = max_entangle_pairs
+        self.skip_noise = skip_noise
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExamplePurification")
         # create logger
         self.logger = Logging.Logger(self.name, logging_enabled=False)
@@ -125,7 +127,7 @@ class PurificationExample(LocalProtocol):
                                                   entangled_node=network_nodes[index + 1].name,
                                                   entanglement_handler=eh_handler,
                                                   cc_message_handler=self.subprotocols[
-                                                        f"message_handler_{node.name}"],
+                                                      f"message_handler_{node.name}"],
                                                   max_entangled_pair=self.max_entangle_pairs,
                                                   target_fidelity=target_fidelity,
                                                   is_top_layer=True,
@@ -134,8 +136,8 @@ class PurificationExample(LocalProtocol):
 
     def run(self):
         self.start_subprotocols()
-        for subprotoco, val in self.subprotocols.items():
-            print(f"Subprotocol: {subprotoco}")
+        # for subprotoco, val in self.subprotocols.items():
+        #     print(f"Subprotocol: {subprotoco}")
 
         for index in range(self.num_runs):
             start_time = sim_time()
@@ -169,14 +171,16 @@ class PurificationExample(LocalProtocol):
                 purified_success_count = results[i]["purification_success_count"]
                 finish_time = results[i]["finish_time"]
                 # entangle_pair_res = results[i + 1]["satisfied_pairs"]
-                print(f"Finish time: {finish_time}")
+                # print(f"Finish time: {finish_time}")
                 # measure the actual fidelity
                 actual_fidelities = {}
                 theoretical_fidelities = {}
                 teleport_success_count = 0
                 for mem_pos, theoretical_fidelity in node_pair_res.items():
-                    q_a = self.all_nodes[i].subcomponents[f"{entangle_node}_qmemory"].peek(mem_pos)[0]
-                    q_b = self.all_nodes[i + 1].subcomponents[f"{node}_qmemory"].peek(mem_pos)[0]
+                    q_a = self.all_nodes[i].subcomponents[f"{entangle_node}_qmemory"].pop(mem_pos,
+                                                                                          skip_noise=self.skip_noise)[0]
+                    q_b = self.all_nodes[i + 1].subcomponents[f"{node}_qmemory"].pop(mem_pos,
+                                                                                     skip_noise=self.skip_noise)[0]
                     q_a_name = str(q_a.name).split("#")[-1].split("-")[0]
                     q_b_name = str(q_b.name).split("#")[-1].split("-")[0]
                     # print(f"Qubit names: {q_a_name}, {q_b_name}")
@@ -212,26 +216,10 @@ class PurificationExample(LocalProtocol):
                     "teleport_success_count": teleport_success_count}
                 node_index += 1
 
-            print(result_dic)
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": index})
-            # TODO: This is to gracefully reset the protocol.
-            # for subprotocol in self.subprotocols.values():
-            #     if "entanglement_handler" in subprotocol.name and subprotocol.is_running:
-            #         self.await_signal(subprotocol, MessageType.PROTOCOL_FINISHED)
-            # for node in self.all_nodes:
-            #     eh_protocol = self.subprotocols[f"entanglement_handler_{node.name}"]
-            #     if eh_protocol.is_running:
-            #         self.await_signal(eh_protocol, MessageType.PROTOCOL_FINISHED)
-            # wait_signals = [self.await_signal(self.subprotocols[f"entanglement_handler_{node.name}"],
-            #                                   MessageType.PROTOCOL_FINISHED)
-            #                 for node in self.all_nodes]
-
-            # yield reduce(operator.and_, wait_signals)
             for subprotocol in self.subprotocols.values():
                 subprotocol.reset()
-            # self.reset()
-
 
     @staticmethod
     def test_teleportation(qubit_a, qubit_b, teleport_qubit):
@@ -267,7 +255,8 @@ class PurificationExample(LocalProtocol):
         return cc_ports
 
 
-def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_entangle_pairs, target_fidelity):
+def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_entangle_pairs, target_fidelity,
+                    skip_noise=False):
     """Example simulation setup for purification protocols.
 
     Returns
@@ -283,12 +272,12 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_ent
                                          memory_depolar_rate=memory_depolar_rate,
                                          node_distance=node_distance,
                                          max_entangle_pairs=max_entangle_pairs,
-                                         target_fidelity=target_fidelity)
+                                         target_fidelity=target_fidelity,
+                                         skip_noise=skip_noise)
 
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Purification Run {result['run_index']} completed: {result}")
         return result["results"]
 
     dc = DataCollector(record_run, include_time_stamp=False,
@@ -298,7 +287,7 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_ent
     return purify_example, dc
 
 
-def run_single_stack(nodes_count):
+def run_single_stack(nodes_count, skip_noise=False):
     # create a network
     nodes_list = [f"Node_{i}" for i in range(nodes_count)]
     network = setup_network(nodes_list, "hop-by-hop-purification",
@@ -308,126 +297,144 @@ def run_single_stack(nodes_count):
     sample_nodes = [node for node in network.nodes.values()]
     experiment_result = {}
     max_pairs = 128
-    for entangle_pairs in range(128, max_pairs + 1, 2):
-        filt_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,
-                                           node_distance=20,
-                                           max_entangle_pairs=entangle_pairs, target_fidelity=0.995)
-        filt_example.start()
-        ns.sim_run()
-        collected_data = dc.dataframe
-        print(collected_data)
-        all_node_actual_fidelity = []
-        all_node_estimated_fidelity = []
-        all_node_purified_count = []
-        all_node_purified_success_count = []
-        all_satisfied_pairs_count = []
-        all_experiment_duration = []
-        all_teleport_success_count = []
-        all_raw_fidelity_count = []
-        all_raw_estimated_fidelity = []
-        all_raw_teleport_success_count = []
-        all_raw_purified_count = []
-        all_raw_purified_success_count = []
-        all_raw_satisfied_pairs_count = []
-        # pandas.set_option('display.precision', 10)
-        for column in dc.dataframe.columns:
-            # Flatten the lists in the column
-            # we have dictionary in the column
-            # {'actual_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
-            # 'theoretical_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
-            # 'purified_count': 0,
-            # 'purified_success_count': 0}
+    from rich.progress import Progress, BarColumn
+    with Progress(BarColumn(), transient=True) as progress:
+        task = progress.add_task("[green]Paris...", total=max_pairs)
+        for entangle_pairs in range(4, max_pairs + 1, 2):
+            filt_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,
+                                               node_distance=20,
+                                               max_entangle_pairs=entangle_pairs, target_fidelity=0.995,
+                                               skip_noise=skip_noise)
+            filt_example.start()
+            ns.sim_run()
+            collected_data = dc.dataframe
+            all_node_actual_fidelity = []
+            all_node_estimated_fidelity = []
+            all_node_purified_count = []
+            all_node_purified_success_count = []
+            all_satisfied_pairs_count = []
+            all_experiment_duration = []
+            all_teleport_success_count = []
+            all_raw_fidelity_count = []
+            all_raw_estimated_fidelity = []
+            all_raw_teleport_success_count = []
+            all_raw_purified_count = []
+            all_raw_purified_success_count = []
+            all_raw_satisfied_pairs_count = []
+            # pandas.set_option('display.precision', 10)
+            for column in dc.dataframe.columns:
+                # Flatten the lists in the column
+                # we have dictionary in the column
+                # {'actual_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
+                # 'theoretical_fidelities': {3: 1.0, 9: 1.0, 4: 1.0,},
+                # 'purified_count': 0,
+                # 'purified_success_count': 0}
 
-            flattened_actual_fidelities = []
-            flattened_theoretical_fidelities = []
-            flattened_purified_count = []
-            flattened_purified_success_count = []
-            flattened_experiment_duration = []
-            flattened_satisfied_pairs_count = []
-            flattened_teleport_success_count = []
-            for result_data in dc.dataframe[column]:
-                if isinstance(result_data, dict):
-                    for key, value in result_data.items():
-                        if "actual_fidelities" in key:
-                            flattened_actual_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
-                            all_raw_fidelity_count.append(Counter(value.values()))
-                        elif "theoretical_fidelities" in key:
-                            flattened_theoretical_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
-                            all_raw_estimated_fidelity.append(Counter(value.values()))
-                        elif "purified_count" in key:
-                            flattened_purified_count.append(value)
-                            all_raw_purified_count.append(value)
-                        elif "purified_success_count" in key:
-                            flattened_purified_success_count.append(value)
-                            all_raw_purified_success_count.append(value)
-                        elif "experiment_duration" in key:
-                            flattened_experiment_duration.append(value)
-                        elif "satisfied_pairs_count" in key:
-                            flattened_satisfied_pairs_count.append(value)
-                            all_raw_satisfied_pairs_count.append(value)
-                        elif "teleport_success_count" in key:
-                            flattened_teleport_success_count.append(value)
-                            all_raw_teleport_success_count.append(value)
-            # calculate the average of the flattened values
-            # actual fidelities
-            actual_fidelities = np.mean(flattened_actual_fidelities, dtype=np.float64)
-            all_node_actual_fidelity.append(actual_fidelities)
-            # theoretical fidelities
-            estimated_fidelities = np.mean(flattened_theoretical_fidelities, dtype=np.float64)
-            all_node_estimated_fidelity.append(estimated_fidelities)
-            # purified count
-            purified_count = np.mean(flattened_purified_count, dtype=np.float64)
-            all_node_purified_count.append(purified_count)
+                flattened_actual_fidelities = []
+                flattened_theoretical_fidelities = []
+                flattened_purified_count = []
+                flattened_purified_success_count = []
+                flattened_experiment_duration = []
+                flattened_satisfied_pairs_count = []
+                flattened_teleport_success_count = []
+                for result_data in dc.dataframe[column]:
+                    if isinstance(result_data, dict):
+                        for key, value in result_data.items():
+                            if "actual_fidelities" in key:
+                                flattened_actual_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
+                                all_raw_fidelity_count.append(Counter(value.values()))
+                            elif "theoretical_fidelities" in key:
+                                flattened_theoretical_fidelities.append(np.mean(list(value.values()), dtype=np.float64))
+                                all_raw_estimated_fidelity.append(Counter(value.values()))
+                            elif "purified_count" in key:
+                                flattened_purified_count.append(value)
+                                all_raw_purified_count.append(value)
+                            elif "purified_success_count" in key:
+                                flattened_purified_success_count.append(value)
+                                all_raw_purified_success_count.append(value)
+                            elif "experiment_duration" in key:
+                                flattened_experiment_duration.append(value)
+                            elif "satisfied_pairs_count" in key:
+                                flattened_satisfied_pairs_count.append(value)
+                                all_raw_satisfied_pairs_count.append(value)
+                            elif "teleport_success_count" in key:
+                                flattened_teleport_success_count.append(value)
+                                all_raw_teleport_success_count.append(value)
+                # calculate the average of the flattened values
+                # actual fidelities
+                actual_fidelities = np.mean(flattened_actual_fidelities, dtype=np.float64)
+                all_node_actual_fidelity.append(actual_fidelities)
+                # theoretical fidelities
+                estimated_fidelities = np.mean(flattened_theoretical_fidelities, dtype=np.float64)
+                all_node_estimated_fidelity.append(estimated_fidelities)
+                # purified count
+                purified_count = np.mean(flattened_purified_count, dtype=np.float64)
+                all_node_purified_count.append(purified_count)
 
-            # purified success count
-            purified_success_count = np.mean(flattened_purified_success_count, dtype=np.float64)
-            all_node_purified_success_count.append(purified_success_count)
-            # experiment duration
-            experiment_duration = np.mean(flattened_experiment_duration, dtype=np.float64)
-            all_experiment_duration.append(experiment_duration)
-            # satisfied pairs count
-            satisfied_pairs_count = np.mean(flattened_satisfied_pairs_count, dtype=np.float64)
-            all_satisfied_pairs_count.append(satisfied_pairs_count)
-            # teleport success count
-            teleport_success_count = np.mean(flattened_teleport_success_count, dtype=np.float64)
-            all_teleport_success_count.append(teleport_success_count)
-        filt_example.stop()
+                # purified success count
+                purified_success_count = np.mean(flattened_purified_success_count, dtype=np.float64)
+                all_node_purified_success_count.append(purified_success_count)
+                # experiment duration
+                experiment_duration = np.mean(flattened_experiment_duration, dtype=np.float64)
+                all_experiment_duration.append(experiment_duration)
+                # satisfied pairs count
+                satisfied_pairs_count = np.mean(flattened_satisfied_pairs_count, dtype=np.float64)
+                all_satisfied_pairs_count.append(satisfied_pairs_count)
+                # teleport success count
+                teleport_success_count = np.mean(flattened_teleport_success_count, dtype=np.float64)
+                all_teleport_success_count.append(teleport_success_count)
+            filt_example.stop()
 
-        final_fidelity = np.mean(all_node_actual_fidelity, dtype=np.float64)
-        final_estimated_fidelity = np.mean(all_node_estimated_fidelity, dtype=np.float64)
-        final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)
-        final_purified_success_count = np.mean(all_node_purified_success_count, dtype=np.float64)
-        final_experiment_duration = np.mean(all_experiment_duration, dtype=np.float64)
-        final_satisfied_pairs_count = np.mean(all_satisfied_pairs_count, dtype=np.float64)
-        final_teleport_success_count = np.mean(all_teleport_success_count, dtype=np.float64)
-        print(f"-*-" * 10)
-        print(f"Final Satisfied pairs count: {final_satisfied_pairs_count}")
-        print(f"Final experiment duration: {final_experiment_duration}")
-        print(f"Final estimated fidelity: {final_estimated_fidelity}")
-        print(f"Final fidelity: {final_fidelity}")
-        print(f"Final purified count: {final_purified_count}")
-        print(f"Final purified success count: {final_purified_success_count}")
-        print(f"Final teleport success count: {final_teleport_success_count}")
-        experiment_result[entangle_pairs] = {"actual_fidelity": final_fidelity,
-                                                "estimated_fidelity": final_estimated_fidelity,
-                                                "purified_count": final_purified_count,
-                                                "purified_success_count": final_purified_success_count,
-                                                "experiment_duration": final_experiment_duration / 1e9,
-                                                "satisfied_pairs_count": final_satisfied_pairs_count,
-                                                "teleport_success_count": final_teleport_success_count,
-                                                "raw_data": {
-                                                    "actual_fidelity": all_raw_fidelity_count,
-                                                    "estimated_fidelity": all_raw_estimated_fidelity,
-                                                    "purified_count": Counter(all_raw_purified_count),
-                                                    "purified_success_count": Counter(all_raw_purified_success_count),
-                                                    "experiment_duration": all_experiment_duration,
-                                                    "satisfied_pairs_count": Counter(all_raw_satisfied_pairs_count),
-                                                    "teleport_success_count": Counter(all_raw_teleport_success_count)}
-                                                }
-        with open(f"./purification_results/purification_results_2_nodes_{max_pairs}_paris.json", "w") as f:
-            json.dump(experiment_result, f, indent=4)
+            final_fidelity = np.mean(all_node_actual_fidelity, dtype=np.float64)
+            final_estimated_fidelity = np.mean(all_node_estimated_fidelity, dtype=np.float64)
+            final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)
+            final_purified_success_count = np.mean(all_node_purified_success_count, dtype=np.float64)
+            final_experiment_duration = np.mean(all_experiment_duration, dtype=np.float64)
+            final_satisfied_pairs_count = np.mean(all_satisfied_pairs_count, dtype=np.float64)
+            final_teleport_success_count = np.mean(all_teleport_success_count, dtype=np.float64)
+            print(f"-*-" * 50)
+            print(f"Skip noise: {skip_noise}")
+            print(f"Entangle pairs: {entangle_pairs}")
+            print(f"Final Satisfied pairs count: {final_satisfied_pairs_count}")
+            print(f"Final experiment duration: {final_experiment_duration}")
+            print(f"Final estimated fidelity: {final_estimated_fidelity}")
+            print(f"Final fidelity: {final_fidelity}")
+            print(f"Final purified count: {final_purified_count}")
+            print(f"Final purified success count: {final_purified_success_count}")
+            print(f"Final teleport success count: {final_teleport_success_count}")
+            experiment_result[entangle_pairs] = {"actual_fidelity": final_fidelity,
+                                                 "estimated_fidelity": final_estimated_fidelity,
+                                                 "purified_count": final_purified_count,
+                                                 "purified_success_count": final_purified_success_count,
+                                                 "experiment_duration": final_experiment_duration / 1e9,
+                                                 "satisfied_pairs_count": final_satisfied_pairs_count,
+                                                 "teleport_success_count": final_teleport_success_count,
+                                                 "raw_data": {
+                                                     "actual_fidelity": all_raw_fidelity_count,
+                                                     "estimated_fidelity": all_raw_estimated_fidelity,
+                                                     "purified_count": Counter(all_raw_purified_count),
+                                                     "purified_success_count": Counter(all_raw_purified_success_count),
+                                                     "experiment_duration": all_experiment_duration,
+                                                     "satisfied_pairs_count": Counter(all_raw_satisfied_pairs_count),
+                                                     "teleport_success_count": Counter(all_raw_teleport_success_count)}
+                                                 }
+            with open(f"./purification_results/purification_results_2_nodes_{max_pairs}_paris_noise_{skip_noise}.json",
+                      "w") as f:
+                json.dump(experiment_result, f, indent=4)
+            progress.update(task, advance=1)
+
 
 if __name__ == "__main__":
     # experiment_with_increasing_node(3, "purification_results")
     # run_test(2)
-    run_single_stack(2)
+    if len(sys.argv) < 2:
+        print("Please provide an argument to skip noise")
+        exit(0)
+    if sys.argv[1] == "true":
+        pop_noise = True
+    elif sys.argv[1] == "false":
+        pop_noise = False
+    else:
+        print("Invalid argument. Please use 'true' or 'false'")
+        exit(0)
+    run_single_stack(2, pop_noise)
