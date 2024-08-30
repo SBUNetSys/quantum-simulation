@@ -142,6 +142,46 @@ class EntanglementHandler(NodeProtocol):
             self.logger.info(f"ManageEntangle {self.name} -> Entangle signal from {from_node}, mem_pos: {mem_pos}"
                              f" not ready yet", color="blue")
 
+    def handle_qubit_input_signal(self, event):
+        source_protocol = event.source
+        ready_signal = source_protocol.get_signal_by_event(
+            event=event, receiver=self)
+        result = ready_signal.result
+        gen_data: SignalMessages.NewEntanglementSignalMessage = result
+        mem_pos = gen_data.mem_pos
+        is_source = gen_data.is_source
+        qmemory_name = gen_data.qmemory_name
+        entangle_node = gen_data.entangle_node
+        initial_fidelity = gen_data.init_fidelity
+        if is_source:
+            # store the qubit in the temporary qubits
+            self.temp_qubits[mem_pos] = self.estimate_fidelity_theoretical(initial_fidelity)
+            self.logger.info(
+                f"ManageEntangle {self.name} -> Entangle signal from QSource, mem_pos: {mem_pos}\n"
+                f"\tInitial Fidelity: {initial_fidelity}\n "
+                f"\tEstimated Fidelity: {self.temp_qubits[mem_pos]}", color="blue")
+        else:
+            # add the qubit to the entangled qubits
+            self.logger.info(
+                f"ManageEntangle {self.name} -> Entangle signal from {entangle_node}, mem_pos: {mem_pos}",
+                color="blue")
+            # we don't need to estimate the fidelity for the remote node
+            # as we don't know the initial fidelity. Here it will be None
+            self.entangled_qubits[mem_pos] = initial_fidelity
+            self.entangled_pairs_count += 1
+            # send the entangled signal to the source node
+            self.cc_message_handler.send_message(MessageType.ENTANGLED, entangle_node,
+                                                 ClassicalMessage(
+                                                     self.node.name, entangle_node,
+                                                     SignalMessages.EntangleSignalMessage(self.node.name,
+                                                                                          mem_pos)
+                                                 ))
+            # send the entangle pair to the upper layer
+            self.send_signal(Signals.SUCCESS,
+                             SignalMessages.EntangleSuccessSignalMessage(entangle_node,
+                                                                         mem_pos,
+                                                                         initial_fidelity))
+
     def process_re_entangle_message(self, message: SignalMessages.ReEntangleSignalMessage):
         """
         Process the re-entangle message from upper layer. 
@@ -189,6 +229,85 @@ class EntanglementHandler(NodeProtocol):
         final_fidelity = initial_fidelity * f_depolar
 
         return final_fidelity
+    def handle_entangle_signal(self, event):
+        source_protocol = event.source
+        try:
+            ready_signal = source_protocol.get_signal_by_event(
+                event=event, receiver=self)
+        except Exception as e:
+            self.logger.error(f"Error: {e}")
+            return
+        result = ready_signal.result
+        if isinstance(result, ClassicalMessage):
+            if result.from_node != self.entangle_node:
+                # we don't process the message that is not from the entangle node
+                return
+        if ready_signal.label == MessageType.ENTANGLED:
+            result: ClassicalMessage
+            self.process_entangle_message(result)
+
+    def handle_re_entangle_signal(self, event):
+        source_protocol = event.source
+        try:
+            ready_signal = source_protocol.get_signal_by_event(
+                event=event, receiver=self)
+        except Exception as e:
+            self.logger.error(f"Error: {e}")
+            return
+        result = ready_signal.result
+        if isinstance(result, ClassicalMessage):
+            if result.from_node != self.entangle_node:
+                # we don't process the message that is not from the entangle node
+                return
+        if isinstance(result, SignalMessages.ReEntangleSignalMessage):
+            if result.entangle_node != self.entangle_node:
+                # we don't process the message that is not for the current node
+                return
+        if ready_signal.label == MessageType.RE_ENTANGLE:
+            # process re-entangle signal
+            result: SignalMessages.ReEntangleSignalMessage
+            if result.entangle_node != self.entangle_node:
+                # we don't process the message that is not for the current node
+                return
+            self.process_re_entangle_message(result)
+        elif ready_signal.label == MessageType.RE_ENTANGLE_READY:
+            # process re-entangle ready signal
+            # only remote node will receive this signal
+            # we need to send an classical message to the source node
+            result: SignalMessages.ReEntangleSignalMessage
+            self.cc_message_handler.send_message(MessageType.RE_ENTANGLE_READY_REMOTE,
+                                                 result.entangle_node,
+                                                 ClassicalMessage(
+                                                     self.node.name,
+                                                     result.entangle_node,
+                                                     SignalMessages.ReEntangleSignalMessage(
+                                                         self.node.name,
+                                                         result.re_entangle_mem_poses
+                                                     )
+                                                 ))
+        elif ready_signal.label == MessageType.RE_ENTANGLE_READY_REMOTE:
+            # process re-entangle ready remote signal
+            # only source node will receive this signal, we can clear up the memory and generate new qubit
+            re_entangle_data: SignalMessages.ReEntangleSignalMessage = result.data
+            self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal from "
+                             f"{re_entangle_data.entangle_node},"
+                             f" mem_pos: {re_entangle_data.re_entangle_mem_poses}", color="purple")
+            # forwards the re-entangle signal to the source node
+            self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
+                             re_entangle_data)
+            # TODO: add this to another queue to process, we can make sure that we send with a time delay
+            #      Maybe have a function that send them in patch at a time,
+            #      Example: [1], [2], [3,4]
+            #      we call flush_queue() to send [1,2,3,4] with self.send_signal()
+            #      the re_entangle data will SignalMessages.ReEntangleSignalMessage(entangle_node, [1,2,3,4])
+
+        elif ready_signal.label == MessageType.PROTOCOL_FINISHED:
+            self.logger.info(f"ManageEntangle {self.name} -> Entanglement Need Stop\n"
+                             f"\t{self.entangled_qubits}"
+                             f"\t{self.entangled_pairs_count}", color="orange")
+            self.shutdown = True
+            # gracefully stop the simulation
+
 
     def run(self):
         entangle_signals = (self.await_signal(self.cc_message_handler, signal_label=MessageType.ENTANGLED) |
@@ -197,108 +316,19 @@ class EntanglementHandler(NodeProtocol):
                                               signal_label=MessageType.RE_ENTANGLE_READY_REMOTE) |
                             self.await_signal(self.cc_message_handler, signal_label=MessageType.PROTOCOL_FINISHED) |
                             self.re_entangle_ready_signals)
+        self.qubit_input_signal_watcher = QubitInputSignalWatcher(self.node, f"{self.name}_qubit_input_watcher",
+                                                                  self, self.logger)
+        self.re_entangle_signal_watcher = ReEntangleSignalWatcher(self.node, f"{self.name}_re_entangle_watcher",
+                                                                  self, self.logger)
+        self.entangle_signal_watcher = EntanglementSignalWatcher(self.node, f"{self.name}_entangle_watcher",
+                                                                 self, self.logger)
+
+        self.qubit_input_signal_watcher.start()
+        self.entangle_signal_watcher.start()
+        self.re_entangle_signal_watcher.start()
         while True:
             # wait for entanglement
-            expr = yield self.qubit_input_signal | entangle_signals
-            if expr.first_term.value:
-                # case we have qubit input signal
-                for event in expr.first_term.triggered_events:
-                    source_protocol = event.source
-                    ready_signal = source_protocol.get_signal_by_event(
-                        event=event, receiver=self)
-                    result = ready_signal.result
-                    gen_data: SignalMessages.NewEntanglementSignalMessage = result
-                    mem_pos = gen_data.mem_pos
-                    is_source = gen_data.is_source
-                    qmemory_name = gen_data.qmemory_name
-                    entangle_node = gen_data.entangle_node
-                    initial_fidelity = gen_data.init_fidelity
-                    if is_source:
-                        # store the qubit in the temporary qubits
-                        self.temp_qubits[mem_pos] = self.estimate_fidelity_theoretical(initial_fidelity)
-                        self.logger.info(
-                            f"ManageEntangle {self.name} -> Entangle signal from QSource, mem_pos: {mem_pos}\n"
-                            f"\tInitial Fidelity: {initial_fidelity}\n "
-                            f"\tEstimated Fidelity: {self.temp_qubits[mem_pos]}", color="blue")
-                    else:
-                        # add the qubit to the entangled qubits
-                        self.logger.info(
-                            f"ManageEntangle {self.name} -> Entangle signal from {entangle_node}, mem_pos: {mem_pos}",
-                            color="blue")
-                        # we don't need to estimate the fidelity for the remote node
-                        # as we don't know the initial fidelity. Here it will be None
-                        self.entangled_qubits[mem_pos] = initial_fidelity
-                        self.entangled_pairs_count += 1
-                        # send the entangled signal to the source node
-                        self.cc_message_handler.send_message(MessageType.ENTANGLED, entangle_node,
-                                                             ClassicalMessage(
-                                                                 self.node.name, entangle_node,
-                                                                 SignalMessages.EntangleSignalMessage(self.node.name,
-                                                                                                      mem_pos)
-                                                             ))
-                        # send the entangle pair to the upper layer
-                        self.send_signal(Signals.SUCCESS,
-                                         SignalMessages.EntangleSuccessSignalMessage(entangle_node,
-                                                                                     mem_pos,
-                                                                                     initial_fidelity))
-            elif expr.second_term.value:
-                # case we have entanglement signal
-                for event in expr.second_term.triggered_events:
-                    source_protocol = event.source
-                    try:
-                        ready_signal = source_protocol.get_signal_by_event(
-                            event=event, receiver=self)
-                    except Exception as e:
-                        self.logger.error(f"Error: {e}")
-                        continue
-                    result = ready_signal.result
-                    if isinstance(result, ClassicalMessage):
-                        if result.from_node != self.entangle_node:
-                            # we don't process the message that is not from the entangle node
-                            continue
-                    if isinstance(result, SignalMessages.ReEntangleSignalMessage):
-                        if result.entangle_node != self.entangle_node:
-                            # we don't process the message that is not for the current node
-                            continue
-                    if ready_signal.label == MessageType.ENTANGLED:
-                        result: ClassicalMessage
-                        self.process_entangle_message(result)
-                    elif ready_signal.label == MessageType.RE_ENTANGLE:
-                        # process re-entangle signal
-                        result: SignalMessages.ReEntangleSignalMessage
-                        self.process_re_entangle_message(result)
-                    elif ready_signal.label == MessageType.RE_ENTANGLE_READY:
-                        # process re-entangle ready signal
-                        # only remote node will receive this signal
-                        # we need to send an classical message to the source node
-                        result: SignalMessages.ReEntangleSignalMessage
-                        self.cc_message_handler.send_message(MessageType.RE_ENTANGLE_READY_REMOTE,
-                                                             result.entangle_node,
-                                                             ClassicalMessage(
-                                                                 self.node.name,
-                                                                 result.entangle_node,
-                                                                 SignalMessages.ReEntangleSignalMessage(
-                                                                     self.node.name,
-                                                                     result.re_entangle_mem_poses
-                                                                 )
-                                                             ))
-                    elif ready_signal.label == MessageType.RE_ENTANGLE_READY_REMOTE:
-                        # process re-entangle ready remote signal
-                        # only source node will receive this signal, we can clear up the memory and generate new qubit
-                        re_entangle_data: SignalMessages.ReEntangleSignalMessage = result.data
-                        self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal from "
-                                         f"{re_entangle_data.entangle_node},"
-                                         f" mem_pos: {re_entangle_data.re_entangle_mem_poses}", color="purple")
-                        # forwards the re-entangle signal to the source node
-                        self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
-                                         re_entangle_data)
-                    elif ready_signal.label == MessageType.PROTOCOL_FINISHED:
-                        self.logger.info(f"ManageEntangle {self.name} -> Entanglement Need Stop\n"
-                                         f"\t{self.entangled_qubits}"
-                                         f"\t{self.entangled_pairs_count}", color="orange")
-                        self.shutdown = True
-                        # gracefully stop the simulation
-
+            yield self.qubit_input_signal | entangle_signals
             self.process_message_queue()
             if self.shutdown:
                 # check if we need to stop the simulation
@@ -314,6 +344,14 @@ class EntanglementHandler(NodeProtocol):
                     break
 
     def reset(self):
+
+        self.entangle_signal_watcher.stop()
+        self.qubit_input_signal_watcher.stop()
+        self.re_entangle_signal_watcher.stop()
+
+        self.entangle_signal_watcher = None
+        self.qubit_input_signal_watcher = None
+        self.re_entangle_signal_watcher = None
         # mapping of entangled qubits to memory positions key: node name, value: {memory position, fidelity}
         self.entangled_qubits = {}
         # mapping of temporary qubits to memory positions
@@ -337,3 +375,66 @@ class EntanglementHandler(NodeProtocol):
             print(f"Memory {self.entangle_node}_qmemory not found")
             return False
         return True
+
+
+class QubitInputSignalWatcher(NodeProtocol):
+    def __init__(self, node, name, main_protocol: EntanglementHandler, logger=None):
+        super().__init__(node=node, name=name)
+
+        self.main_protocol = main_protocol
+        self.qubit_input_signals = self.await_signal(main_protocol.qubit_input_protocol, signal_label=Signals.SUCCESS)
+        self.logger = logger
+
+    def run(self):
+        while self.is_running:
+            expr = yield self.qubit_input_signals
+            for event in expr.triggered_events:
+                self.main_protocol.process_message_queue()
+                self.main_protocol.handle_qubit_input_signal(event)
+
+
+class EntanglementSignalWatcher(NodeProtocol):
+    def __init__(self, node, name, main_protocol: EntanglementHandler, logger=None):
+        super().__init__(node=node, name=name)
+
+        self.main_protocol = main_protocol
+        self.entangle_signals = self.await_signal(self.main_protocol.cc_message_handler,
+                                                  signal_label=MessageType.ENTANGLED)
+        self.logger = logger
+
+    def run(self):
+        while self.is_running:
+            expr = yield self.entangle_signals
+            for event in expr.triggered_events:
+                self.main_protocol.process_message_queue()
+                self.main_protocol.handle_entangle_signal(event)
+
+
+class ReEntangleSignalWatcher(NodeProtocol):
+    def __init__(self, node, name, main_protocol: EntanglementHandler, logger=None):
+        super().__init__(node=node, name=name)
+
+        self.main_protocol = main_protocol
+        # signals = [self.await_signal(protocol, MessageType.RE_ENTANGLE_READY)
+        #            for protocol in self.main_protocol.raw_qubit_input_signals]
+        # self.re_entangle_signals = reduce(operator.or_, signals)
+        # self.entangle_signals = (
+        #         self.await_signal(self.main_protocol.cc_message_handler, signal_label=MessageType.RE_ENTANGLE) |
+        #         self.re_entangle_signals |
+        #         self.await_signal(self.main_protocol.cc_message_handler,
+        #                           signal_label=MessageType.RE_ENTANGLE_READY_REMOTE))
+        self.logger = logger
+
+    def run(self):
+        while self.is_running:
+            # self.main_protocol.process_message_queue()
+            entangle_signals = (self.await_signal(self.main_protocol.cc_message_handler, signal_label=MessageType.RE_ENTANGLE) |
+                                self.await_signal(self.main_protocol.cc_message_handler,
+                                                  signal_label=MessageType.RE_ENTANGLE_READY_REMOTE) |
+                                self.await_signal(self.main_protocol.cc_message_handler, signal_label=MessageType.PROTOCOL_FINISHED) |
+                                self.await_signal(self.main_protocol.qubit_input_protocol, signal_label=MessageType.RE_ENTANGLE_READY))
+            expr = yield entangle_signals
+            for event in expr.triggered_events:
+                self.main_protocol.process_message_queue()
+                yield from self.main_protocol.handle_re_entangle_signal(event)
+                # self.main_protocol.process_message_queue()

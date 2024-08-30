@@ -264,11 +264,11 @@ class GenEntanglement(NodeProtocol):
             # yield self.await_timer(1)
             self.node.ports[f"qout_{self.entangle_node}"].tx_output(qubit_2)
 
-    def handle_re_entangle(self, event):
-        source_protocol = event.source
+    def handle_re_entangle(self, expr):
+        source_protocol = expr.atomic_source
+        ready_signal = source_protocol.get_signal_by_event(
+            event=expr.second_term.triggered_events[0], receiver=self)
         try:
-            ready_signal = source_protocol.get_signal_by_event(
-                event=event, receiver=self)
             result: SignalMessages.ReEntangleSignalMessage = ready_signal.result
             """
             result = {
@@ -514,7 +514,9 @@ class ReEntangleSignalWatcher(NodeProtocol):
             yield expr
             self.logger.info(f"ReEntangleSignalWatcher {self.name} -> Node {self.node.name} received signal\n"
                              f"\tSignal: {self.watch_signal}", color="red")
-            self.main_protocol.handle_re_entangle(expr.triggered_events[0])
-
+            # for event in expr.triggered_events:
+            self.main_protocol.handle_re_entangle(expr)
+            # self.main_protocol.handle_re_entangle(expr.triggered_events[0])
     def stop(self):
         super().stop()
+
