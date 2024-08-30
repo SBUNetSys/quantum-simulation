@@ -5,6 +5,7 @@ from functools import reduce
 import numpy as np
 from netsquid.protocols.nodeprotocols import NodeProtocol
 from netsquid.protocols.protocol import Signals
+import netsquid as ns
 
 from protocols.MessageHandler import MessageType
 from utils import Logging, SignalMessages
@@ -64,6 +65,9 @@ class EntanglementHandler(NodeProtocol):
         self.entangled_pairs_count = 0
         # entangle_message_queue
         self.entangle_message_queue = []
+        # re-entangle message queue
+        self.re_entangle_message_queue = []
+        self.re_entangle_flush_time = None
         # store the depolar rate and node distance
         self.depolar_rate = memory_depolar_rate
         self.node_distance = node_distance
@@ -168,6 +172,20 @@ class EntanglementHandler(NodeProtocol):
         self.entangle_message_queue = []
         for message in temp:
             self.process_entangle_message(message)
+    def process_re_entangle_message_queue(self):
+        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time > 100:
+            if len(self.re_entangle_message_queue) == 0:
+                return
+            self.re_entangle_flush_time = ns.sim_time()
+            temp = self.re_entangle_message_queue
+            self.re_entangle_message_queue = []
+            ready_mem_poses = []
+            for message in temp:
+                ready_mem_poses += message.re_entangle_mem_poses
+            self.logger.info(f"ManageEntangle {self.name} -> Processed Batch Memory Ready\n"
+                             f"\tmem_pos: {ready_mem_poses}", color="purple")
+            batch_message = SignalMessages.ReEntangleSignalMessage(self.entangle_node, ready_mem_poses)
+            self.process_re_entangle_message(batch_message)
 
     def estimate_fidelity_theoretical(self, initial_fidelity):
         """Estimate fidelity based on noise parameters and channel length."""
@@ -266,7 +284,8 @@ class EntanglementHandler(NodeProtocol):
                     elif ready_signal.label == MessageType.RE_ENTANGLE:
                         # process re-entangle signal
                         result: SignalMessages.ReEntangleSignalMessage
-                        self.process_re_entangle_message(result)
+                        self.re_entangle_message_queue.append(result)
+                        # self.process_re_entangle_message(result)
                     elif ready_signal.label == MessageType.RE_ENTANGLE_READY:
                         # process re-entangle ready signal
                         # only remote node will receive this signal
@@ -300,6 +319,7 @@ class EntanglementHandler(NodeProtocol):
                         # gracefully stop the simulation
 
             self.process_message_queue()
+            self.process_re_entangle_message_queue()
             if self.shutdown:
                 # check if we need to stop the simulation
                 if self.entangled_pairs_count >= self.max_pairs and len(self.entangle_message_queue) == 0:
@@ -323,6 +343,8 @@ class EntanglementHandler(NodeProtocol):
         # entangle_message_queue
         self.entangle_message_queue = []
         # reset the shutdown flag
+        self.re_entangle_message_queue = []
+        self.re_entangle_flush_time = None
         self.shutdown = False
         super().reset()
 

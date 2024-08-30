@@ -44,7 +44,7 @@ class PurificationExample(LocalProtocol):
         self.max_entangle_pairs = max_entangle_pairs
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExamplePurification")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=True)
+        self.logger = Logging.Logger(self.name, logging_enabled=False)
         # initialize the protocol for each node
         # Initialize the entangle protocol
         for index, node in enumerate(network_nodes):
@@ -187,6 +187,8 @@ class PurificationExample(LocalProtocol):
                     f = qapi.fidelity([q_a, q_b], ks.b00)
                     if 0 < f < 0.99:
                         raise ValueError(f"Fidelity is not correct: {f}, \n\t{q_a.qstate}\n\t{q_b.qstate}")
+                        # self.logger.error(f"Fidelity is not correct: {f}, \n\t{q_a.qstate}\n\t{q_b.qstate}",
+                        #                   color="red")
                         # print_red(f"Fidelity is not correct: {f}, \n\t{q_a.qstate}\n\t{q_b.qstate}")
                     # print(f"Actual fidelity at {mem_pos} is {f}, {q_a.qstate}, {q_b.qstate}")
                     # start_teleportation, generate a qubit for teleportation
@@ -305,8 +307,8 @@ def run_single_stack(nodes_count):
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     experiment_result = {}
-    max_pairs = 16
-    for entangle_pairs in range(16, max_pairs + 1, 2):
+    max_pairs = 128
+    for entangle_pairs in range(128, max_pairs + 1, 2):
         filt_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,
                                            node_distance=20,
                                            max_entangle_pairs=entangle_pairs, target_fidelity=0.995)
