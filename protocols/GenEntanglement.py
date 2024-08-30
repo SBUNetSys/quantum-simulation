@@ -234,8 +234,10 @@ class GenEntanglement(NodeProtocol):
         if self._is_source and (len(self.aval_mem_postions) > 0 or len(self.re_entangle_pos) > 0):
             qsource = self.node.subcomponents[self._qsource_name]
             # avoid generating qubits if the qsource is busy
-            if qsource._busy_until > ns.sim_time():
-                yield self.await_timer(qsource._busy_until - ns.sim_time())
+            current_time = ns.sim_time()
+            if qsource._busy_until > current_time:
+                wait_time = max(qsource._busy_until - current_time, 1)
+                yield self.await_timer(wait_time)
             qsource.trigger()
             self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} generating qubit\n"
                              f"\tCurrent entangled pairs {self.entangled_pairs}\n"

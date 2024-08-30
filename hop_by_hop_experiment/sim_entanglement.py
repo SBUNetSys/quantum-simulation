@@ -243,16 +243,16 @@ def experiment_with_increasing_nodes(max_node, save_dir):
     # create a network
     nodes_list = [f"Node_{i}" for i in range(max_node)]
     network = setup_network(nodes_list, "hop-by-hop",
-                            memory_capacity=2, memory_depolar_rate=100,
+                            memory_capacity=100, memory_depolar_rate=100,
                             node_distance=20, source_delay=1e5)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     data = {}
     for i in range(2, max_node + 1):
-        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=100,
+        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=1000,
                                                 memory_depolar_rate=100,
                                                 node_distance=20,
-                                                max_entangle_pairs=2)
+                                                max_entangle_pairs=100)
         entangle_protocol.start()
         # run the protocol
         ns.sim_run()
@@ -346,6 +346,8 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
 
 
 def main():
+    experiment_with_increasing_nodes(2, "./entanglement_results")
+    exit(0)
     if len(sys.argv) < 2:
         print("Please provide an argument to skip noise")
         exit(0)
