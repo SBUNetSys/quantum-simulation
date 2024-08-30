@@ -63,6 +63,7 @@ class PurificationExample(LocalProtocol):
                     node=node,
                     name=f"entangle_{node.name}->{network_nodes[index - 1].name}",
                     is_source=False,
+                    logger=self.logger
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandler(node=node,
@@ -101,6 +102,7 @@ class PurificationExample(LocalProtocol):
                     node=node,
                     name=f"entangle_{node.name}->{network_nodes[index + 1].name}",
                     is_source=True,
+                    logger=self.logger
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandler(node=node,
@@ -212,9 +214,9 @@ class PurificationExample(LocalProtocol):
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": index})
             # TODO: This is to gracefully reset the protocol.
-            for subprotocol in self.subprotocols.values():
-                if "entanglement_handler" in subprotocol.name and subprotocol.is_running:
-                    self.await_signal(subprotocol, MessageType.PROTOCOL_FINISHED)
+            # for subprotocol in self.subprotocols.values():
+            #     if "entanglement_handler" in subprotocol.name and subprotocol.is_running:
+            #         self.await_signal(subprotocol, MessageType.PROTOCOL_FINISHED)
             # for node in self.all_nodes:
             #     eh_protocol = self.subprotocols[f"entanglement_handler_{node.name}"]
             #     if eh_protocol.is_running:

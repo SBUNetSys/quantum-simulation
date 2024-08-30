@@ -164,7 +164,7 @@ class EntanglementHandler(NodeProtocol):
 
     def process_message_queue(self):
 
-        temp = copy.deepcopy(self.entangle_message_queue)
+        temp = self.entangle_message_queue
         self.entangle_message_queue = []
         for message in temp:
             self.process_entangle_message(message)

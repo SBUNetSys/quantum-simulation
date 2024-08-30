@@ -263,7 +263,7 @@ class Purification(NodeProtocol):
         del self.purifying_paris[(message.qubit1_pos, message.qubit2_pos)]
 
     def process_classical_message(self):
-        temp = copy.deepcopy(self.classical_messages_queue)
+        temp = self.classical_messages_queue
         self.classical_messages_queue = []
         for message in temp:
             if isinstance(message, SignalMessages.PurifyStartSignalMessage):
@@ -305,8 +305,9 @@ class Purification(NodeProtocol):
             # remove the pair from the entangled pairs
             if mem_pos in self.entangled_pairs:
                 del self.entangled_pairs[mem_pos]
-            if mem_pos in self.satisfied_pairs:
-                del self.satisfied_pairs[mem_pos]
+            if not self.is_top_layer:
+                if mem_pos in self.satisfied_pairs:
+                    del self.satisfied_pairs[mem_pos]
             # add the pair to the re-entangle pairs
             self.re_entangle_pairs[mem_pos] = None
         # re-entangle the memory position
@@ -643,7 +644,6 @@ class Purification(NodeProtocol):
         self.classical_messages_queue = []
         self.re_entangle_pairs = {}
         self.finished = False
-        gc.collect()
         super().reset()
 
     def stop(self):

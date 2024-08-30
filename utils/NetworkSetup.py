@@ -92,8 +92,8 @@ def setup_network(nodes_list, network_name,
             # case of we are the source node
             internal_qchannel = QuantumChannel(name=f"QChannel_{node.name}->{node.name}", length=0,
                                                models={"quantum_loss_model": None,
-                                                       "delay_model": FibreDelayModel(c=200e3),
-                                                       "noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
+                                                       # "delay_model": FibreDelayModel(c=200e3),
+                                                       "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
             # internal qchannel to link right_qmemory for source node
             node.add_subcomponent(internal_qchannel, name="internal_qchannel")
             (node.subcomponents["internal_qchannel"].ports["recv"]
@@ -101,8 +101,8 @@ def setup_network(nodes_list, network_name,
             # create a quantum channel between the source node and the next node
             qchannel = QuantumChannel(name=f"QChannel_{node.name}->{right_node.name}", length=node_distance,
                                       models={"quantum_loss_model": None,
-                                              "delay_model": FibreDelayModel(c=200e3),
-                                              "noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
+                                              # "delay_model": FibreDelayModel(c=200e3),
+                                              "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
 
             port_name_a, port_name_b = network.add_connection(
                 node, right_node, channel_to=qchannel, label="quantum",
