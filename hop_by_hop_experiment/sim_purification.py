@@ -1,3 +1,4 @@
+import gc
 import json
 import operator
 import os
@@ -295,8 +296,13 @@ def run_single_stack(nodes_count, skip_noise=False):
                             node_distance=20, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
-    experiment_result = {}
     max_pairs = 128
+    if os.path.exists(f"./purification_results/purification_results_2_nodes_{max_pairs}_paris_noise_{skip_noise}.json"):
+        with open(f"./purification_results/purification_results_2_nodes_{max_pairs}_paris_noise_{skip_noise}.json",
+                  "r") as f:
+            experiment_result = json.load(f)
+    else:
+        experiment_result = {}
     from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
     with Progress(TextColumn("[progress.description]{task.description}"),
                   BarColumn(),
@@ -304,8 +310,12 @@ def run_single_stack(nodes_count, skip_noise=False):
                   TextColumn("[progress.completed]{task.completed}/{task.total}"),
                   TimeRemainingColumn(),
                   transient=True) as progress:
-        task = progress.add_task("[green]Paris...", total=max_pairs)
+        task = progress.add_task("[green]Paris...", total=(max_pairs-4)//2)
         for entangle_pairs in range(4, max_pairs + 1, 2):
+            if str(entangle_pairs) in experiment_result:
+                print(f"Skipping entangle pairs: {entangle_pairs}, loaded from file")
+                progress.update(task, advance=1)
+                continue
             filt_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,
                                                node_distance=20,
                                                max_entangle_pairs=entangle_pairs, target_fidelity=0.995,
@@ -389,7 +399,8 @@ def run_single_stack(nodes_count, skip_noise=False):
                 teleport_success_count = np.mean(flattened_teleport_success_count, dtype=np.float64)
                 all_teleport_success_count.append(teleport_success_count)
             filt_example.stop()
-
+            del filt_example
+            gc.collect()
             final_fidelity = np.mean(all_node_actual_fidelity, dtype=np.float64)
             final_estimated_fidelity = np.mean(all_node_estimated_fidelity, dtype=np.float64)
             final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)
