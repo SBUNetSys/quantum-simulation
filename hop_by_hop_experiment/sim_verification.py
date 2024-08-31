@@ -52,7 +52,7 @@ class VerifyExample(LocalProtocol):
         self.batch_size = batch_size
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleVerification")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=True)
+        self.logger = Logging.Logger(self.name, logging_enabled=False)
         null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
 
@@ -183,8 +183,8 @@ class VerifyExample(LocalProtocol):
 
     def run(self):
         self.start_subprotocols()
-        for subprotoco, val in self.subprotocols.items():
-            print(f"Subprotocol: {subprotoco}")
+        # for subprotoco, val in self.subprotocols.items():
+        #     print(f"Subprotocol: {subprotoco}")
 
         for index in range(self.num_runs):
             start_time = sim_time()
@@ -238,7 +238,7 @@ class VerifyExample(LocalProtocol):
                         # raise ValueError(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}")
                         self.logger.error(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
                                           color="red")
-                    if not isinstance(f, float):
+                    if not isinstance(f, float) or str(f) == "nan":
                         f = 0
                         self.logger.error(f"Fidelity is Nan, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
                                           color="red")
@@ -250,8 +250,7 @@ class VerifyExample(LocalProtocol):
                     qapi.operate(qubit, ops.S)
                     # teleport the qubit
                     fid = self.test_teleportation(qubit_a, qubit_b, qubit)
-
-                    print(f"Teleportation fidelity: {fid}")
+                    # print(f"Teleportation fidelity: {fid}")
                     if fid > 0.99:
                         teleport_success_count += 1
                 result_dic[f"{node}->{entangle_node}"] = {
@@ -262,7 +261,6 @@ class VerifyExample(LocalProtocol):
                     "success_verification_count": success_verification,
                     "teleport_success_count": teleport_success_count
                 }
-            print(result_dic)
             # we need to do safety layer to make sure we have gracefully shutdown the subprotocols
             for subprotocol_name, subprotocol in self.subprotocols.items():
                 if "purify" in subprotocol_name and subprotocol.is_running:
@@ -273,7 +271,10 @@ class VerifyExample(LocalProtocol):
 
             for subprotocol in self.subprotocols.values():
                 subprotocol.reset()
-
+        # remove any gates after finish running
+        for subprotocol in self.subprotocols.values():
+            if "verify" in subprotocol.name:
+                subprotocol.clean_gates()
     def get_cc_ports(self, node):
         cc_ports = {}
         for n in self.all_nodes:
@@ -343,7 +344,7 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate,
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Purification Run {result['run_index']} completed: {result}")
+        # print(f"Purification Run {result['run_index']} completed: {result}")
         return result["results"]
 
     dc = DataCollector(record_run, include_time_stamp=False,
@@ -371,15 +372,18 @@ def run_experiment(nodes_count):
     print(results)
 
 
-def run_experiment_multi(nodes_count, skip_noise=False):
+def run_experiment_multi(nodes_count, skip_noise=False, max_batch_size=8, only_max_batch=False):
     nodes_list = [f"Node_{i}" for i in range(nodes_count)]
     network = setup_network(nodes_list, "hop-by-hop-verification",
                             memory_capacity=128, memory_depolar_rate=100,
                             node_distance=20, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
-    max_batch_size = 9
     experiment_data = {}
+    if only_max_batch:
+        start_batch = max_batch_size
+    else:
+        start_batch = 2
     from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn
     with Progress(
             TextColumn("[progress.description]{task.description}"),
@@ -390,14 +394,14 @@ def run_experiment_multi(nodes_count, skip_noise=False):
             transient=True) as progress:
         # start with batch size 2, max batch size is 9 due to the memory capacity
         batch_task = progress.add_task("[red]Batch Size", total=max_batch_size)
-        for batch_size in range(2, max_batch_size + 1, 1):
+        for batch_size in range(start_batch, max_batch_size + 1, 1):
             max_entangle_pairs = 128
             # m=3=verification, 2 for purification, 1 for GenEntanglement temp position
             start_entangle_size = batch_size + 3 + 2 + 1
             batch_data = {}
-            entangle_task = progress.add_task(f"[green]Entangle Pairs", total=max_entangle_pairs//batch_size)
+            entangle_task = progress.add_task(f"[green]Entangle Pairs (Batch_Size: {batch_size})", total=(max_entangle_pairs - 6)//batch_size)
             for entangle_pairs in range(start_entangle_size, max_entangle_pairs + 1, batch_size):
-                verify_example, dc = example_sim_run(sample_nodes, num_runs=2, memory_depolar_rate=100,
+                verify_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,
                                                      node_distance=20,
                                                      max_entangle_pairs=entangle_pairs, target_fidelity=0.995, m_size=3,
                                                      batch_size=batch_size,
@@ -471,15 +475,16 @@ def run_experiment_multi(nodes_count, skip_noise=False):
                       f"\tTotal Verification Count: {data['total_verification_count']}\n"
                       f"\tSuccess Verification Count: {data['success_verification_count']}\n"
                       f"\tSuccess Verification Probability: {data['success_verification_probability']}\n")
-                with open(f"./verification_results/batch_data_{batch_size}.json", "w") as f:
+                with open(f"./verification_results/batch_data_2_nodes_{batch_size}_batch.json", "w") as f:
                     json.dump(batch_data, f)
                 progress.update(entangle_task, advance=1)
                 verify_example.stop()
+                del verify_example
+                gc.collect()
             progress.update(batch_task, advance=1)
             experiment_data[batch_size] = batch_data
-            with open(f"./verification_results/batch_data_2_nodes_{max_batch_size}_batch_size.json", "w") as f:
+            with open(f"./verification_results/batch_data_2_nodes_max_{max_batch_size}_batch_size.json", "w") as f:
                 json.dump(experiment_data, f)
-
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -492,5 +497,9 @@ if __name__ == '__main__':
     else:
         print("Invalid argument. Please use 'true' or 'false'")
         exit(0)
-    run_experiment_multi(2, pop_noise)
+    run_experiment_multi(2, pop_noise, max_batch_size=8, only_max_batch=False)
+    ns.sim_stop()
+    ns.sim_reset()
+    gc.collect()
+    run_experiment_multi(2, pop_noise, max_batch_size=9, only_max_batch=True)
     # run_experiment(2)

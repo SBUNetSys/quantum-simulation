@@ -528,4 +528,14 @@ class Verification(NodeProtocol):
         super().reset()
 
     def stop(self):
+        gc.collect()
         super().stop()
+
+
+    def clean_gates(self):
+        del self.CCU_Gate
+        del self.CU_Gate
+        del self.measurement_m0
+        del self.measurement_m1
+        gc.collect()
+
