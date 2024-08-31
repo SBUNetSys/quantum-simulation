@@ -322,10 +322,12 @@ class EntanglementHandler(NodeProtocol):
             self.process_message_queue()
             self.process_re_entangle_message_queue()
             if self.shutdown:
-                # check if we need to stop the simulation
+                # by default the graceful shutdown will not continue generation of qubits
+                # check if we need to stop the simulation, ths case that we happen to have no more qubits to generate
                 if self.entangled_pairs_count >= self.max_pairs and len(self.entangle_message_queue) == 0:
                     self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="green")
                     self.send_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED, self.entangled_qubits)
+                    break
 
             if self.is_top_layer:
                 if self.entangled_pairs_count >= self.max_pairs:

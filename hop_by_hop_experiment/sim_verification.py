@@ -41,7 +41,8 @@ class VerifyExample(LocalProtocol):
                  node_distance=20,
                  target_fidelity=0.99,
                  m_size=3,
-                 batch_size=10):
+                 batch_size=10,
+                 skip_noise=False):
         if len(network_nodes) < 1:
             raise ValueError("This protocol requires at least nodes.")
         self.all_nodes = network_nodes
@@ -53,13 +54,15 @@ class VerifyExample(LocalProtocol):
         # create logger
         self.logger = Logging.Logger(self.name, logging_enabled=True)
         null_logger = Logging.Logger("null", logging_enabled=False)
-        # initialize the protocol for each node
-        # Initialize the entangle protocol
+        self.skip_noise = skip_noise
+
+        # Initialize the controlled unitary matrix and measurement operators
         CU_matrix = controlled_unitary(batch_size)
         measurement_m0, measurement_m1 = measure_operator()
         CU_gate = ops.Operator("CU_Gate", CU_matrix)
         CCU_gate = CU_gate.conj
 
+        # initialize the protocol for each node
         for index, node in enumerate(network_nodes):
             # Initialize the MessageHandler protocol
             self.add_subprotocol(MessageHandler(node=node,
@@ -219,9 +222,10 @@ class VerifyExample(LocalProtocol):
                 total_batch = len(node_pair_res)
                 teleport_success_count = 0
                 for mem_pos in node_pair_res:
-                    qubit_a = self.all_nodes[i].subcomponents[f"{entangle_node}_qmemory"].pop(mem_pos)[
-                        0]
-                    qubit_b = self.all_nodes[i + 1].subcomponents[f"{node}_qmemory"].pop(mem_pos)[0]
+                    qubit_a = self.all_nodes[i].subcomponents[f"{entangle_node}_qmemory"].pop(
+                        mem_pos, skip_noise=self.skip_noise)[0]
+                    qubit_b = self.all_nodes[i + 1].subcomponents[f"{node}_qmemory"].pop(
+                        mem_pos, skip_noise=self.skip_noise)[0]
                     q_a_name = str(qubit_a.name).split("#")[-1].split("-")[0]
                     q_b_name = str(qubit_b.name).split("#")[-1].split("-")[0]
                     # print(f"Qubit names: {q_a_name}, {q_b_name}")
@@ -246,13 +250,7 @@ class VerifyExample(LocalProtocol):
                     qapi.operate(qubit, ops.S)
                     # teleport the qubit
                     fid = self.test_teleportation(qubit_a, qubit_b, qubit)
-                    # if str(fid) == "nan":
-                    #     fid = 0
-                    #     self.logger.error(f"Teleportation fidelity is Nan, type {type(fid)}, "
-                    #                       f"\n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
-                    #                       color="red")
-                    #     if not isinstance(fid, float):
-                    #         raise ValueError(f"Teleportation fidelity is not float: {fid}")
+
                     print(f"Teleportation fidelity: {fid}")
                     if fid > 0.99:
                         teleport_success_count += 1
@@ -269,7 +267,6 @@ class VerifyExample(LocalProtocol):
             for subprotocol_name, subprotocol in self.subprotocols.items():
                 if "purify" in subprotocol_name and subprotocol.is_running:
                     yield self.await_signal(subprotocol, MessageType.PURIFICATION_FINISHED)
-
 
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": index})
@@ -316,7 +313,8 @@ class VerifyExample(LocalProtocol):
 
 
 def example_sim_run(nodes, num_runs, memory_depolar_rate,
-                    node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size):
+                    node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size,
+                    skip_noise=False):
     """
     Run the example verification protocol
     :param nodes: list of nodes
@@ -327,6 +325,7 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate,
     :param target_fidelity: target fidelity
     :param m_size: m size
     :param batch_size: batch size
+    :param skip_noise: skip noise when popping qubits
     :return:
     """
     # Create the protocol
@@ -337,7 +336,8 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate,
                                    node_distance=node_distance,
                                    target_fidelity=target_fidelity,
                                    m_size=m_size,
-                                   batch_size=batch_size)
+                                   batch_size=batch_size,
+                                   skip_noise=skip_noise)
 
     # Run the protocol
     def record_run(evexpr):
@@ -371,98 +371,126 @@ def run_experiment(nodes_count):
     print(results)
 
 
-def run_experiment_multi(nodes_count):
+def run_experiment_multi(nodes_count, skip_noise=False):
     nodes_list = [f"Node_{i}" for i in range(nodes_count)]
     network = setup_network(nodes_list, "hop-by-hop-verification",
-                            memory_capacity=16, memory_depolar_rate=100,
+                            memory_capacity=128, memory_depolar_rate=100,
                             node_distance=20, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
-    max_batch_size = 8
+    max_batch_size = 9
     experiment_data = {}
-    for batch_size in range(8, max_batch_size + 1, 2):
-
-        all_actual_fidelities = []
-        all_total_verified_pairs = []
-        all_success_verification_probability = []
-        all_total_verification_count = []
-        all_success_verification_count = []
-        all_teleport_success_count = []
-
-        for _ in range(1):
-            verify_example, dc = example_sim_run(sample_nodes, num_runs=2, memory_depolar_rate=100,
-                                                 node_distance=20,
-                                                 max_entangle_pairs=16, target_fidelity=0.995, m_size=3,
-                                                 batch_size=batch_size)
-            # Run the simulation
-            verify_example.start()
-            ns.sim_run()
-            # Collect the data
-            results = dc.dataframe
-            for column in dc.dataframe.columns:
-                flattened_actual_fidelities = []
-                flattened_total_verified_pairs = []
-                flattened_success_verification_probability = []
-                flattened_total_verification_count = []
-                flattened_success_verification_count = []
-                flattened_teleport_success_count = []
-                for result in results[column]:
-                    if isinstance(result, dict):
-                        for key, value in result.items():
-                            if "actual_fidelities" in key:
-                                flattened_actual_fidelities += list(value.values())
-                            elif "total_verified_paris" in key:
-                                flattened_total_verified_pairs.append(value)
-                            elif "success_verification_probability" in key:
-                                flattened_success_verification_probability += value
-                            elif "total_verification_count" in key:
-                                flattened_total_verification_count.append(value)
-                            elif "success_verification_count" in key:
-                                flattened_success_verification_count.append(value)
-                            elif "teleport_success_count" in key:
-                                flattened_teleport_success_count.append(value)
-                all_actual_fidelities += flattened_actual_fidelities
-                all_total_verified_pairs += flattened_total_verified_pairs
-                all_success_verification_probability += flattened_success_verification_probability
-                all_total_verification_count += flattened_total_verification_count
-                all_success_verification_count += flattened_success_verification_count
-                all_teleport_success_count += flattened_teleport_success_count
-            verify_example.stop()
-
-        batch_data = {"actual_fidelities":
-                          np.mean(all_actual_fidelities, dtype=np.float64),
-                      "total_verified_pairs":
-                          np.mean(all_total_verified_pairs, dtype=np.float64),
-                      "success_verification_probability":
-                          all_success_verification_probability,
-                      "total_verification_count":
-                          np.mean(all_total_verification_count, dtype=np.float64),
-                      "success_verification_count":
-                          np.mean(all_success_verification_count, dtype=np.float64),
-                      "teleport_success_count":
-                          np.mean(all_teleport_success_count, dtype=np.float64),
-                      "raw_data":
-                          {"actual_fidelities": all_actual_fidelities,
-                           "total_verified_pairs": all_total_verified_pairs,
-                           "total_verification_count": all_total_verification_count,
-                           "success_verification_count": all_success_verification_count,
-                           "teleport_success_count": all_teleport_success_count}
-                      }
-        print("*" * 50)
-        print(f"\tEntangle Pairs: {16}\n"
-              f"\tPurified Pairs: {16 - 3}\n"
-              f"\tBatch size: {batch_size}\n"
-              f"\tActual Fidelities: {batch_data['actual_fidelities']}\n"
-              f"\tTotal Verified Pairs: {batch_data['total_verified_pairs']}\n"
-              f"\tTeleport Success Count: {batch_data['teleport_success_count']}\n"
-              f"\tTotal Verification Count: {batch_data['total_verification_count']}\n"
-              f"\tSuccess Verification Count: {batch_data['success_verification_count']}\n"
-              f"\tSuccess Verification Probability: {batch_data['success_verification_probability']}\n")
-        experiment_data[batch_size] = batch_data
-        # with open(f"./verification_results/batch_data_{max_batch_size}.json", "w") as f:
-        #     json.dump(experiment_data, f)
+    from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn
+    with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TextColumn("[progress.completed]{task.completed}/{task.total}"),
+            TimeRemainingColumn(),
+            transient=True) as progress:
+        # start with batch size 2, max batch size is 9 due to the memory capacity
+        batch_task = progress.add_task("[red]Batch Size", total=max_batch_size)
+        for batch_size in range(2, max_batch_size + 1, 1):
+            max_entangle_pairs = 128
+            # m=3=verification, 2 for purification, 1 for GenEntanglement temp position
+            start_entangle_size = batch_size + 3 + 2 + 1
+            batch_data = {}
+            entangle_task = progress.add_task(f"[green]Entangle Pairs", total=max_entangle_pairs//batch_size)
+            for entangle_pairs in range(start_entangle_size, max_entangle_pairs + 1, batch_size):
+                verify_example, dc = example_sim_run(sample_nodes, num_runs=2, memory_depolar_rate=100,
+                                                     node_distance=20,
+                                                     max_entangle_pairs=entangle_pairs, target_fidelity=0.995, m_size=3,
+                                                     batch_size=batch_size,
+                                                     skip_noise=skip_noise)
+                # Run the simulation
+                verify_example.start()
+                ns.sim_run()
+                # Collect the data
+                results = dc.dataframe
+                all_actual_fidelities = []
+                all_total_verified_pairs = []
+                all_success_verification_probability = []
+                all_total_verification_count = []
+                all_success_verification_count = []
+                all_teleport_success_count = []
+                for column in dc.dataframe.columns:
+                    flattened_actual_fidelities = []
+                    flattened_total_verified_pairs = []
+                    flattened_success_verification_probability = []
+                    flattened_total_verification_count = []
+                    flattened_success_verification_count = []
+                    flattened_teleport_success_count = []
+                    for result in results[column]:
+                        if isinstance(result, dict):
+                            for key, value in result.items():
+                                if "actual_fidelities" in key:
+                                    flattened_actual_fidelities += list(value.values())
+                                elif "total_verified_paris" in key:
+                                    flattened_total_verified_pairs.append(value)
+                                elif "success_verification_probability" in key:
+                                    flattened_success_verification_probability += value
+                                elif "total_verification_count" in key:
+                                    flattened_total_verification_count.append(value)
+                                elif "success_verification_count" in key:
+                                    flattened_success_verification_count.append(value)
+                                elif "teleport_success_count" in key:
+                                    flattened_teleport_success_count.append(value)
+                    all_actual_fidelities += flattened_actual_fidelities
+                    all_total_verified_pairs += flattened_total_verified_pairs
+                    all_success_verification_probability += flattened_success_verification_probability
+                    all_total_verification_count += flattened_total_verification_count
+                    all_success_verification_count += flattened_success_verification_count
+                    all_teleport_success_count += flattened_teleport_success_count
+                data = {"actual_fidelities":
+                            np.mean(all_actual_fidelities, dtype=np.float64),
+                        "total_verified_pairs":
+                            np.mean(all_total_verified_pairs, dtype=np.float64),
+                        "success_verification_probability":
+                            all_success_verification_probability,
+                        "total_verification_count":
+                            np.mean(all_total_verification_count, dtype=np.float64),
+                        "success_verification_count":
+                            np.mean(all_success_verification_count, dtype=np.float64),
+                        "teleport_success_count":
+                            np.mean(all_teleport_success_count, dtype=np.float64),
+                        "raw_data":
+                            {"actual_fidelities": all_actual_fidelities,
+                             "total_verified_pairs": all_total_verified_pairs,
+                             "total_verification_count": all_total_verification_count,
+                             "success_verification_count": all_success_verification_count,
+                             "teleport_success_count": all_teleport_success_count}
+                        }
+                batch_data[entangle_pairs] = data
+                print("*" * 50)
+                print(f"Batch size: {batch_size}\n"
+                      f"\tEntangle Pairs: {entangle_pairs}\n"
+                      f"\tPurified Pairs: {entangle_pairs-3}\n"
+                      f"\tActual Fidelities: {data['actual_fidelities']}\n"
+                      f"\tTotal Verified Pairs: {data['total_verified_pairs']}\n"
+                      f"\tTeleport Success Count: {data['teleport_success_count']}\n"
+                      f"\tTotal Verification Count: {data['total_verification_count']}\n"
+                      f"\tSuccess Verification Count: {data['success_verification_count']}\n"
+                      f"\tSuccess Verification Probability: {data['success_verification_probability']}\n")
+                with open(f"./verification_results/batch_data_{batch_size}.json", "w") as f:
+                    json.dump(batch_data, f)
+                progress.update(entangle_task, advance=1)
+                verify_example.stop()
+            progress.update(batch_task, advance=1)
+            experiment_data[batch_size] = batch_data
+            with open(f"./verification_results/batch_data_2_nodes_{max_batch_size}_batch_size.json", "w") as f:
+                json.dump(experiment_data, f)
 
 
 if __name__ == '__main__':
-    run_experiment_multi(2)
+    if len(sys.argv) < 2:
+        print("Please provide an argument to skip noise")
+        exit(0)
+    if sys.argv[1] == "true":
+        pop_noise = True
+    elif sys.argv[1] == "false":
+        pop_noise = False
+    else:
+        print("Invalid argument. Please use 'true' or 'false'")
+        exit(0)
+    run_experiment_multi(2, pop_noise)
     # run_experiment(2)

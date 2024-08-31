@@ -476,7 +476,7 @@ class Purification(NodeProtocol):
 
             # handle graceful shutdown, we need to make sure all the cc messages are processed and
             # all the re-entangle pairs are done
-            if self.shutdown and len(self.classical_messages_queue) == 0 and len(self.re_entangle_pairs) == 0:
+            if self.shutdown and len(self.classical_messages_queue) == 0:
                 self.logger.info(f"Purify {self.name} -> Node {self.name} Graceful shutting down",
                                  color="green")
                 self.print_status(color="green")

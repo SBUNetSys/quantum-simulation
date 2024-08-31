@@ -51,23 +51,16 @@ class Verification(NodeProtocol):
         self.successful_verification_batches = {}
         # condition for who starts the verification process
         self.is_source = False
-        # measurement operators for the verification qubits m
-        # self.measurement_m0, self.measurement_m1 = measure_operator()
-        # # controlled unitary gate operator
-        # CU_Gate = controlled_unitary(self.batch_size)
-        # self.CU_Gate = ops.Operator("CU", CU_Gate)
-        # # CCU = np.conjugate(CU_Gate)
-        # # self.CCU_Gate = ops.Operator("CCU", CCU)
-        # self.CCU_Gate = self.CU_Gate.conj
-
+        # measurement operators
         self.measurement_m0 = measurement_m0
         self.measurement_m1 = measurement_m1
+        # controlled unitary gate
         self.CU_Gate = CU_Gate
         self.CCU_Gate = CCU_Gate
 
         # classical message queue
         self.cc_message_queue = []
-
+        # statistics
         self.verification_counter = 0
         self.successful_verification_counter = 0
         self.successful_verification_probability = []
@@ -81,15 +74,6 @@ class Verification(NodeProtocol):
         if self.is_top_layer:
             self.add_signal(MessageType.VERIFICATION_FINISHED)
 
-    # def start(self):
-    #     self.measurement_m0, self.measurement_m1 = measure_operator()
-    #     # controlled unitary gate operator
-    #     self.CU_matrix = controlled_unitary(self.batch_size)
-    #     self.CU_Gate = ops.Operator("CU", self.CU_matrix)
-    #     # CCU = np.conjugate(self.CU_matrix)
-    #     # self.CCU_Gate = ops.Operator("CCU", CCU)
-    #     self.CCU_Gate = self.CU_Gate.conj
-    #     super().start()
 
     def handle_entanglement_signal(self, message):
         """
@@ -401,9 +385,10 @@ class Verification(NodeProtocol):
         # get the qubits from the memory positions
         for pos in verification_batch_positions:
             # TODO: should we apply memory noise here during pop?
+            #       for now we apply the noise during the pop
             if qmemory.busy:
                 yield self.await_program(qmemory)
-            qubit, = qmemory.pop(pos, skip_noise=True)
+            qubit, = qmemory.pop(pos, skip_noise=False)
             register_qubits.append(qubit)
         # Apply the W operator
         qapi.operate(register_qubits, self.CU_Gate)
@@ -427,7 +412,7 @@ class Verification(NodeProtocol):
             # TODO: should we apply memory noise here during pop?
             if qmemory.busy:
                 yield self.await_program(qmemory)
-            qubit, = qmemory.pop(pos, skip_noise=True)
+            qubit, = qmemory.pop(pos, skip_noise=False)
             register_qubits.append(qubit)
         # Apply the W* operator
         qapi.operate(register_qubits, self.CCU_Gate)
@@ -463,7 +448,8 @@ class Verification(NodeProtocol):
         for mem_pos, (m1, m2) in measurement_results.items():
             if qmemory.busy:
                 yield self.await_program(qmemory)
-            qubit, = qmemory.pop(mem_pos, skip_noise=True)
+            # TODO: should we apply memory noise here during pop?
+            qubit, = qmemory.pop(mem_pos, skip_noise=False)
             # Correct the teleportation based on the measurement results
             if m1 == 1:
                 qapi.operate(qubit, ops.Z)
@@ -481,7 +467,8 @@ class Verification(NodeProtocol):
         for qubit_a, mem_pos in zip(qubit_to_send, teleport_memo_poses):
             if qmemory.busy:
                 yield self.await_program(qmemory)
-            qubit_b, = qmemory.pop(mem_pos, skip_noise=True)
+            # TODO: should we apply memory noise here during pop?
+            qubit_b, = qmemory.pop(mem_pos, skip_noise=False)
             qapi.operate([qubit_a, qubit_b], ops.CNOT)
             qapi.operate(qubit_a, ops.H)
             m1, _ = qapi.measure(qubit_a)
@@ -528,18 +515,7 @@ class Verification(NodeProtocol):
         return False
 
     def reset(self):
-        # del self.measurement_m0
-        # del self.measurement_m1
-        # del self.CU_Gate
-        # del self.CCU_Gate
-        # del self.CU_matrix
-        # self.measurement_m0 = None
-        # self.measurement_m1 = None
-        # self.CU_Gate = None
-        # self.CCU_Gate = None
-        # self.CU_matrix = None
         gc.collect()
-
         self.entangled_pairs = {}
         self.current_verification_batches = {}
         self.pending_verification_batches = {}
@@ -552,15 +528,4 @@ class Verification(NodeProtocol):
         super().reset()
 
     def stop(self):
-        # del self.measurement_m0
-        # del self.measurement_m1
-        # del self.CU_Gate
-        # del self.CCU_Gate
-        # del self.CU_matrix
-        # self.measurement_m0 = None
-        # self.measurement_m1 = None
-        # self.CU_Gate = None
-        # self.CCU_Gate = None
-        # self.CU_matrix = None
-        gc.collect()
         super().stop()

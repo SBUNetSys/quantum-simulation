@@ -3,21 +3,21 @@ import operator
 import os.path
 import sys
 from functools import reduce
-from uu import Error
 
-import numpy as np
-import pandas
 import pydynaa as pd
 import matplotlib.pyplot as plt
+
+import netsquid as ns
 from netsquid.util.simtools import sim_time
 from netsquid.util.datacollector import DataCollector
 
 from netsquid.qubits import qubitapi as qapi
 from netsquid.protocols.nodeprotocols import NodeProtocol, LocalProtocol
 from netsquid.protocols.protocol import Signals
-import netsquid as ns
+import netsquid.qubits.operators as ops
+
 import netsquid.qubits.ketstates as ks
-from scipy.cluster.hierarchy import average
+from numpy.ma.extras import average
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network
@@ -149,6 +149,7 @@ class ExampleEntanglement(LocalProtocol):
                 node_index += 1
                 fidelity = []
                 estimated_fidelity = []
+                teleport_success_count = 0
                 for index in node_res.keys():
                     qubit1, = self.nodes[node].subcomponents[f"{entangle_node}_qmemory"].pop(index,
                                                                                              skip_noise=self.skip_noise)
@@ -165,11 +166,23 @@ class ExampleEntanglement(LocalProtocol):
                     if 0 < f < 0.99:
                         raise ValueError(f"Fidelity is not expected: {f}")
                     fidelity.append(f)
+                    # start_teleportation, generate a qubit for teleportation
+                    # rotate the qubit to y0 state
+                    qubit = qapi.create_qubits(1)[0]
+                    qapi.operate(qubit, ops.H)
+                    qapi.operate(qubit, ops.S)
+                    # teleport the qubit
+                    fid = self.test_teleportation(qubit1, qubit2, qubit)
+
+                    # print(f"Teleportation fidelity: {fid}")
+                    if fid > 0.99:
+                        teleport_success_count += 1
 
                 result_dic[f"{node}->{entangle_node}"] = fidelity
                 # print_green(f"Actual fidelity: {sum(fidelity) / len(fidelity)}")
                 result_dic[f"{node}->{entangle_node} Estimated"] = estimated_fidelity
                 result_dic[f"{node}->{entangle_node} Duration"] = end_time - start_time
+                result_dic[f"{node}->{entangle_node} Teleportation Success"] = teleport_success_count
                 # print_green(f"Estimated fidelity: {sum(estimated_fidelity) / len(estimated_fidelity)}")
             self.send_signal(Signals.SUCCESS, {"results": result_dic})
             # reset the manage entangle protocol first
@@ -189,6 +202,32 @@ class ExampleEntanglement(LocalProtocol):
             if n != node:
                 cc_ports[n.name] = node.get_conn_port(n.ID)
         return cc_ports
+
+    @staticmethod
+    def test_teleportation(qubit_a, qubit_b, teleport_qubit):
+        """
+        Test teleportation with two qubits
+        :return:
+        """
+        # Store the initial state
+        initial_state = teleport_qubit.qstate
+
+        # Perform teleportation
+        qapi.operate(qubits=[teleport_qubit, qubit_a], operator=ops.CNOT)
+        qapi.operate(teleport_qubit, ops.H)
+        m1, _ = qapi.measure(teleport_qubit)
+        m2, _ = qapi.measure(qubit_a)
+        if m1 == 1:
+            qapi.operate(qubit_b, ops.Z)
+        if m2 == 1:
+            qapi.operate(qubit_b, ops.X)
+
+        # Calculate fidelity
+        # teleported_state = qapi.reduced_dm(qubit_b)
+        # fidelity = qapi.fidelity(teleported_state, initial_state)
+        fidelity = qapi.fidelity(qubit_b, ns.y0)
+
+        return fidelity
 
 
 def example_sim_run(nodes, num_runs, memory_depolar_rate, node_distance, max_entangle_pairs, skip_noise=False):
@@ -293,8 +332,13 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
     sample_nodes = [node for node in network.nodes.values()]
     data = {}
     max_pairs = 128
-    from rich.progress import Progress, BarColumn
-    with Progress(transient=True) as progress:
+    from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn
+    with Progress(TextColumn("[progress.description]{task.description}"),
+                  BarColumn(),
+                  TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                  TextColumn("[progress.completed]{task.completed}/{task.total}"),
+                  TimeRemainingColumn(),
+                  transient=True) as progress:
         task = progress.add_task("[green]Paris...", total=max_pairs)
         for entangle_pairs in range(2, max_pairs + 1):
             entangle_protocol, dc = example_sim_run(sample_nodes, num_runs=1000,
@@ -311,6 +355,7 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
             all_node_actual_fidelity = []
             all_node_estimated_fidelity = []
             all_node_duration = []
+            all_node_teleportation_success = []
             # print(dc.dataframe)
             for column in dc.dataframe.columns:
                 # Flatten the lists in the column
@@ -319,6 +364,8 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
                     all_node_estimated_fidelity.append(sum(flattened_values) / len(flattened_values))
                 elif "Duration" in column:
                     all_node_duration.append(sum(dc.dataframe[column]) / len(dc.dataframe[column]))
+                elif "Teleportation" in column:
+                    all_node_teleportation_success.append(sum(dc.dataframe[column]) / len(dc.dataframe[column]))
                 else:
                     flattened_values = [item for sublist in dc.dataframe[column] for item in sublist]
                     all_node_actual_fidelity.append(sum(flattened_values) / len(flattened_values))
@@ -329,20 +376,23 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
             for fidelity in all_node_estimated_fidelity:
                 final_estimated_fidelity *= fidelity
             average_duration = sum(all_node_duration) / len(all_node_duration)
+            average_teleportation_success = sum(all_node_teleportation_success) / len(all_node_teleportation_success)
             print("*" * 50)
             print(f"Skip noise: {skip_noise}")
             print(f"Entangle pairs: {entangle_pairs}")
+            print(f"Teleportation success count: {average_teleportation_success}")
             print(f"Final estimated fidelity: {final_estimated_fidelity}")
             print(f"Final fidelity: {final_fidelity}")
             print("Average duration: ", average_duration)
             data[entangle_pairs] = {"actual_fidelity": final_fidelity,
                                     "estimated_fidelity": final_estimated_fidelity,
-                                    "average_duration": average_duration}
+                                    "average_duration": average_duration,
+                                    "average_teleportation_success": average_teleportation_success}
             entangle_protocol.stop()
+            with open(os.path.join(save_dir, f"entanglement_results_2_node_{max_pairs}_pairs_noise_{skip_noise}.json"),
+                      "w") as f:
+                json.dump(data, f, indent=4)
             progress.update(task, advance=1)
-        with open(os.path.join(save_dir, f"entanglement_results_2_node_{max_pairs}_pairs_noise_{skip_noise}.json"),
-                  "w") as f:
-            json.dump(data, f, indent=4)
 
 
 def main():

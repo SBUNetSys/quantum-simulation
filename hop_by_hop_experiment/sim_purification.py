@@ -297,8 +297,13 @@ def run_single_stack(nodes_count, skip_noise=False):
     sample_nodes = [node for node in network.nodes.values()]
     experiment_result = {}
     max_pairs = 128
-    from rich.progress import Progress, BarColumn
-    with Progress(transient=True) as progress:
+    from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
+    with Progress(TextColumn("[progress.description]{task.description}"),
+                  BarColumn(),
+                  TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                  TextColumn("[progress.completed]{task.completed}/{task.total}"),
+                  TimeRemainingColumn(),
+                  transient=True) as progress:
         task = progress.add_task("[green]Paris...", total=max_pairs)
         for entangle_pairs in range(4, max_pairs + 1, 2):
             filt_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,
