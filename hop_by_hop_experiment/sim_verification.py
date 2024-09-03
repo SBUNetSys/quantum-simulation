@@ -401,14 +401,17 @@ def run_experiment_multi(nodes_count, skip_noise=False, max_batch_size=8, only_m
             batch_data = {}
             entangle_task = progress.add_task(f"[green]Entangle Pairs (Batch_Size: {batch_size})", total=(max_entangle_pairs - 6)//batch_size)
             for entangle_pairs in range(start_entangle_size, max_entangle_pairs + 1, batch_size):
-                verify_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=100,
+                verify_example, dc = example_sim_run(sample_nodes, num_runs=100, memory_depolar_rate=100,
                                                      node_distance=20,
                                                      max_entangle_pairs=entangle_pairs, target_fidelity=0.995, m_size=3,
                                                      batch_size=batch_size,
                                                      skip_noise=skip_noise)
                 # Run the simulation
                 verify_example.start()
-                ns.sim_run()
+                # check if is running
+                if ns.sim_state() != 1:
+                    # ns.sim_run(magnitude=ns.PICOSECOND)
+                    ns.sim_run()
                 # Collect the data
                 results = dc.dataframe
                 all_actual_fidelities = []
@@ -481,6 +484,14 @@ def run_experiment_multi(nodes_count, skip_noise=False, max_batch_size=8, only_m
                 verify_example.stop()
                 del verify_example
                 gc.collect()
+                # check the time condition
+                if ns.possible_time_manipulation_accuracy_issue(0, ns.sim_time()):
+                    # case we have time overflow, reset the simulation and run again with different RNG
+                    ns.sim_reset()
+                    new_rng = np.random.RandomState()
+                    if new_rng == ns.get_random_state():
+                        raise ValueError("Random state is not resetting")
+                    ns.set_random_state(rng=new_rng)
             progress.update(batch_task, advance=1)
             experiment_data[batch_size] = batch_data
             with open(f"./verification_results/batch_data_2_nodes_max_{max_batch_size}_batch_size.json", "w") as f:
@@ -503,3 +514,5 @@ if __name__ == '__main__':
     gc.collect()
     run_experiment_multi(2, pop_noise, max_batch_size=9, only_max_batch=True)
     # run_experiment(2)
+    # 1560165200000
+    # 1000000000000

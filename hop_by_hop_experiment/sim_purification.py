@@ -401,6 +401,15 @@ def run_single_stack(nodes_count, skip_noise=False):
             filt_example.stop()
             del filt_example
             gc.collect()
+            # check the time condition
+            if ns.possible_time_manipulation_accuracy_issue(0, ns.sim_time()):
+                # case we have time overflow, reset the simulation and run again with different RNG
+                ns.sim_reset()
+                new_rng = np.random.RandomState()
+                if new_rng == ns.get_random_state():
+                    raise ValueError("Random state is not resetting")
+                ns.set_random_state(rng=new_rng)
+
             final_fidelity = np.mean(all_node_actual_fidelity, dtype=np.float64)
             final_estimated_fidelity = np.mean(all_node_estimated_fidelity, dtype=np.float64)
             final_purified_count = np.mean(all_node_purified_count, dtype=np.float64)

@@ -4,6 +4,7 @@ import os.path
 import sys
 from functools import reduce
 
+import numpy as np
 import pydynaa as pd
 import matplotlib.pyplot as plt
 
@@ -389,6 +390,14 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
                                     "average_duration": average_duration,
                                     "average_teleportation_success": average_teleportation_success}
             entangle_protocol.stop()
+            # check the time condition
+            if ns.possible_time_manipulation_accuracy_issue(0, ns.sim_time()):
+                # case we have time overflow, reset the simulation and run again with different RNG
+                ns.sim_reset()
+                new_rng = np.random.RandomState()
+                if new_rng == ns.get_random_state():
+                    raise ValueError("Random state is not resetting")
+                ns.set_random_state(rng=new_rng)
             with open(os.path.join(save_dir, f"entanglement_results_2_node_{max_pairs}_pairs_noise_{skip_noise}.json"),
                       "w") as f:
                 json.dump(data, f, indent=4)
