@@ -1,0 +1,764 @@
+{
+    "2": {
+        "actual_fidelity": 0.9859999999999999,
+        "estimated_fidelity": 0.9925373753118545,
+        "average_duration": 100000.0,
+        "average_teleportation_success": 0.993
+    },
+    "3": {
+        "actual_fidelity": 0.9774999999999999,
+        "estimated_fidelity": 0.9925373753118956,
+        "average_duration": 200000.0,
+        "average_teleportation_success": 1.97
+    },
+    "4": {
+        "actual_fidelity": 0.9666666666666666,
+        "estimated_fidelity": 0.9925373753118394,
+        "average_duration": 300000.0,
+        "average_teleportation_success": 2.936
+    },
+    "5": {
+        "actual_fidelity": 0.9677499999999999,
+        "estimated_fidelity": 0.9925373753118077,
+        "average_duration": 400000.0,
+        "average_teleportation_success": 3.907
+    },
+    "6": {
+        "actual_fidelity": 0.9593999999999998,
+        "estimated_fidelity": 0.9925373753118681,
+        "average_duration": 500000.0,
+        "average_teleportation_success": 4.857
+    },
+    "7": {
+        "actual_fidelity": 0.9441666666666665,
+        "estimated_fidelity": 0.9925373753119181,
+        "average_duration": 600000.0,
+        "average_teleportation_success": 5.764
+    },
+    "8": {
+        "actual_fidelity": 0.9432857142857142,
+        "estimated_fidelity": 0.9925373753119537,
+        "average_duration": 700000.0,
+        "average_teleportation_success": 6.73
+    },
+    "9": {
+        "actual_fidelity": 0.9401249999999999,
+        "estimated_fidelity": 0.9925373753119804,
+        "average_duration": 800000.0,
+        "average_teleportation_success": 7.669
+    },
+    "10": {
+        "actual_fidelity": 0.9295555555555554,
+        "estimated_fidelity": 0.9925373753120013,
+        "average_duration": 900000.0,
+        "average_teleportation_success": 8.604
+    },
+    "11": {
+        "actual_fidelity": 0.9231999999999998,
+        "estimated_fidelity": 0.9925373753120179,
+        "average_duration": 1000000.0,
+        "average_teleportation_success": 9.497
+    },
+    "12": {
+        "actual_fidelity": 0.9154545454545453,
+        "estimated_fidelity": 0.9925373753120315,
+        "average_duration": 1100000.0,
+        "average_teleportation_success": 10.407
+    },
+    "13": {
+        "actual_fidelity": 0.9070833333333331,
+        "estimated_fidelity": 0.9925373753120428,
+        "average_duration": 1200000.0,
+        "average_teleportation_success": 11.246
+    },
+    "14": {
+        "actual_fidelity": 0.9086153846153845,
+        "estimated_fidelity": 0.9925373753120524,
+        "average_duration": 1300000.0,
+        "average_teleportation_success": 12.169
+    },
+    "15": {
+        "actual_fidelity": 0.8957142857142856,
+        "estimated_fidelity": 0.9925373753120607,
+        "average_duration": 1400000.0,
+        "average_teleportation_success": 13.064
+    },
+    "16": {
+        "actual_fidelity": 0.8937333333333332,
+        "estimated_fidelity": 0.9925373753120678,
+        "average_duration": 1500000.0,
+        "average_teleportation_success": 13.947
+    },
+    "17": {
+        "actual_fidelity": 0.8875624999999999,
+        "estimated_fidelity": 0.992537375312074,
+        "average_duration": 1600000.0,
+        "average_teleportation_success": 14.811
+    },
+    "18": {
+        "actual_fidelity": 0.8809411764705881,
+        "estimated_fidelity": 0.9925373753120268,
+        "average_duration": 1700000.0,
+        "average_teleportation_success": 15.645
+    },
+    "19": {
+        "actual_fidelity": 0.8743888888888888,
+        "estimated_fidelity": 0.9925373753119335,
+        "average_duration": 1800000.0,
+        "average_teleportation_success": 16.531
+    },
+    "20": {
+        "actual_fidelity": 0.8691052631578945,
+        "estimated_fidelity": 0.9925373753118502,
+        "average_duration": 1900000.0,
+        "average_teleportation_success": 17.307
+    },
+    "21": {
+        "actual_fidelity": 0.8676499999999998,
+        "estimated_fidelity": 0.992537375311775,
+        "average_duration": 2000000.0,
+        "average_teleportation_success": 18.24
+    },
+    "22": {
+        "actual_fidelity": 0.8575714285714284,
+        "estimated_fidelity": 0.9925373753117072,
+        "average_duration": 2100000.0,
+        "average_teleportation_success": 18.973
+    },
+    "23": {
+        "actual_fidelity": 0.8479999999999999,
+        "estimated_fidelity": 0.9925373753116453,
+        "average_duration": 2200000.0,
+        "average_teleportation_success": 19.752
+    },
+    "24": {
+        "actual_fidelity": 0.8445652173913042,
+        "estimated_fidelity": 0.9925373753115889,
+        "average_duration": 2300000.0,
+        "average_teleportation_success": 20.54
+    },
+    "25": {
+        "actual_fidelity": 0.8403333333333332,
+        "estimated_fidelity": 0.9925373753115373,
+        "average_duration": 2400000.0,
+        "average_teleportation_success": 21.489
+    },
+    "26": {
+        "actual_fidelity": 0.8353199999999998,
+        "estimated_fidelity": 0.9925373753114898,
+        "average_duration": 2500000.0,
+        "average_teleportation_success": 22.269
+    },
+    "27": {
+        "actual_fidelity": 0.8288846153846152,
+        "estimated_fidelity": 0.9925373753114458,
+        "average_duration": 2600000.0,
+        "average_teleportation_success": 22.999
+    },
+    "28": {
+        "actual_fidelity": 0.8217037037037036,
+        "estimated_fidelity": 0.9925373753114052,
+        "average_duration": 2700000.0,
+        "average_teleportation_success": 23.803
+    },
+    "29": {
+        "actual_fidelity": 0.8179999999999998,
+        "estimated_fidelity": 0.9925373753113674,
+        "average_duration": 2800000.0,
+        "average_teleportation_success": 24.562
+    },
+    "30": {
+        "actual_fidelity": 0.8139655172413792,
+        "estimated_fidelity": 0.9925373753113323,
+        "average_duration": 2900000.0,
+        "average_teleportation_success": 25.42
+    },
+    "31": {
+        "actual_fidelity": 0.8045666666666665,
+        "estimated_fidelity": 0.9925373753112996,
+        "average_duration": 3000000.0,
+        "average_teleportation_success": 26.087
+    },
+    "32": {
+        "actual_fidelity": 0.8086129032258064,
+        "estimated_fidelity": 0.9925373753112688,
+        "average_duration": 3100000.0,
+        "average_teleportation_success": 27.034
+    },
+    "33": {
+        "actual_fidelity": 0.7984374999999999,
+        "estimated_fidelity": 0.9925373753112401,
+        "average_duration": 3200000.0,
+        "average_teleportation_success": 27.645
+    },
+    "34": {
+        "actual_fidelity": 0.7932121212121211,
+        "estimated_fidelity": 0.9925373753112131,
+        "average_duration": 3300000.0,
+        "average_teleportation_success": 28.425
+    },
+    "35": {
+        "actual_fidelity": 0.7914999999999999,
+        "estimated_fidelity": 0.9925373753112932,
+        "average_duration": 3400000.0,
+        "average_teleportation_success": 29.273
+    },
+    "36": {
+        "actual_fidelity": 0.7843999999999999,
+        "estimated_fidelity": 0.9925373753113701,
+        "average_duration": 3500000.0,
+        "average_teleportation_success": 29.967
+    },
+    "37": {
+        "actual_fidelity": 0.7788055555555554,
+        "estimated_fidelity": 0.9925373753114428,
+        "average_duration": 3600000.0,
+        "average_teleportation_success": 30.705
+    },
+    "38": {
+        "actual_fidelity": 0.777081081081081,
+        "estimated_fidelity": 0.9925373753115115,
+        "average_duration": 3700000.0,
+        "average_teleportation_success": 31.536
+    },
+    "39": {
+        "actual_fidelity": 0.7687105263157894,
+        "estimated_fidelity": 0.9925373753115767,
+        "average_duration": 3800000.0,
+        "average_teleportation_success": 32.201
+    },
+    "40": {
+        "actual_fidelity": 0.7627692307692306,
+        "estimated_fidelity": 0.9925373753116384,
+        "average_duration": 3900000.0,
+        "average_teleportation_success": 32.925
+    },
+    "41": {
+        "actual_fidelity": 0.7621999999999999,
+        "estimated_fidelity": 0.9925373753116972,
+        "average_duration": 4000000.0,
+        "average_teleportation_success": 33.677
+    },
+    "42": {
+        "actual_fidelity": 0.757780487804878,
+        "estimated_fidelity": 0.992537375311753,
+        "average_duration": 4100000.0,
+        "average_teleportation_success": 34.364
+    },
+    "43": {
+        "actual_fidelity": 0.7502380952380951,
+        "estimated_fidelity": 0.9925373753118062,
+        "average_duration": 4200000.0,
+        "average_teleportation_success": 35.085
+    },
+    "44": {
+        "actual_fidelity": 0.7465348837209301,
+        "estimated_fidelity": 0.9925373753118569,
+        "average_duration": 4300000.0,
+        "average_teleportation_success": 35.822
+    },
+    "45": {
+        "actual_fidelity": 0.744590909090909,
+        "estimated_fidelity": 0.9925373753119053,
+        "average_duration": 4400000.0,
+        "average_teleportation_success": 36.515
+    },
+    "46": {
+        "actual_fidelity": 0.7360888888888887,
+        "estimated_fidelity": 0.9925373753119515,
+        "average_duration": 4500000.0,
+        "average_teleportation_success": 37.07
+    },
+    "47": {
+        "actual_fidelity": 0.7323043478260868,
+        "estimated_fidelity": 0.9925373753119958,
+        "average_duration": 4600000.0,
+        "average_teleportation_success": 37.79
+    },
+    "48": {
+        "actual_fidelity": 0.7297021276595743,
+        "estimated_fidelity": 0.9925373753120381,
+        "average_duration": 4700000.0,
+        "average_teleportation_success": 38.528
+    },
+    "49": {
+        "actual_fidelity": 0.7291458333333332,
+        "estimated_fidelity": 0.9925373753120788,
+        "average_duration": 4800000.0,
+        "average_teleportation_success": 39.391
+    },
+    "50": {
+        "actual_fidelity": 0.7258979591836733,
+        "estimated_fidelity": 0.9925373753121177,
+        "average_duration": 4900000.0,
+        "average_teleportation_success": 40.038
+    },
+    "51": {
+        "actual_fidelity": 0.7191999999999998,
+        "estimated_fidelity": 0.992537375312155,
+        "average_duration": 5000000.0,
+        "average_teleportation_success": 40.646
+    },
+    "52": {
+        "actual_fidelity": 0.7147647058823527,
+        "estimated_fidelity": 0.992537375312191,
+        "average_duration": 5100000.0,
+        "average_teleportation_success": 41.387
+    },
+    "53": {
+        "actual_fidelity": 0.7111346153846152,
+        "estimated_fidelity": 0.9925373753122255,
+        "average_duration": 5200000.0,
+        "average_teleportation_success": 42.003
+    },
+    "54": {
+        "actual_fidelity": 0.708132075471698,
+        "estimated_fidelity": 0.9925373753122587,
+        "average_duration": 5300000.0,
+        "average_teleportation_success": 42.649
+    },
+    "55": {
+        "actual_fidelity": 0.7063148148148147,
+        "estimated_fidelity": 0.9925373753122907,
+        "average_duration": 5400000.0,
+        "average_teleportation_success": 43.457
+    },
+    "56": {
+        "actual_fidelity": 0.7017999999999999,
+        "estimated_fidelity": 0.9925373753123216,
+        "average_duration": 5500000.0,
+        "average_teleportation_success": 44.088
+    },
+    "57": {
+        "actual_fidelity": 0.6966785714285713,
+        "estimated_fidelity": 0.9925373753123513,
+        "average_duration": 5600000.0,
+        "average_teleportation_success": 44.795
+    },
+    "58": {
+        "actual_fidelity": 0.6980701754385964,
+        "estimated_fidelity": 0.99253737531238,
+        "average_duration": 5700000.0,
+        "average_teleportation_success": 45.546
+    },
+    "59": {
+        "actual_fidelity": 0.6908793103448274,
+        "estimated_fidelity": 0.9925373753124077,
+        "average_duration": 5800000.0,
+        "average_teleportation_success": 46.035
+    },
+    "60": {
+        "actual_fidelity": 0.6884915254237287,
+        "estimated_fidelity": 0.9925373753124345,
+        "average_duration": 5900000.0,
+        "average_teleportation_success": 46.744
+    },
+    "61": {
+        "actual_fidelity": 0.6850666666666665,
+        "estimated_fidelity": 0.9925373753124603,
+        "average_duration": 6000000.0,
+        "average_teleportation_success": 47.422
+    },
+    "62": {
+        "actual_fidelity": 0.6748524590163933,
+        "estimated_fidelity": 0.9925373753124853,
+        "average_duration": 6100000.0,
+        "average_teleportation_success": 47.672
+    },
+    "63": {
+        "actual_fidelity": 0.6763225806451612,
+        "estimated_fidelity": 0.9925373753125095,
+        "average_duration": 6200000.0,
+        "average_teleportation_success": 48.758
+    },
+    "64": {
+        "actual_fidelity": 0.6711746031746031,
+        "estimated_fidelity": 0.9925373753125329,
+        "average_duration": 6300000.0,
+        "average_teleportation_success": 49.132
+    },
+    "65": {
+        "actual_fidelity": 0.6682031249999999,
+        "estimated_fidelity": 0.9925373753125557,
+        "average_duration": 6400000.0,
+        "average_teleportation_success": 49.787
+    },
+    "66": {
+        "actual_fidelity": 0.6619692307692306,
+        "estimated_fidelity": 0.9925373753125777,
+        "average_duration": 6500000.0,
+        "average_teleportation_success": 50.345
+    },
+    "67": {
+        "actual_fidelity": 0.6620757575757574,
+        "estimated_fidelity": 0.992537375312599,
+        "average_duration": 6600000.0,
+        "average_teleportation_success": 51.17
+    },
+    "68": {
+        "actual_fidelity": 0.6606567164179104,
+        "estimated_fidelity": 0.9925373753125142,
+        "average_duration": 6700000.0,
+        "average_teleportation_success": 51.726
+    },
+    "69": {
+        "actual_fidelity": 0.6554411764705881,
+        "estimated_fidelity": 0.9925373753124289,
+        "average_duration": 6800000.0,
+        "average_teleportation_success": 52.366
+    },
+    "70": {
+        "actual_fidelity": 0.6520144927536231,
+        "estimated_fidelity": 0.992537375312346,
+        "average_duration": 6900000.0,
+        "average_teleportation_success": 52.891
+    },
+    "71": {
+        "actual_fidelity": 0.6491857142857141,
+        "estimated_fidelity": 0.9925373753122655,
+        "average_duration": 7000000.0,
+        "average_teleportation_success": 53.574
+    },
+    "72": {
+        "actual_fidelity": 0.6456619718309858,
+        "estimated_fidelity": 0.9925373753121872,
+        "average_duration": 7100000.0,
+        "average_teleportation_success": 54.255
+    },
+    "73": {
+        "actual_fidelity": 0.645236111111111,
+        "estimated_fidelity": 0.9925373753121112,
+        "average_duration": 7200000.0,
+        "average_teleportation_success": 54.947
+    },
+    "74": {
+        "actual_fidelity": 0.639876712328767,
+        "estimated_fidelity": 0.9925373753120372,
+        "average_duration": 7300000.0,
+        "average_teleportation_success": 55.557
+    },
+    "75": {
+        "actual_fidelity": 0.637081081081081,
+        "estimated_fidelity": 0.9925373753119652,
+        "average_duration": 7400000.0,
+        "average_teleportation_success": 55.997
+    },
+    "76": {
+        "actual_fidelity": 0.6334933333333332,
+        "estimated_fidelity": 0.9925373753118951,
+        "average_duration": 7500000.0,
+        "average_teleportation_success": 56.556
+    },
+    "77": {
+        "actual_fidelity": 0.6302631578947367,
+        "estimated_fidelity": 0.992537375311827,
+        "average_duration": 7600000.0,
+        "average_teleportation_success": 57.176
+    },
+    "78": {
+        "actual_fidelity": 0.6325584415584414,
+        "estimated_fidelity": 0.9925373753117605,
+        "average_duration": 7700000.0,
+        "average_teleportation_success": 58.097
+    },
+    "79": {
+        "actual_fidelity": 0.6248461538461537,
+        "estimated_fidelity": 0.9925373753116957,
+        "average_duration": 7800000.0,
+        "average_teleportation_success": 58.457
+    },
+    "80": {
+        "actual_fidelity": 0.6213544303797467,
+        "estimated_fidelity": 0.9925373753116327,
+        "average_duration": 7900000.0,
+        "average_teleportation_success": 59.043
+    },
+    "81": {
+        "actual_fidelity": 0.6190374999999999,
+        "estimated_fidelity": 0.9925373753115712,
+        "average_duration": 8000000.0,
+        "average_teleportation_success": 59.74
+    },
+    "82": {
+        "actual_fidelity": 0.6166049382716049,
+        "estimated_fidelity": 0.9925373753115111,
+        "average_duration": 8100000.0,
+        "average_teleportation_success": 60.338
+    },
+    "83": {
+        "actual_fidelity": 0.6135243902439024,
+        "estimated_fidelity": 0.9925373753114526,
+        "average_duration": 8200000.0,
+        "average_teleportation_success": 60.939
+    },
+    "84": {
+        "actual_fidelity": 0.6092048192771083,
+        "estimated_fidelity": 0.9925373753113954,
+        "average_duration": 8300000.0,
+        "average_teleportation_success": 61.522
+    },
+    "85": {
+        "actual_fidelity": 0.6098809523809523,
+        "estimated_fidelity": 0.9925373753113397,
+        "average_duration": 8400000.0,
+        "average_teleportation_success": 62.036
+    },
+    "86": {
+        "actual_fidelity": 0.604835294117647,
+        "estimated_fidelity": 0.9925373753112852,
+        "average_duration": 8500000.0,
+        "average_teleportation_success": 62.566
+    },
+    "87": {
+        "actual_fidelity": 0.6044418604651162,
+        "estimated_fidelity": 0.992537375311232,
+        "average_duration": 8600000.0,
+        "average_teleportation_success": 63.362
+    },
+    "88": {
+        "actual_fidelity": 0.6018620689655172,
+        "estimated_fidelity": 0.99253737531118,
+        "average_duration": 8700000.0,
+        "average_teleportation_success": 63.861
+    },
+    "89": {
+        "actual_fidelity": 0.6005227272727272,
+        "estimated_fidelity": 0.9925373753111293,
+        "average_duration": 8800000.0,
+        "average_teleportation_success": 64.5
+    },
+    "90": {
+        "actual_fidelity": 0.5995393258426965,
+        "estimated_fidelity": 0.9925373753110797,
+        "average_duration": 8900000.0,
+        "average_teleportation_success": 65.15
+    },
+    "91": {
+        "actual_fidelity": 0.5929666666666665,
+        "estimated_fidelity": 0.992537375311031,
+        "average_duration": 9000000.0,
+        "average_teleportation_success": 65.79
+    },
+    "92": {
+        "actual_fidelity": 0.5906043956043955,
+        "estimated_fidelity": 0.9925373753109836,
+        "average_duration": 9100000.0,
+        "average_teleportation_success": 66.183
+    },
+    "93": {
+        "actual_fidelity": 0.5900652173913042,
+        "estimated_fidelity": 0.9925373753109371,
+        "average_duration": 9200000.0,
+        "average_teleportation_success": 66.758
+    },
+    "94": {
+        "actual_fidelity": 0.5884623655913978,
+        "estimated_fidelity": 0.9925373753108917,
+        "average_duration": 9300000.0,
+        "average_teleportation_success": 67.456
+    },
+    "95": {
+        "actual_fidelity": 0.5857765957446808,
+        "estimated_fidelity": 0.9925373753108472,
+        "average_duration": 9400000.0,
+        "average_teleportation_success": 68.057
+    },
+    "96": {
+        "actual_fidelity": 0.5805157894736841,
+        "estimated_fidelity": 0.9925373753108037,
+        "average_duration": 9500000.0,
+        "average_teleportation_success": 68.509
+    },
+    "97": {
+        "actual_fidelity": 0.5772083333333332,
+        "estimated_fidelity": 0.992537375310761,
+        "average_duration": 9600000.0,
+        "average_teleportation_success": 68.891
+    },
+    "98": {
+        "actual_fidelity": 0.5771134020618556,
+        "estimated_fidelity": 0.9925373753107193,
+        "average_duration": 9700000.0,
+        "average_teleportation_success": 69.603
+    },
+    "99": {
+        "actual_fidelity": 0.5752142857142857,
+        "estimated_fidelity": 0.9925373753106784,
+        "average_duration": 9800000.0,
+        "average_teleportation_success": 70.342
+    },
+    "100": {
+        "actual_fidelity": 0.5754141414141414,
+        "estimated_fidelity": 0.9925373753106383,
+        "average_duration": 9900000.0,
+        "average_teleportation_success": 70.967
+    },
+    "101": {
+        "actual_fidelity": 0.57019,
+        "estimated_fidelity": 0.992537375310599,
+        "average_duration": 10000000.0,
+        "average_teleportation_success": 71.38
+    },
+    "102": {
+        "actual_fidelity": 0.5701881188118811,
+        "estimated_fidelity": 0.9925373753105605,
+        "average_duration": 10100000.0,
+        "average_teleportation_success": 72.1
+    },
+    "103": {
+        "actual_fidelity": 0.5677941176470588,
+        "estimated_fidelity": 0.9925373753105228,
+        "average_duration": 10200000.0,
+        "average_teleportation_success": 72.56
+    },
+    "104": {
+        "actual_fidelity": 0.5652233009708737,
+        "estimated_fidelity": 0.9925373753104858,
+        "average_duration": 10300000.0,
+        "average_teleportation_success": 73.152
+    },
+    "105": {
+        "actual_fidelity": 0.5617307692307691,
+        "estimated_fidelity": 0.9925373753104495,
+        "average_duration": 10400000.0,
+        "average_teleportation_success": 73.537
+    },
+    "106": {
+        "actual_fidelity": 0.5601809523809523,
+        "estimated_fidelity": 0.9925373753104139,
+        "average_duration": 10500000.0,
+        "average_teleportation_success": 74.085
+    },
+    "107": {
+        "actual_fidelity": 0.5584339622641509,
+        "estimated_fidelity": 0.9925373753103789,
+        "average_duration": 10600000.0,
+        "average_teleportation_success": 74.775
+    },
+    "108": {
+        "actual_fidelity": 0.5570934579439252,
+        "estimated_fidelity": 0.9925373753103446,
+        "average_duration": 10700000.0,
+        "average_teleportation_success": 75.33
+    },
+    "109": {
+        "actual_fidelity": 0.5531388888888888,
+        "estimated_fidelity": 0.9925373753103109,
+        "average_duration": 10800000.0,
+        "average_teleportation_success": 75.911
+    },
+    "110": {
+        "actual_fidelity": 0.5493211009174311,
+        "estimated_fidelity": 0.992537375310278,
+        "average_duration": 10900000.0,
+        "average_teleportation_success": 76.229
+    },
+    "111": {
+        "actual_fidelity": 0.5529636363636363,
+        "estimated_fidelity": 0.9925373753102456,
+        "average_duration": 11000000.0,
+        "average_teleportation_success": 77.227
+    },
+    "112": {
+        "actual_fidelity": 0.5454684684684684,
+        "estimated_fidelity": 0.9925373753102137,
+        "average_duration": 11100000.0,
+        "average_teleportation_success": 77.303
+    },
+    "113": {
+        "actual_fidelity": 0.5460178571428571,
+        "estimated_fidelity": 0.9925373753101824,
+        "average_duration": 11200000.0,
+        "average_teleportation_success": 78.331
+    },
+    "114": {
+        "actual_fidelity": 0.5433893805309734,
+        "estimated_fidelity": 0.9925373753101516,
+        "average_duration": 11300000.0,
+        "average_teleportation_success": 78.535
+    },
+    "115": {
+        "actual_fidelity": 0.5438421052631578,
+        "estimated_fidelity": 0.9925373753101215,
+        "average_duration": 11400000.0,
+        "average_teleportation_success": 79.333
+    },
+    "116": {
+        "actual_fidelity": 0.5403478260869564,
+        "estimated_fidelity": 0.9925373753100918,
+        "average_duration": 11500000.0,
+        "average_teleportation_success": 79.807
+    },
+    "117": {
+        "actual_fidelity": 0.5409568965517241,
+        "estimated_fidelity": 0.9925373753100627,
+        "average_duration": 11600000.0,
+        "average_teleportation_success": 80.692
+    },
+    "118": {
+        "actual_fidelity": 0.5379999999999999,
+        "estimated_fidelity": 0.992537375310034,
+        "average_duration": 11700000.0,
+        "average_teleportation_success": 80.903
+    },
+    "119": {
+        "actual_fidelity": 0.5351779661016949,
+        "estimated_fidelity": 0.9925373753100059,
+        "average_duration": 11800000.0,
+        "average_teleportation_success": 81.41
+    },
+    "120": {
+        "actual_fidelity": 0.5331764705882353,
+        "estimated_fidelity": 0.9925373753099782,
+        "average_duration": 11900000.0,
+        "average_teleportation_success": 81.952
+    },
+    "121": {
+        "actual_fidelity": 0.5311083333333333,
+        "estimated_fidelity": 0.9925373753099509,
+        "average_duration": 12000000.0,
+        "average_teleportation_success": 82.346
+    },
+    "122": {
+        "actual_fidelity": 0.5273636363636363,
+        "estimated_fidelity": 0.9925373753099241,
+        "average_duration": 12100000.0,
+        "average_teleportation_success": 82.808
+    },
+    "123": {
+        "actual_fidelity": 0.5283032786885246,
+        "estimated_fidelity": 0.9925373753098978,
+        "average_duration": 12200000.0,
+        "average_teleportation_success": 83.656
+    },
+    "124": {
+        "actual_fidelity": 0.5271219512195121,
+        "estimated_fidelity": 0.992537375309872,
+        "average_duration": 12300000.0,
+        "average_teleportation_success": 84.238
+    },
+    "125": {
+        "actual_fidelity": 0.5242419354838709,
+        "estimated_fidelity": 0.9925373753098464,
+        "average_duration": 12400000.0,
+        "average_teleportation_success": 84.685
+    },
+    "126": {
+        "actual_fidelity": 0.521936,
+        "estimated_fidelity": 0.9925373753098213,
+        "average_duration": 12500000.0,
+        "average_teleportation_success": 85.053
+    },
+    "127": {
+        "actual_fidelity": 0.5218809523809522,
+        "estimated_fidelity": 0.9925373753097967,
+        "average_duration": 12600000.0,
+        "average_teleportation_success": 86.021
+    },
+    "128": {
+        "actual_fidelity": 0.5183464566929132,
+        "estimated_fidelity": 0.9925373753097724,
+        "average_duration": 12700000.0,
+        "average_teleportation_success": 86.086
+    }
+}

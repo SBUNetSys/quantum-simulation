@@ -5,46 +5,42 @@ import operator
 from enum import Enum, auto
 from functools import reduce
 
-import numpy as np
-import netsquid as ns
-import pydynaa as pd
-
-from netsquid.components import ClassicalChannel, QuantumChannel
-from netsquid.util.simtools import sim_time
-from netsquid.util.datacollector import DataCollector
-from netsquid.qubits.ketutil import outerprod
-from netsquid.qubits.ketstates import s0, s1
-from netsquid.qubits import operators as ops, ketstates
-from netsquid.qubits import qubitapi as qapi
 from netsquid.protocols.nodeprotocols import NodeProtocol, LocalProtocol
-from netsquid.protocols.protocol import Signals
-from netsquid.nodes.network import Network
-from netsquid.components.instructions import INSTR_MEASURE, INSTR_CNOT, IGate, INSTR_Z, INSTR_SWAP, INSTR_H
 from netsquid.components.component import Message, Port
-from netsquid.components.qsource import QSource, SourceStatus
-from netsquid.components.qprocessor import QuantumProcessor
-from netsquid.components.qprogram import QuantumProgram
-from netsquid.qubits import ketstates as ks
-from netsquid.qubits.state_sampler import StateSampler
-from netsquid.components.models.delaymodels import FixedDelayModel, FibreDelayModel
-from netsquid.components.models import DepolarNoiseModel
-from netsquid.nodes.connections import DirectConnection
-from pydynaa import EventExpression
-from netsquid.qubits.qubitapi import measure
-from netsquid.qubits.operators import CNOT, Z
-from netsquid.components.instructions import INSTR_MEASURE
-from netsquid.nodes import Node
-from netsquid.qubits.qubitapi import fidelity
 
 
 class MessageType(Enum):
+
+    # entanglement signals
+    GEN_ENTANGLE_READY = auto()
     ENTANGLED = auto()
+    # re-entanglement signals
+    RE_ENTANGLE = auto()
+    RE_ENTANGLE_READY = auto()
+    RE_ENTANGLE_READY_REMOTE = auto()
+    RE_ENTANGLE_READY_SOURCE = auto()
+    RE_ENTANGLE_FROM_UPPER_LAYER = auto()
+    # purification signals
+    PURIFICATION_START = auto()
+    PURIFICATION_RESULT = auto()
+    PURIFICATION_TARGET_MET = auto()
+    PURIFICATION_NEED_SHUTDOWN = auto()
+    # verification signals
+    VERIFICATION_REQUEST = auto()
+    VERIFICATION_READY = auto()
+    VERIFICATION_START = auto()
+    VERIFICATION_RESULT = auto()
+    # swap signals
     SWAP_NEED = auto()
     SWAP_READY = auto()
     SWAP_RESULT = auto()
     SWAP_FAILED = auto()
     CORRECTION_SUCCESS = auto()
-    RE_ENTANGLE = auto()
+
+    # termination signals
+    ENTANGLEMENT_HANDLER_FINISHED = auto()
+    PURIFICATION_FINISHED = auto()
+    VERIFICATION_FINISHED = auto()
 
 
 class MessageHandler(NodeProtocol):
@@ -74,13 +70,13 @@ class MessageHandler(NodeProtocol):
         for signal in MessageType:
             self.add_signal(signal)
 
-    def send_signal(self, signal, msg):
-        """
-        Emit a signal from MessageHandler.
-        :param signal: signal to emit
-        :param msg: message data
-        """
-        self.node.send_signal(signal, msg)
+    # def send_signals(self, signal, msg):
+    #     """
+    #     Emit a signal from MessageHandler.
+    #     :param signal: signal to emit
+    #     :param msg: message data
+    #     """
+    #     self.node.send_signal(signal, msg)
 
     def run(self):
         while True:
