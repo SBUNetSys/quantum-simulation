@@ -53,7 +53,7 @@ class VerifyExample(LocalProtocol):
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleVerification")
         # create logger
         self.logger = Logging.Logger(self.name, logging_enabled=False)
-        null_logger = Logging.Logger("null", logging_enabled=True)
+        null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
 
         # Initialize the controlled unitary matrix and measurement operators
@@ -223,9 +223,9 @@ class VerifyExample(LocalProtocol):
                 total_batch = len(node_pair_res)
                 teleport_success_count = 0
                 for mem_pos in node_pair_res:
-                    qubit_a = self.all_nodes[i].subcomponents[f"{entangle_node}_qmemory"].pop(
+                    qubit_a = self.all_nodes[node_index].subcomponents[f"{entangle_node}_qmemory"].pop(
                         mem_pos, skip_noise=self.skip_noise)[0]
-                    qubit_b = self.all_nodes[i + 1].subcomponents[f"{node}_qmemory"].pop(
+                    qubit_b = self.all_nodes[node_index + 1].subcomponents[f"{node}_qmemory"].pop(
                         mem_pos, skip_noise=self.skip_noise)[0]
                     q_a_name = str(qubit_a.name).split("#")[-1].split("-")[0]
                     q_b_name = str(qubit_b.name).split("#")[-1].split("-")[0]
@@ -265,6 +265,7 @@ class VerifyExample(LocalProtocol):
                     "teleport_success_count": teleport_success_count,
                     "end_to_end_success": all_success_teleported
                 }
+                node_index += 1
             # we need to do safety layer to make sure we have gracefully shutdown the subprotocols
             for subprotocol_name, subprotocol in self.subprotocols.items():
                 if "purify" in subprotocol_name and subprotocol.is_running:
@@ -505,7 +506,7 @@ def run_experiment_multi(nodes_count, skip_noise=False, max_batch_size=8, only_m
 
 
 def run_experiment_with_batch_size4_5nodes_with_distance(distances, skip_noise=False):
-    nodes_list = [f"Node_{i}" for i in range(3)]
+    nodes_list = [f"Node_{i}" for i in range(4)]
     network = setup_network(nodes_list, "hop-by-hop-verification",
                             memory_capacity=128, memory_depolar_rate=100,
                             node_distance=distances, source_delay=1)
@@ -521,6 +522,7 @@ def run_experiment_with_batch_size4_5nodes_with_distance(distances, skip_noise=F
     ns.sim_run()
     # Collect the data
     results = dc.dataframe
+    print(results.columns)
     print(results)
     # for column in dc.dataframe.columns:
     #     print(f"Column: {column}")

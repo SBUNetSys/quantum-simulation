@@ -7,7 +7,8 @@ class EntangleSignalMessage:
     Most used for re-entanglement
     """
 
-    def __init__(self, entangle_node, mem_pos):
+    def __init__(self, source_node, entangle_node, mem_pos):
+        self.source_node = source_node
         self.entangle_node = entangle_node
         self.mem_pos = mem_pos
         self.timestamp = ns.sim_time()
@@ -19,8 +20,8 @@ class NewEntanglementSignalMessage(EntangleSignalMessage):
     Most used for entanglement creation
     """
 
-    def __init__(self, entangle_node, mem_pos, qmemory_name, is_source, init_fidelity):
-        super().__init__(entangle_node, mem_pos)
+    def __init__(self,source_node, entangle_node, mem_pos, qmemory_name, is_source, init_fidelity):
+        super().__init__(source_node, entangle_node, mem_pos)
         self.qmemory_name = qmemory_name
         self.is_source = is_source
         self.init_fidelity = init_fidelity
@@ -32,8 +33,8 @@ class EntangleSuccessSignalMessage(EntangleSignalMessage):
     Most used for EntanglementHandler to notify success
     """
 
-    def __init__(self, entangle_node, mem_pos, fidelity):
-        super().__init__(entangle_node, mem_pos)
+    def __init__(self, source_node, entangle_node, mem_pos, fidelity):
+        super().__init__(source_node,entangle_node, mem_pos)
         self.fidelity = fidelity
 
 
@@ -74,8 +75,8 @@ class PurifyTargetMetSignalMessage(EntangleSignalMessage):
     Signal message for successful purification and the new fidelity met the target fidelity
     """
 
-    def __init__(self, entangle_node, mem_pos, new_fidelity):
-        super().__init__(entangle_node, mem_pos)
+    def __init__(self, source_node, entangle_node, mem_pos, new_fidelity):
+        super().__init__(source_node,entangle_node, mem_pos)
         self.fidelity = new_fidelity
 
 
@@ -84,8 +85,8 @@ class PurifySuccessSignalMessage(EntangleSignalMessage):
     Signal message for successful purification and sent to upper layer
     """
 
-    def __init__(self, entangle_node, mem_pos, new_fidelity, is_source):
-        super().__init__(entangle_node, mem_pos)
+    def __init__(self,source_node, entangle_node, mem_pos, new_fidelity, is_source):
+        super().__init__(source_node, entangle_node, mem_pos)
         self.fidelity = new_fidelity
         self.is_source = is_source
 
@@ -115,9 +116,10 @@ class ProtocolFinishedSignalMessage:
     Signal message for protocol finished
     """
 
-    def __init__(self, from_protocol, from_node):
+    def __init__(self, from_protocol, from_node, entangle_node):
         self.from_protocol = from_protocol
         self.from_node = from_node
+        self.entangle_node = entangle_node
         self.timestamp = ns.sim_time()
 
 

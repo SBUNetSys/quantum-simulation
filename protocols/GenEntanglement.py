@@ -187,11 +187,13 @@ class GenEntanglement(NodeProtocol):
                              f"\tUsed memory positions: {self.used_mem_positions}\n"
                              f"\tAvailable memory positions: {self.aval_mem_postions}", color="red")
             self.send_signal(Signals.SUCCESS,
-                             SignalMessages.NewEntanglementSignalMessage(self.entangle_node, mem_pos,
-                                                                         self._qmemory_name,
-                                                                         self._is_source,
-                                                                         init_fidelity,
-                                                                         ))
+                             SignalMessages.NewEntanglementSignalMessage(
+                                 self.node.name,
+                                 self.entangle_node,
+                                 mem_pos,
+                                 self._qmemory_name,
+                                 self._is_source,
+                                 init_fidelity))
         elif len(self.re_entangle_pos) > 0:
             # case of we dont have free memory positions but we have re-entangle positions
             # we need to re-entangle the qubits
@@ -216,11 +218,13 @@ class GenEntanglement(NodeProtocol):
                              f"\tRe-entangle positions: {self.re_entangle_pos}\n"
                              f"\tQState: {self.qmemory.peek(mem_pos)[0]}", color="red")
             self.send_signal(Signals.SUCCESS,
-                             SignalMessages.NewEntanglementSignalMessage(self.entangle_node, mem_pos,
-                                                                         self._qmemory_name,
-                                                                         self._is_source,
-                                                                         init_fidelity,
-                                                                         ))
+                             SignalMessages.NewEntanglementSignalMessage(
+                                 self.node.name,
+                                 self.entangle_node, mem_pos,
+                                 self._qmemory_name,
+                                 self._is_source,
+                                 init_fidelity,
+                             ))
         else:
             return
 

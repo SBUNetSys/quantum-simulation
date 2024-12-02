@@ -35,7 +35,7 @@ class Verification(NodeProtocol):
         # mapping of entangled qubits to memory positions key: memory position, value: fidelity
         self.entangled_pairs = {}
         self.entangled_node = entangled_node
-        self.max_entangle_pairs = max_entangled_pairs - 3  # mem_pos 0 always is temp qubit, two from the purification
+        self.max_entangle_pairs = max_entangled_pairs - 2  # mem_pos 0 always is temp qubit, two from the purification
         # TODO: Can not just use memory positions, because purification does not guarantee the same memory positions
         #  for the same entangled qubits. We need perhaps to use an counter to keep track of the re-entangle qubits
         # self.re_entangle_positions = []
@@ -102,6 +102,8 @@ class Verification(NodeProtocol):
                     source_protocol = event.source
                     ready_signal = source_protocol.get_signal_by_event(event=event, receiver=self)
                     result: SignalMessages.PurifySuccessSignalMessage = ready_signal.result
+                    if result.entangle_node != self.entangled_node:
+                        continue
                     if ready_signal.label == Signals.SUCCESS:
                         self.logger.info(f"{self.name} -> {self.node.name} "
                                          f"received entanglement signal from {source_protocol.name}\n"
@@ -113,6 +115,8 @@ class Verification(NodeProtocol):
                     source_protocol = event.source
                     ready_signal = source_protocol.get_signal_by_event(event=event, receiver=self)
                     result: ClassicalMessage = ready_signal.result
+                    if result.from_node != self.entangled_node:
+                        continue
                     if ready_signal.label == MessageType.VERIFICATION_REQUEST:
                         message: SignalMessages.VerificationSignalMessage = result.data
                         self.logger.info(f"{self.name} -> {self.node.name} "
@@ -150,13 +154,15 @@ class Verification(NodeProtocol):
             if self.is_top_layer:
                 if self.check_end_condition():
                     self.logger.info(f"{self.name} -> {self.node.name} "
-                                     f"verification protocol finished", color="green")
+                                     f"verification protocol finished \n"
+                                     f"Entangled Pairs {self.entangled_pairs}", color="green")
 
                     # broadcast the verification finished signal to lower layer
                     self.cc_message_handler.send_signal(MessageType.VERIFICATION_FINISHED,
                                                         SignalMessages.ProtocolFinishedSignalMessage(
                                                             from_protocol=self,
-                                                            from_node=self.node.name
+                                                            from_node=self.node.name,
+                                                            entangle_node=self.entangled_node
                                                         ))
 
                     self.send_signal(MessageType.VERIFICATION_FINISHED,

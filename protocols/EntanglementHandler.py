@@ -1,6 +1,7 @@
 import copy
 import operator
 from functools import reduce
+from venv import logger
 
 import numpy as np
 from netsquid.protocols.nodeprotocols import NodeProtocol
@@ -127,6 +128,7 @@ class EntanglementHandler(NodeProtocol):
             self.logger.info(f"ManageEntangle {self.name} -> Entanglement Successful\n"
                              f"\tFrom: {from_node}\n"
                              f"\tMem_pos: {mem_pos}\n"
+                             f"\tTemp Qubits: {self.temp_qubits}\n"
                              f"\tEntangled_pairs_count: {self.entangled_pairs_count}\n"
                              f"\tExpected pairs: {self.max_pairs}"
                              f"\tProgress: {self.entangled_pairs_count / self.max_pairs}", color="green")
@@ -135,8 +137,10 @@ class EntanglementHandler(NodeProtocol):
                 return
             # send the entangle pair to the upper layer
             self.send_signal(Signals.SUCCESS,
-                             SignalMessages.EntangleSuccessSignalMessage(from_node, mem_pos,
-                                                                         self.entangled_qubits[mem_pos]))
+                             SignalMessages.EntangleSuccessSignalMessage(
+                                 self.node.name,
+                                 from_node, mem_pos,
+                                 self.entangled_qubits[mem_pos]))
             # send the entangled signal to lower layer, which is the source node
             self.send_signal(MessageType.ENTANGLED, None)
 
@@ -172,6 +176,7 @@ class EntanglementHandler(NodeProtocol):
         self.entangle_message_queue = []
         for message in temp:
             self.process_entangle_message(message)
+
     def process_re_entangle_message_queue(self):
         if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time > 100:
             if len(self.re_entangle_message_queue) == 0:
@@ -226,6 +231,8 @@ class EntanglementHandler(NodeProtocol):
                         event=event, receiver=self)
                     result = ready_signal.result
                     gen_data: SignalMessages.NewEntanglementSignalMessage = result
+                    if gen_data.source_node != self.node.name:
+                        continue
                     mem_pos = gen_data.mem_pos
                     is_source = gen_data.is_source
                     qmemory_name = gen_data.qmemory_name
@@ -251,14 +258,18 @@ class EntanglementHandler(NodeProtocol):
                         self.cc_message_handler.send_message(MessageType.ENTANGLED, entangle_node,
                                                              ClassicalMessage(
                                                                  self.node.name, entangle_node,
-                                                                 SignalMessages.EntangleSignalMessage(self.node.name,
-                                                                                                      mem_pos)
+                                                                 SignalMessages.EntangleSignalMessage(
+                                                                     self.node.name,
+                                                                     self.node.name,
+                                                                     mem_pos)
                                                              ))
                         # send the entangle pair to the upper layer
                         self.send_signal(Signals.SUCCESS,
-                                         SignalMessages.EntangleSuccessSignalMessage(entangle_node,
-                                                                                     mem_pos,
-                                                                                     initial_fidelity))
+                                         SignalMessages.EntangleSuccessSignalMessage(
+                                             self.node.name,
+                                             entangle_node,
+                                             mem_pos,
+                                             initial_fidelity))
             elif expr.second_term.value:
                 # case we have entanglement signal
                 for event in expr.second_term.triggered_events:
@@ -285,6 +296,11 @@ class EntanglementHandler(NodeProtocol):
                         # process re-entangle signal
                         result: SignalMessages.ReEntangleSignalMessage
                         self.re_entangle_message_queue.append(result)
+                        self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal from upper layer\n"
+                                         f"\tentangle_node: {result.entangle_node}\n"
+                                         f"\tmem_pos: {result.re_entangle_mem_poses}\n"
+                                         f"\tcurrent_entangled pairs: {self.entangled_qubits}",
+                                         color="purple")
                         # self.process_re_entangle_message(result)
                     elif ready_signal.label == MessageType.RE_ENTANGLE_READY:
                         # process re-entangle ready signal
@@ -313,11 +329,13 @@ class EntanglementHandler(NodeProtocol):
                                          re_entangle_data)
                     elif ready_signal.label == MessageType.PURIFICATION_FINISHED:
                         # we upper layer is finished, we need gracefully shutdown
+                        # ignore the message if the signal not meant for us
+                        if result.entangle_node != self.entangle_node:
+                            continue
                         self.logger.info(f"ManageEntangle {self.name} -> Entanglement Need Stop\n"
                                          f"\t{self.entangled_qubits}"
                                          f"\t{self.entangled_pairs_count}", color="orange")
                         self.shutdown = True
-                        
 
             self.process_message_queue()
             self.process_re_entangle_message_queue()

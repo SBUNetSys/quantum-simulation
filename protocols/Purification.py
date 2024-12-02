@@ -90,7 +90,6 @@ class Purification(NodeProtocol):
         self.add_signal(MessageType.PURIFICATION_NEED_SHUTDOWN)
         self.finished = False
 
-
     def handle_entangle_signal(self, message):
         """
         Handle the entangle signal message, store the entangled pairs in the entangled_pairs
@@ -114,12 +113,14 @@ class Purification(NodeProtocol):
                                                          self.node.name,
                                                          entangled_node,
                                                          SignalMessages.PurifyTargetMetSignalMessage(
+                                                             source_node=self.node.name,
                                                              entangle_node=self.node.name,
                                                              mem_pos=message.mem_pos,
                                                              new_fidelity=message.fidelity)
                                                      ))
                 # send signal to upper layer
                 self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
+                    source_node=self.node.name,
                     entangle_node=entangled_node, mem_pos=message.mem_pos, new_fidelity=message.fidelity,
                     is_source=True))
             else:
@@ -213,7 +214,8 @@ class Purification(NodeProtocol):
             # purification is successful
             self.purification_success_count += 1
             pair = (message.qubit1_pos, message.qubit2_pos)
-            new_fidelity = self.calculate_purified_fidelity(self.purifying_paris[pair][0], self.purifying_paris[pair][1])
+            new_fidelity = self.calculate_purified_fidelity(self.purifying_paris[pair][0],
+                                                            self.purifying_paris[pair][1])
             # logging
             self.logger.info(f"Purify {self.name} -> Purification successful\n"
                              f"\tPair: {message.entangle_node} -> {pair}\n"
@@ -230,6 +232,7 @@ class Purification(NodeProtocol):
                                                          self.node.name,
                                                          message.entangle_node,
                                                          SignalMessages.PurifyTargetMetSignalMessage(
+                                                             source_node=self.node.name,
                                                              entangle_node=self.node.name,
                                                              mem_pos=message.qubit1_pos,
                                                              new_fidelity=new_fidelity)
@@ -237,6 +240,7 @@ class Purification(NodeProtocol):
                                                      )
                 # emit signal to upper layer
                 self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
+                    source_node=self.node.name,
                     entangle_node=message.entangle_node,
                     mem_pos=message.qubit1_pos,
                     new_fidelity=new_fidelity,
@@ -282,6 +286,7 @@ class Purification(NodeProtocol):
         self.satisfied_pairs[message.mem_pos] = message.fidelity
         # emit signal to upper layer
         self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
+            source_node=self.node.name,
             entangle_node=message.entangle_node, mem_pos=message.mem_pos,
             new_fidelity=message.fidelity,
             is_source=False))
@@ -316,11 +321,13 @@ class Purification(NodeProtocol):
                              self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_RESULT) |
                              self.await_signal(self.cc_message_handler,
                                                signal_label=MessageType.PURIFICATION_TARGET_MET) |
-                             self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_NEED_SHUTDOWN) |
-                             self.await_signal(self.cc_message_handler, signal_label=MessageType.VERIFICATION_FINISHED) |
+                             self.await_signal(self.cc_message_handler,
+                                               signal_label=MessageType.PURIFICATION_NEED_SHUTDOWN) |
+                             self.await_signal(self.cc_message_handler,
+                                               signal_label=MessageType.VERIFICATION_FINISHED) |
                              self.await_signal(self.cc_message_handler,
                                                signal_label=MessageType.RE_ENTANGLE_FROM_UPPER_LAYER)
-                                               )
+                             )
         while True:
             expr = yield entangle_signal | cc_message_signal
             if expr.first_term.value:
@@ -389,6 +396,9 @@ class Purification(NodeProtocol):
                     elif ready_signal.label == MessageType.RE_ENTANGLE_FROM_UPPER_LAYER:
                         # handle the re-entangle signal from the upper layer
                         result: SignalMessages.ReEntangleSignalMessage = result
+                        # skip if the re-entangle is not for us
+                        if result.entangle_node != self.entangled_node:
+                            continue
                         self.logger.info(f"Purify {self.name} -> "
                                          f"Node {self.node.name} received re-entangle from upper layer signal:\n"
                                          f"\tFrom:{result.entangle_node}\n"
@@ -406,6 +416,10 @@ class Purification(NodeProtocol):
                     elif ready_signal.label == MessageType.VERIFICATION_FINISHED:
                         # case we know the upper layer is done. We need gracefully shutting down
                         # and also tell lower layer to shut down
+                        result: SignalMessages.ProtocolFinishedSignalMessage = result
+                        # skip if the verification end is not for us
+                        if result.entangle_node != self.entangled_node:
+                            continue
                         self.logger.info(f"Purify {self.name} -> "
                                          f"Node {self.node.name} received verification finished signal",
                                          color="purple")
@@ -447,13 +461,13 @@ class Purification(NodeProtocol):
                                                             from_protocol=self,
                                                             from_node=self.node.name
                                                         )
-                    )
+                                                        )
                     # send signal to local protocol
                     self.send_signal(MessageType.PURIFICATION_FINISHED, {"satisfied_pairs": self.satisfied_pairs,
-                                                                     "purification_count": self.purification_count,
-                                                                     "purification_success_count":
-                                                                         self.purification_success_count,
-                                                                     "finish_time": sim_time()})
+                                                                         "purification_count": self.purification_count,
+                                                                         "purification_success_count":
+                                                                             self.purification_success_count,
+                                                                         "finish_time": sim_time()})
                     break
                 elif not self.is_source_node and self.finished:
                     self.logger.info(f"Purify {self.name} -> Node {self.name} Finished purification process",
@@ -463,15 +477,16 @@ class Purification(NodeProtocol):
                     self.cc_message_handler.send_signal(MessageType.PURIFICATION_FINISHED,
                                                         SignalMessages.ProtocolFinishedSignalMessage(
                                                             from_protocol=self,
-                                                            from_node=self.node.name
+                                                            from_node=self.node.name,
+                                                            entangle_node=self.entangled_node
                                                         )
                                                         )
 
                     self.send_signal(MessageType.PURIFICATION_FINISHED, {"satisfied_pairs": self.satisfied_pairs,
-                                                                     "purification_count": self.purification_count,
-                                                                     "purification_success_count":
-                                                                         self.purification_success_count,
-                                                                     "finish_time": sim_time()})
+                                                                         "purification_count": self.purification_count,
+                                                                         "purification_success_count":
+                                                                             self.purification_success_count,
+                                                                         "finish_time": sim_time()})
                     break
 
             # handle graceful shutdown, we need to make sure all the cc messages are processed and
@@ -483,14 +498,16 @@ class Purification(NodeProtocol):
                 # broadcast the stop signal to other protocols
                 self.cc_message_handler.send_signal(MessageType.PURIFICATION_FINISHED,
                                                     SignalMessages.ProtocolFinishedSignalMessage(
-                                                            from_protocol=self,
-                                                            from_node=self.node.name
-                                                        ))
+                                                        from_protocol=self,
+                                                        from_node=self.node.name,
+                                                        entangle_node=self.entangled_node
+                                                    ))
                 # send signal to local protocol
                 self.send_signal(MessageType.PURIFICATION_FINISHED,
                                  SignalMessages.ProtocolFinishedSignalMessage(
                                      from_protocol=self,
-                                     from_node=self.node.name
+                                     from_node=self.node.name,
+                                     entangle_node=self.entangled_node
                                  )
                                  )
                 break
