@@ -213,7 +213,7 @@ class Purification(NodeProtocol):
             # purification is successful
             self.purification_success_count += 1
             pair = (message.qubit1_pos, message.qubit2_pos)
-            new_fidelity = self.calculate_purified_fidelity(self.purifying_paris[pair][0])
+            new_fidelity = self.calculate_purified_fidelity(self.purifying_paris[pair][0], self.purifying_paris[pair][1])
             # logging
             self.logger.info(f"Purify {self.name} -> Purification successful\n"
                              f"\tPair: {message.entangle_node} -> {pair}\n"
@@ -540,7 +540,7 @@ class Purification(NodeProtocol):
         """
         Start the purification protocol.
         1. Check if we have enough entangled pairs (in right entangled pairs)
-        2. Pick 2 pairs randomly (can be change) to start purification process
+        2. Pick one highest and one lowest to start purification process
         3. Send classical message to the right neighbour to start purification process, with the memory positions
 
         Sequence of events:
@@ -561,28 +561,15 @@ class Purification(NodeProtocol):
         :return:
         """
         # print(f"Purify {self.name} -> Node {self.node.name} Starting purification process")
-        # pick 2 pairs randomly
-        # TODO maybe we can pick the pairs with one pair with the lowest fidelity and one with the highest fidelity?
+        # pick 2 pairs one high fidelity and one low fidelity
         pairs = list(self.entangled_pairs.keys())
         # sort the pairs by fidelity
-        pairs = sorted(pairs, key=lambda x: self.entangled_pairs[x])
-        # shuffle the pairs
-        # np.random.shuffle(pairs)
-        pair1 = None
-        pair2 = None
+        pairs = sorted(pairs, key=lambda x: self.entangled_pairs[x], reverse=True)
+        # f1 is highest
+        pair1 = pairs[0]
+        # f2 is second highest
+        pair2 = pairs[1]
 
-        pair1_index = 0
-        pair2_index = 1
-        while pair1_index < len(pairs) - 1:
-            if self.entangled_pairs[pairs[pair1_index]] != \
-                    self.entangled_pairs[pairs[pair2_index]]:
-                # rolling window
-                pair1_index = pair2_index
-                pair2_index += 1
-            else:
-                pair1 = pairs[pair1_index]
-                pair2 = pairs[pair2_index]
-                break
         if pair1 is None or pair2 is None:
             self.logger.info(f"Purify {self.name} -> Node {self.node.name} No pairs to purify", color="green")
             return
@@ -653,11 +640,16 @@ class Purification(NodeProtocol):
         return res
 
     @staticmethod
-    def calculate_purified_fidelity(initial_fidelity):
-        F = initial_fidelity
-        numerator = F ** 2 + (1 / 9) * (1 - F) ** 2
-        denominator = F ** 2 + (2 / 3) * F * (1 - F) + (5 / 9) * (1 - F) ** 2
-        new_fidelity = numerator / denominator
+    def calculate_purified_fidelity(f1, f2):
+        """
+        Calculate the new fidelity after purification with two pairs of non-identical fidelity
+        10*f1*f2 - f1 - f2 + 1 / 8f1f2 - 2f1 - 2f2+5
+        """
+        # F = initial_fidelity
+        # numerator = F ** 2 + (1 / 9) * (1 - F) ** 2
+        # denominator = F ** 2 + (2 / 3) * F * (1 - F) + (5 / 9) * (1 - F) ** 2
+        # new_fidelity = numerator / denominator
+        new_fidelity = (10 * f1 * f2 - f1 - f2 + 1) / (8 * f1 * f2 - 2 * f1 - 2 * f2 + 5)
         return new_fidelity
 
     def reset(self):
