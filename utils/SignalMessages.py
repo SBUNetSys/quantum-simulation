@@ -154,3 +154,19 @@ class VerificationResultSignalMessage(VerificationSignalMessage):
         super().__init__(entangle_node, verification_batch_id, verification_batch_poses)
         self.verif_result = verification_result
         self.result_probability = result_probability
+
+class SwapSignalMessage:
+    """
+    Signal message for end to end swap request
+
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param swap_index: swap index
+    :param memo_pos: memory position
+    """
+
+    def __init__(self, source_node, target_node, swap_index, memo_pos):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.swap_index = swap_index
+        self.memo_pos = memo_pos
