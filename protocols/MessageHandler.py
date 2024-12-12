@@ -33,9 +33,10 @@ class MessageType(Enum):
     # swap signals
     SWAP_NEED = auto()
     SWAP_READY = auto()
-    SWAP_RESULT = auto()
+    SWAP_APPLY_CORRECTION = auto()
+    SWAP_APPLY_CORRECTION_SUCCESS = auto()
+    SWAP_SUCCESS = auto()
     SWAP_FAILED = auto()
-    CORRECTION_SUCCESS = auto()
 
     # termination signals
     ENTANGLEMENT_HANDLER_FINISHED = auto()

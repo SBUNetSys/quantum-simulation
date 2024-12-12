@@ -6,6 +6,7 @@ import netsquid as ns
 import pydynaa as pd
 
 from netsquid.components import ClassicalChannel, QuantumChannel
+from netsquid.components.qdetector import defaultdict
 from netsquid.util.simtools import sim_time
 from netsquid.util.datacollector import DataCollector
 from netsquid.qubits.ketutil import outerprod
@@ -25,6 +26,7 @@ from netsquid.qubits.state_sampler import StateSampler
 from netsquid.components.models.delaymodels import FixedDelayModel, FibreDelayModel
 from netsquid.components.models import DepolarNoiseModel
 from netsquid.nodes.connections import DirectConnection
+from pandas.compat import set_function_name
 from pydynaa import EventExpression
 from netsquid.qubits.qubitapi import measure
 from netsquid.qubits.operators import CNOT, Z
@@ -33,6 +35,7 @@ from netsquid.nodes import Node
 from netsquid.qubits.qubitapi import fidelity
 
 from protocols.MessageHandler import MessageType
+from utils import Logging
 from utils.ClassicalMessages import ClassicalMessage
 from utils.SignalMessages import *
 
@@ -65,6 +68,18 @@ def print_cyan(text):
     print(f"\033[96m{text}\033[0m")
 
 
+class SwappingPair:
+    def __init__(self, left_node, right_node, left_pos, right_pos, left_fid, right_fid, left_ready, right_ready):
+        self.left_node = left_node
+        self.right_node = right_node
+        self.left_fid = left_fid
+        self.right_fid = right_fid
+        self.left_ready = left_ready
+        self.right_ready = right_ready
+        self.left_pos = left_pos
+        self.right_pos = right_pos
+
+
 class EndToEndProtocol(NodeProtocol):
     """
     A protocol that generate end-to-end swapping between two nodes in the network
@@ -89,31 +104,41 @@ class EndToEndProtocol(NodeProtocol):
         Initialize the protocol
         :param node: the node that the protocol is attached to
         :param name: the name of the protocol
-        :param swapping_tree: the swapping tree that lays out the swapping path
+        :param swapping_nodes: the swapping tree that lays out the swapping path
         :param qubit_ready_protocols: the lower layers that will send the qubit ready signal 
         (i.e purfication or verification)
         :param cc_message_handler: the classical message handler
         :param final_entanglement: the final entanglement goal, (source node, target node)
+        :param logger: the logger
     """
 
-    def __init__(self, node, name, swapping_tree, qubit_ready_protocols, cc_message_handler, final_entanglement):
+    def __init__(self, node,
+                 name,
+                 swapping_nodes,
+                 qubit_ready_protocols,
+                 cc_message_handler,
+                 final_entanglement,
+                 logger,
+                 is_top_layer=False):
 
         super().__init__(node=node, name=name)
-        self.swapping_tree = swapping_tree
-        self.swap_index = 0
-        # qubits that are entangled node_name -> (memory position, fidelity)
-        self.entangled_qubits = {}
+        # check if we are a swapping node or not.
+        # if we are the swapping node, we will perform the swap operation between the left and right neighbors
+        self.swapping_node = None
+        for node in swapping_nodes:
+            if node.parent == self.node.name:
+                self.swapping_node = node
 
-        # store the classical message, where the case that when the remote send the confirmation entangled message
-        # store the swap need signal that arrived by next level node but the local node still in previous level
-        self.swap_need_message_queue = []
-        # a node will have multiple swapping request during the swapping process
-        # example A -> B -> C -> D -> E, B and D will both send SWAPPING_NEED to C.
-        self.swapping_queue = {}  # source node -> target node
-        self.swapping_qubits = {}
-        # store the swap need signal that we have sent and also the ready signal from the leaf node
-        # key = (swap_node, swap_index), value = {left: (mem_pos, bool), right: (mem_pos, bool)}
-        self.swap_need_sent = {}
+        # qubits that are entangled node_name -> {memory_pos: fidelity}
+        self.entangled_qubits = defaultdict(dict)
+        # keep track of the pending swap operation as a swap node
+        self.pending_swap_operation = {}  # key = (left, right, left_pos, right_pos) = SwappingPair
+        # keep track of the swap success but wait response from the right node after applying correction
+        self.pending_swap_success_confirmation = {}  # key = (left, right, left_pos, right_pos), value = SwappingPair
+        # keep track of swap result as a non-swap node
+        self.pending_swap_request = {}  # key = (source, target, mem_pos), value = SwapRequestMessage
+        # keep track of the entangle node's origin in the stack
+        self.swapping_stack = defaultdict(list)  # key = (source, target), value = [intermediate node]
         # qubit input signal from lower layers, can be purification or verification
         await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
         # have expression to wait for ANY qubit input signal
@@ -124,8 +149,12 @@ class EndToEndProtocol(NodeProtocol):
         # final entanglement
         self.final_entanglement = final_entanglement
         # keep track of the node name and actual memory name
-        # we swapped the qubits however the physical memory name is different from the swapped node name
-        self.memory_mapping = {}  # current node name -> memory node name
+        if logger is None:
+            self.logger = Logging.Logger(f"{self.name}_logger", logging_enabled=True)
+        else:
+            self.logger = logger
+
+        self.is_top_layer = is_top_layer
 
     def add_new_signal(self, signal):
         self.add_signal(signal)
@@ -160,10 +189,13 @@ class EndToEndProtocol(NodeProtocol):
         q2_qmemory = self.get_qmemory(q2_mem_name)
         if q1_qmemory.busy:
             yield self.await_program(q1_qmemory)
-        q1, = q1_qmemory.peek(q1_mem_pos)
+        # q1, = q1_qmemory.peek(q1_mem_pos)
+        # TODO: we do pop with skip_noise=False, noise applied to the qubit
+        q1, = q1_qmemory.pop(q1_mem_pos, skip_noise=False)
         if q2_qmemory.busy:
             yield self.await_program(q2_qmemory)
-        q2, = q2_qmemory.peek(q2_mem_pos)
+        q2, = q2_qmemory.pop(q2_mem_pos, skip_noise=False)
+        # q2, = q2_qmemory.peek(q2_mem_pos)
         # print_red(f"Swap {self.name} -> Fidelity before swap: {fidelity([q1, q2], ks.b00)}")
         # apply CNOT on both qubit
         qapi.operate(qubits=[q1, q2], operator=operators.CNOT)
@@ -174,214 +206,259 @@ class EndToEndProtocol(NodeProtocol):
         m2, _ = qapi.measure(q2)
         return True, m1, m2
 
-    def apply_corrections(self, m1, m2, node_name, qmem_pos, target_node):
-        print_yellow(f"Swap {self.name} -> Apply correction for {target_node}, pos {qmem_pos}"
-                     f" by {self.node.name}, with qmem_name: {self.get_qmemory_from_mapping(node_name)}")
+    def apply_corrections(self, message: SwapApplyCorrectionMessage):
+        node_name = self.get_qmemory_from_stack(message.intermediate_node)
+        self.logger.info(f"Swap {self.name} -> Apply correction\n"
+                     f"Target Node: {message.target_node}\n"
+                     f"Source Node: {message.source_node}\n"
+                     f"Mem Pos {message.memo_pos}\n"
+                     f"Intermediate Node: {message.intermediate_node}\n"
+                     f"Qmem_name: {node_name}", color="yellow")
 
-        qmemory = self.get_qmemory(f"{self.get_qmemory_from_mapping(node_name)}_qmemory")
+        qmemory = self.get_qmemory(f"{node_name}_qmemory")
 
-        if m1 == 1:
+        if message.m1 == 1:
             if qmemory.busy:
                 yield self.await_program(qmemory)
-            print_green(f"Sawp {self.name} -> Apply correction Z on qubit {qmem_pos} with qmem_name: {qmemory.name}")
-            qmemory.execute_instruction(INSTR_Z, [qmem_pos])
-        if m2 == 1:
+            self.logger.info(
+                f"Sawp {self.name} -> Apply correction Z on qubit {message.memo_pos} with qmem_name: {qmemory.name}",
+                color="green")
+            qmemory.execute_instruction(INSTR_Z, [message.memo_pos])
+        if message.m2 == 1:
             if qmemory.busy:
                 yield self.await_program(qmemory)
-            print_green(f"Sawp {self.name} -> Apply correction X on qubit {qmem_pos} with qmem_name: {qmemory.name}")
-            qmemory.execute_instruction(INSTR_X, [qmem_pos])
+            self.logger.info(
+                f"Sawp {self.name} -> Apply correction X on qubit {message.memo_pos} with qmem_name: {qmemory.name}",
+            color="green")
+            qmemory.execute_instruction(INSTR_X, [message.memo_pos])
+        # update the entangled qubits
+        # TODO: what about the fidelity?
+        self.entangled_qubits[message.target_node][message.memo_pos] = 1.0
+        # update the stack
+        self.swapping_stack[(message.source_node, message.target_node)].append(message.intermediate_node)
+        # send the success signal to the intermediate node so it can send the success signal to the left node
+        self.cc_message_handler.send_message(MessageType.SWAP_APPLY_CORRECTION_SUCCESS,
+                                             ClassicalMessage(
+                                                 from_node=self.node.name,
+                                                 to_node=message.intermediate_node,
+                                                 data=SwapApplyCorrectionSuccessMessage(
+                                                     operation_key=message.operation_key)
+                                             ))
 
-        # send the success signal to the target node
-        self.cc_message_handler.send_message(MessageType.CORRECTION_SUCCESS,
-                                             target_node,
-                                             {"from": self.node.name,
-                                              "to": target_node})
+    def get_qmemory_from_stack(self, node_name):
+        """
+        trace through the swapping stack to get the actual memory name of the node
+        :param node_name: entangled node name
+        :return:
+        """
+        edge = (self.node.name, node_name)
+        while edge in self.swapping_stack:
+            inter_nodes = self.swapping_stack[edge]
+            from_node = inter_nodes[0]
+            if from_node == self.node.name:
+                return edge[1]
+            edge = (self.node.name, from_node)
+        return None
 
-    def get_qmemory_from_mapping(self, node_name):
-        while node_name in self.memory_mapping:
-            node_name = self.memory_mapping[node_name]
-        return node_name
-
-    def handle_swapping(self, swap_node):
+    def handle_swapping(self, swapping_pair: SwappingPair):
         """
         Handle the swapping operation
-        :param swap_node:
+        :param swapping_pair: SwappingPair for this swapping operation
         :return:
         """
-        if swap_node is None:
-            return
-        if not self.swap_need_sent[(swap_node, self.swap_index)][swap_node.left] or \
-                not self.swap_need_sent[(swap_node, self.swap_index)][swap_node.right]:
-            return
-        left_node = swap_node.left
-        right_node = swap_node.right
 
-        q1_mem_name = f"{self.get_qmemory_from_mapping(left_node)}_qmemory"
-        q2_mem_name = f"{self.get_qmemory_from_mapping(right_node)}_qmemory"
-        q1_mem_pos = self.entangled_qubits[swap_node.left]
-        q2_mem_pos = self.entangled_qubits[swap_node.right]
-        print_cyan(f"Swap {self.name} -> Perform swap between {left_node} and {right_node} by {self.node.name}")
+        left_node = swapping_pair.left_node
+        right_node = swapping_pair.right_node
+        # get the qubits memory name
+        q1 = self.get_qmemory_from_stack(left_node)
+        if q1 is None:
+            self.logger.error(f"Swap {self.name} -> Qubit memory not found for {left_node}")
+            return
+        q2 = self.get_qmemory_from_stack(right_node)
+        if q2 is None:
+            self.logger.error(f"Swap {self.name} -> Qubit memory not found for {right_node}")
+            return
+        q1_mem_name = f"{q1}_qmemory"
+        q2_mem_name = f"{q2}_qmemory"
+
+        q1_mem_pos = self.entangled_qubits[swapping_pair.left_pos]
+        q2_mem_pos = self.entangled_qubits[swapping_pair.right_pos]
+        self.logger.info(f"Swap {self.name} -> Perform swap\n"
+                   f"Between {left_node} and {right_node} "
+                   f"Swapping Node {self.node.name}", color="cyan")
         success, m1, m2 = yield from self.perform_swap(q1_mem_pos, q2_mem_pos, q1_mem_name, q2_mem_name)
         if success:
-            # send the apply correction message to the left and right
-            # yield self.apply_corrections(m1, m2, parent_mem_pos, parent_mem_name)
-            # remove the qubits from the entangled qubits
-            self.entangled_qubits.pop(swap_node.left)
-            self.entangled_qubits.pop(swap_node.right)
-
+            # case we success the swap
+            key_pair = (left_node, right_node, q1_mem_pos, q2_mem_pos)
+            self.pending_swap_success_confirmation[key_pair] = swapping_pair
             # send the message to the right node to perform the correction
-            self.cc_message_handler.send_message(MessageType.SWAP_RESULT,
-                                                 swap_node.right,
-                                                 {"result": (True, m1, m2),
-                                                  "from": self.node.name,
-                                                  "to": swap_node.right})
-            self.swap_index += 1
+            self.cc_message_handler.send_message(MessageType.SWAP_APPLY_CORRECTION,
+                                                 swapping_pair.right_node,
+                                                 ClassicalMessage(
+                                                     from_node=self.node.name,
+                                                     to_node=swapping_pair.right_node,
+                                                     data=SwapApplyCorrectionMessage(
+                                                         source_node=swapping_pair.left_node,
+                                                         target_node=swapping_pair.right_node,
+                                                         intermediate_node=self.node.name,
+                                                         operation_key=key_pair,
+                                                         memo_pos=swapping_pair.right_pos,
+                                                         m1=m1,
+                                                         m2=m2)))
+
         else:
-            print_red(f"Swap {self.name} -> Swap failed, re-entangle the qubits")
-            self.entangle_reset()
+            # case we failed the swap
+            # TODO we need to re-entangle the qubits, we need send the information to both left and right
+            self.logger.info(f"Swap {self.name} -> Swap failed, re-entangle the qubits", color="red")
 
-            # free the left qubit and send the re-entangle signal to the left node
-            self.send_signal(f"entangle_{self.node.name}->{swap_node.left}",
-                             {"mem_pos": q1_mem_pos,
-                              "qmemory_name": f"{swap_node.left}_qmemory"})
-            self.cc_message_handler.send_message(MessageType.RE_ENTANGLE,
-                                                 swap_node.left,
-                                                 {"from": self.node.name,
-                                                  "to": swap_node.left,
-                                                  "mem_pos": q1_mem_pos})
-
-            # send the re-entangle signal to the right node, let the right node free the qubit
-            self.cc_message_handler.send_message(MessageType.RE_ENTANGLE,
-                                                 swap_node.right,
-                                                 {"from": self.node.name,
-                                                  "to": swap_node.right,
-                                                  "mem_pos": q2_mem_pos})
-            # we need to wait for the right node to clear up its memory position and re-entangle.
-            # TODO: should we make sure via classical message that the right node has cleared up the memory position?
-            yield self.await_timer(1000)
-            # entangle the qubits again, we only send to the right as we are the source to gen the qubit
-            self.send_signal(f"entangle_{self.node.name}->{swap_node.right}",
-                             {"mem_pos": q2_mem_pos,
-                              "qmemory_name": f"{swap_node.right}_qmemory"})
-
-    def process_entangle_message(self):
+    def check_swap_condition(self):
         """
-        Process the entangle message if the local node has not received the entangle message yet
+        Check if we can perform swap operation
+        1. if we are a swap node, we will check if we have left and right qubits ready
+            - if we have both qubits ready, we will send the swap request to left and right node
+        2. if we are not a swap node, we will check swap node request. If we have the qubit ready, we will send the
+        swap ready signal to the swap node
+
         :return:
         """
-        temp = self.entangle_message_queue
-        self.entangle_message_queue = []
-        for message in temp:
-            if message["from"] in self.temp_qubits:
-                self.entangled_qubits[message["from"]] = message["mem_pos"]
-                self.temp_qubits.pop(message["from"])
-                # check if the qubits are ready to swap
-                self.check_swap_ready()
-            else:
-                self.entangle_message_queue.pop(message)
-
-    def process_swap_need_message(self):
-        """
-        Process the swap need message if the local node is not in the same level
-        :return:
-        """
-        temp = self.swap_need_message_queue
-        self.swap_need_message_queue = []
-        for message in temp:
-            self.handle_swap_need(message)
-
-    def check_swap_ready(self):
-        """
-        Check if the qubits are ready to swap, if so send the message to the swapping node
-        :return:
-        """
-        if len(self.swapping_queue) == 0:
-            return
-
-        for source, target in self.swapping_queue.items():
-            if source in self.entangled_qubits:
-                # temporarily store the qubit that we are swapping
-                # TODO: what about the fidelity?
-                # key = intermediate node, value = (target node, (qubit_memory_position, fidelity))
-                self.swapping_qubits[source] = (target, self.entangled_qubits[source])
-                # remove the qubit from the entangled qubits as we are swapping
-                self.entangled_qubits.pop(source)
-                # send the message to the swap target
-                self.cc_message_handler.send_message(MessageType.SWAP_READY,
-                                                     source,
-                                                     {"from": self.node.name,
-                                                      "to": source,
-                                                      "swap_index": self.swap_index})
-            else:
-                # case the source qubit is not ready yet
-                pass
-
-    def handle_swap_success(self, source):
-        """
-        Handle the swap success message and update the entangled qubits
-        :return:
-        """
-        target_node, mem_pos = self.swapping_qubits[source]
-        self.entangled_qubits[target_node] = mem_pos
-        # record the memory mapping
-        self.memory_mapping[target_node] = source
-        # remove the qubits from the swapping qubits
-        self.swapping_qubits.pop(source)
-        # dequeue the source from the swapping queue
-        self.swapping_queue.pop(source)
-        # TODO: we wait here for the right side swap
-        # The case of A -> B -> C -> D -> E
-        # A and C are swapping, C and E are swapping, we need to wait for the B and D to finish
-        # or A and C to finish
-        if len(self.swapping_qubits) == 0:
-            self.swap_index += 1
-
-    def handle_swap_need(self, result):
-        """
-        Handle the swap need signal
-        :param result: classical message result
-        :return:
-        """
-        # case of not in the same level, we need to store the message
-        if self.swap_index == result["swap_index"]:
-            # case we are in the same level
-            self.swapping_queue[result["source"]] = result["target"]
-            # check if the qubits are ready to swap
-            self.check_swap_ready()
+        if self.swapping_node is not None:
+            # case we are the swap node
+            # we check if we have the left and right qubits ready
+            if self.swapping_node.left in self.entangled_qubits and self.swapping_node.right in self.entangled_qubits:
+                # pop the qubits from the entangled qubits
+                left_qubit_pos, left_fid = self.entangled_qubits[self.swapping_node.left].pop(0)
+                right_qubit_pos, right_fid = self.entangled_qubits[self.swapping_node.right].pop(0)
+                # create a swapping pair
+                swapping_pair = SwappingPair(self.swapping_node.left, self.swapping_node.right,
+                                             left_qubit_pos, right_qubit_pos, left_fid, right_fid,
+                                             False, False)
+                # store the pending swap request
+                pair_key = (self.swapping_node.left, self.swapping_node.right, left_qubit_pos, right_qubit_pos)
+                self.pending_swap_operation[pair_key] = swapping_pair
+                # send swap signal to the left and right node
+                self.cc_message_handler.send_message(MessageType.SWAP_NEED,
+                                                     self.swapping_node.left,
+                                                     ClassicalMessage(
+                                                         from_node=self.node.name,
+                                                         to_node=self.swapping_node.left,
+                                                         data=SwapRequestResponseMessage(self.swapping_node.left,
+                                                                                         self.swapping_node.right,
+                                                                                         self.node.name,
+                                                                                         left_qubit_pos,
+                                                                                         pair_key)))
+                self.cc_message_handler.send_message(MessageType.SWAP_NEED,
+                                                     self.swapping_node.right,
+                                                     ClassicalMessage(
+                                                         from_node=self.node.name,
+                                                         to_node=self.swapping_node.right,
+                                                         data=SwapRequestResponseMessage(self.swapping_node.right,
+                                                                                         self.swapping_node.left,
+                                                                                         self.node.name,
+                                                                                         right_qubit_pos,
+                                                                                         pair_key)))
         else:
-            # we check if we have previous performed swapping or not
-            if len(self.swapping_queue) == 0:
-                # case we are not in the same level, but we are the node supposed to swap
-                # example A -> B -> C -> D, A and D are swapping after A and C finish.
-                # A and C is at level 1, but D is at level 0, however it is the proper node to swap
-                # the unique is that D will have source and target as None
-                self.swapping_queue[result["source"]] = result["target"]
-                # we update the index to match the swap index
-                self.swap_index = result["swap_index"]
-                self.check_swap_ready()
-            else:
-                # we are not in the same level, and we have previous swap source and target
-                # we need to store the swap need signal
-                print_yellow(f"Swap {self.name} -> Swap need signal from "
-                             f"{result['source']} to "
-                             f"{result['target']} but not in the same level, store the message")
-                self.swap_need_message_queue.append(result)
+            # case we are not the swap node
+            # we check if we have the swap request from the swap node
+            for key, value in self.pending_swap_request.items():
+                value: SwapRequestResponseMessage
+                if (value.intermediate_node in self.entangled_qubits and
+                        value.memo_pos in self.entangled_qubits[value.intermediate_node]):
+                    # TODO send the swap ready signal to the swap node
+                    self.cc_message_handler.send_message(MessageType.SWAP_READY,
+                                                         ClassicalMessage(
+                                                             from_node=self.node.name,
+                                                             to_node=value.intermediate_node,
+                                                             data=SwapRequestResponseMessage(value.source_node,
+                                                                                             value.target_node,
+                                                                                             value.intermediate_node,
+                                                                                             value.memo_pos,
+                                                                                             value.operation_key)))
+                    # remove the pending swap result
+                    self.pending_swap_request.pop(key)
+                    # pop the qubit as it was being used for swapping operation
+                    self.entangled_qubits[value.intermediate_node].pop(value.memo_pos)
 
-    def entangle_reset(self):
+    def handle_swap_apply_success(self, message: SwapApplyCorrectionSuccessMessage):
         """
-        Reset the entangled qubits
+        Handle the swap success message,
+        1. remove the SwapPair from the pending swap success confirmation
+        2. send the swap success message to the left node
+        :param message: SwapApplyCorrectionSuccessMessage
         :return:
         """
-        self.entangled_qubits = {}
-        self.temp_qubits = {}
-        self.entangle_message_queue = []
-        self.swap_need_message_queue = []
-        self.swapping_qubits = {}
-        self.swap_source = None
-        self.swap_target = None
-        self.swap_index = 0
-        self.swap_need_sent = {}
-        self.memory_mapping = {}
+        if message.operation_key in self.pending_swap_success_confirmation:
+            swapping_pair = self.pending_swap_success_confirmation.pop(message.operation_key)
+            # send the success signal to the left node
+            self.cc_message_handler.send_message(MessageType.SWAP_SUCCESS,
+                                                 ClassicalMessage(
+                                                     from_node=self.node.name,
+                                                     to_node=swapping_pair.left_node,
+                                                     data=SwapSuccessMessage(
+                                                         source_node=swapping_pair.left_node,
+                                                         target_node=swapping_pair.right_node,
+                                                         intermediate_node=self.node.name,
+                                                         memo_pos=swapping_pair.left_pos)))
+
+    def handle_swap_success(self, message: SwapSuccessMessage):
+        """
+        Handle the swap success message from intermediate node
+        1. we update the entangled qubits
+        2. we update the swapping stack
+        :param message: SwapSuccessMessage
+        :return:
+        """
+        # update the entangled qubits
+        # TODO: what about the fidelity?
+        self.entangled_qubits[message.target_node][message.memo_pos] = 1.0
+        # update the stack
+        self.swapping_stack[(message.source_node, message.target_node)].append(message.intermediate_node)
+
+    def handle_swap_need(self, result: SwapRequestResponseMessage):
+        """
+        Handle the swap need signal from swap node
+        We first check if the request node already in entangled qubits
+        if we have the qubit, we will send the swap ready signal to the swap node
+        otherwise we store in self.pending_swap_result
+
+        :param result: SwapRequestMessage
+        :return:
+        """
+        if result.intermediate_node in self.entangled_qubits and \
+                result.memo_pos in self.entangled_qubits[result.intermediate_node]:
+            # we have the qubit, send the swap ready signal to the swap node
+            self.cc_message_handler.send_message(MessageType.SWAP_READY,
+                                                 ClassicalMessage(
+                                                     from_node=self.node.name,
+                                                     to_node=result.intermediate_node,
+                                                     data=SwapRequestResponseMessage(result.source_node,
+                                                                                     result.target_node,
+                                                                                     result.intermediate_node,
+                                                                                     result.memo_pos,
+                                                                                     result.operation_key)))
+        else:
+            self.pending_swap_request[(result.source_node, result.target_node, result.memo_pos)] = result
+
+    def handle_swap_ready(self, result: SwapRequestResponseMessage):
+        """
+        Handle the swap ready signal from the leaf node.
+        We update self.pending_swap_operation and check if we can perform the swap operation
+        If we are ready, we will perform the swap operation
+        :param result: SwapReadyMessage
+        :return:
+        """
+        # we need to check if the qubits are ready to swap
+        if result.operation_key in self.pending_swap_operation:
+            if result.source_node == self.swapping_node.left:
+                self.pending_swap_operation[result.operation_key].left_ready = True
+            elif result.source_node == self.swapping_node.right:
+                self.pending_swap_operation[result.operation_key].right_ready = True
+            # check if we can perform the swap operation
+            if self.pending_swap_operation[result.operation_key].left_ready and \
+                    self.pending_swap_operation[result.operation_key].right_ready:
+                # perform the swap operation
+                swapping_pair = self.pending_swap_operation[result.operation_key]
+                self.pending_swap_operation.pop(result.operation_key)
+                yield from self.handle_swapping(swapping_pair)
 
     def reset(self):
         self.entangle_reset()
@@ -429,43 +506,14 @@ class EndToEndProtocol(NodeProtocol):
         """
 
         swap_signals = (self.await_signal(self.cc_message_handler, signal_label=MessageType.SWAP_NEED) |
-                        self.await_signal(self.cc_message_handler, signal_label=MessageType.SWAP_RESULT) |
+                        self.await_signal(self.cc_message_handler, signal_label=MessageType.SWAP_APPLY_CORRECTION) |
                         self.await_signal(self.cc_message_handler, signal_label=MessageType.SWAP_READY) |
-                        self.await_signal(self.cc_message_handler, signal_label=MessageType.RE_ENTANGLE) |
-                        self.await_signal(self.cc_message_handler, signal_label=MessageType.CORRECTION_SUCCESS))
+                        self.await_signal(self.cc_message_handler, signal_label=MessageType.SWAP_FAILED) |
+                        self.await_signal(self.cc_message_handler,
+                                          signal_label=MessageType.SWAP_APPLY_CORRECTION_SUCCESS))
 
         while True:
-            # try to check if we are the swapping node
-            if self.swap_index < len(self.swapping_tree):
-                swap_node = None
-                swap_level = self.swapping_tree[self.swap_index]
-                for swap in swap_level:
-                    if swap.parent == self.node.name:
-                        # we are the swapping node
-                        swap_node = swap
-                        break
-                if swap_node is not None and (swap_node, self.swap_index) not in self.swap_need_sent:
-                    print_orange(f"Swap {self.name} -> Found swap node: {swap_node.parent} at index {self.swap_index}\n"
-                                 f"\tSend swap need signal to {swap_node.left} and {swap_node.right}")
-                    self.swap_need_sent[(swap_node, self.swap_index)] = {swap_node.left: False, swap_node.right: False}
 
-                    # self.cc_message_handler.send_message(MessageType.SWAP_NEED,
-                    #                                      swap_node.left,
-                    #                                      ClassicalMessage(
-                    #                                          from_node=self.node.name,
-                    #                                          to_node=swap_node.right,
-                    #                                          data=SwapSignalMessage(self.node.name,
-                    #                                                                 swap_node.right,
-                    #                                                                 self.swap_index)))
-                    #
-                    # self.cc_message_handler.send_message(MessageType.SWAP_NEED,
-                    #                                         swap_node.right,
-                    #                                         ClassicalMessage(
-                    #                                             from_node=self.node.name,
-                    #                                             to_node=swap_node.left,
-                    #                                             data=SwapSignalMessage(self.node.name,
-                    #                                                                    swap_node.left,
-                    #                                                                    self.swap_index)))
             # handle other operations first then we try to perform the swap operation
             expr = yield self.qubit_input_signal | swap_signals
 
@@ -479,10 +527,18 @@ class EndToEndProtocol(NodeProtocol):
                     result = ready_signal.result
                     mem_pos = result.mem_pos
                     entangle_node = result.entangle_node
-                    print_blue(f"Swap {self.name} -> Entangle signal from {entangle_node}, mem_pos: {mem_pos}")
-                    self.entangled_qubits[entangle_node] = (mem_pos, result.fidelity)
+                    self.logger.info(f"Swap {self.name} -> Entangle signal from {entangle_node}, mem_pos: {mem_pos}",
+                                     color="blue")
+                    self.entangled_qubits[entangle_node][mem_pos] = result.fidelity
+
+                    # keep track of the stack of node edge
+                    if (result.source_node, result.entangle_node) not in self.swapping_stack:
+                        self.swapping_stack[(result.source_node, result.entangle_node)].append(result.source_node)
+                        # add additional stack as we are the source node
+                        if result.is_source:
+                            self.swapping_stack[(result.source_node, result.entangle_node)].append(entangle_node)
                     # check if the qubits are ready to swap
-                    self.check_swap_ready()
+                    self.check_swap_condition()
 
             elif expr.second_term.value:
                 # case we have any swap signal
@@ -493,66 +549,46 @@ class EndToEndProtocol(NodeProtocol):
                     result = ready_signal.result
                     if ready_signal.label == MessageType.SWAP_NEED:
                         # the swap node tell the leaf node that they need to swap the qubits to target through source
-                        print_yellow(f"Swap {self.name} -> Swap need signal from "
-                                     f"{result['source']} to "
-                                     f"{result['target']}")
-
-                        self.handle_swap_need(result)
+                        message: SwapRequestResponseMessage = result.data
+                        self.logger.info(f"Swap {self.name} -> Swap need signal\n"
+                                     f"From: {result.from_node}\n"
+                                     f"Source: {message.source_node}\n"
+                                     f"Target: {message.target_node}\n"
+                                     f"Intermediate: {message.intermediate_node}\n"
+                                     f"Mem Pos: {message.memo_pos}", color="yellow")
+                        self.handle_swap_need(message)
 
                     elif ready_signal.label == MessageType.SWAP_READY:
                         # the swap node knows that leaf node is ready to swap
-                        print_purple(f"Swap {self.name} -> Swap ready signal from {result['from']}")
-                        self.swap_need_sent[(swap_node, self.swap_index)][result["from"]] = True
+                        message: SwapRequestResponseMessage = result.data
+                        self.logger.info(f"Swap {self.name} -> Swap ready signal\n"
+                                     f"From: {result.from_node}\n"
+                                     f"Source: {message.source_node}\n"
+                                     f"Target: {message.target_node}\n"
+                                     f"Intermediate: {message.intermediate_node}\n"
+                                     f"Mem Pos: {message.memo_pos}", color="purple")
 
-                    elif ready_signal.label == MessageType.SWAP_RESULT:
+                        yield self.handle_swap_ready(message)
+
+                    elif ready_signal.label == MessageType.SWAP_APPLY_CORRECTION:
                         # apply the correction
-                        success, m1, m2 = result["result"]
-                        print_yellow(f"Swap {self.name} -> Swap result from {result['from']} -> {result['to']}\n"
-                                     f"\tSuccess: {success}, m1: {m1}, m2: {m2}")
-                        if success:
-                            # apply corrections
-
-                            yield from self.apply_corrections(m1, m2,
-                                                              result['from'],
-                                                              self.swapping_qubits[result['from']][1],
-                                                              self.swapping_queue[result['from']])
-                            # add the qubits to the entangled qubits
-                            print_green(f"Swap {self.name} -> Correction Applied successful by {self.node.name}")
-                            self.handle_swap_success(result['from'])
-                        else:
-                            # re-entangle the qubits
-                            _, mem_pos = self.swapping_qubits[self.swap_source]
-
-                            self.send_signal(f"entangle_{self.node.name}",
-                                             {"mem_pos": mem_pos,
-                                              "qmemory_name": f"{result['from']}_qmemory"})
-                            # reset the swap source and target
-                            self.entangle_reset()
-                    elif ready_signal.label == MessageType.ENTANGLED:
-                        print_blue(f"Swap {self.name} -> Entangled signal from {result['from']}")
-                        # add the qubit to the entangled qubits
-                        if result["from"] in self.temp_qubits:
-                            self.entangled_qubits[result["from"]] = result["mem_pos"]
-                            # check if the qubits are ready to swap
-                            self.check_swap_ready()
-                        else:
-                            self.entangle_message_queue.append(result)
-                    elif ready_signal.label == MessageType.CORRECTION_SUCCESS:
+                        message: SwapApplyCorrectionMessage = result.data
+                        yield self.apply_corrections(message)
+                    elif ready_signal.label == MessageType.SWAP_SUCCESS:
+                        # swap success message from intermediate node
+                        message: SwapSuccessMessage = result.data
+                        self.handle_swap_success(message)
+                    elif ready_signal.label == MessageType.SWAP_APPLY_CORRECTION_SUCCESS:
                         # the correction is successful and message send by the target node
-                        print_green(f"Swap {self.name} -> Correction successful from {result['from']}")
-                        # since this is from right node directly to the left node,
-                        # we need to find the source node
-                        send_source = None
-                        for source, target in self.swapping_queue.items():
-                            if target == result['from']:
-                                send_source = source
-                        if send_source is not None:
-                            self.handle_swap_success(send_source)
-                        else:
-                            print_red(f"Swap {self.name} -> Correction successful but not found the source node")
-                    elif ready_signal.label == MessageType.RE_ENTANGLE:
+                        message: SwapApplyCorrectionSuccessMessage = result.data
+                        self.logger.info(f"Swap {self.name} -> Correction successful\n"
+                                    f"Operation Key: {message.operation_key}", color="green")
+                        self.handle_swap_apply_success(message)
+                    elif ready_signal.label == MessageType.SWAP_FAILED:
                         # re-entangle the qubits
-                        print_red(f"Swap {self.name} -> Re-entangle signal from {result['from']} to {result['to']}")
+                        # TODO need to re-entangle the qubits
+                        self.logger.info(f"Swap {self.name} -> Re-entangle signal",
+                                         color="red")
                         self.entangle_reset()
                         mem_pos = result["mem_pos"]
                         self.send_signal(f"entangle_{self.node.name}->{result['from']}",
@@ -560,9 +596,7 @@ class EndToEndProtocol(NodeProtocol):
                                           "qmemory_name": f"{result['from']}_qmemory"})
 
             # process the entangle message
-            self.process_swap_need_message()
-            self.process_entangle_message()
-            yield from self.handle_swapping(swap_node)
+
             # case we finish the final entanglement
             if self.node.name == self.final_entanglement[0] and self.final_entanglement[1] in self.entangled_qubits:
                 # we finish the final entanglement

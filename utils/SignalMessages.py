@@ -20,7 +20,7 @@ class NewEntanglementSignalMessage(EntangleSignalMessage):
     Most used for entanglement creation
     """
 
-    def __init__(self,source_node, entangle_node, mem_pos, qmemory_name, is_source, init_fidelity):
+    def __init__(self, source_node, entangle_node, mem_pos, qmemory_name, is_source, init_fidelity):
         super().__init__(source_node, entangle_node, mem_pos)
         self.qmemory_name = qmemory_name
         self.is_source = is_source
@@ -34,7 +34,7 @@ class EntangleSuccessSignalMessage(EntangleSignalMessage):
     """
 
     def __init__(self, source_node, entangle_node, mem_pos, fidelity):
-        super().__init__(source_node,entangle_node, mem_pos)
+        super().__init__(source_node, entangle_node, mem_pos)
         self.fidelity = fidelity
 
 
@@ -76,7 +76,7 @@ class PurifyTargetMetSignalMessage(EntangleSignalMessage):
     """
 
     def __init__(self, source_node, entangle_node, mem_pos, new_fidelity):
-        super().__init__(source_node,entangle_node, mem_pos)
+        super().__init__(source_node, entangle_node, mem_pos)
         self.fidelity = new_fidelity
 
 
@@ -85,7 +85,7 @@ class PurifySuccessSignalMessage(EntangleSignalMessage):
     Signal message for successful purification and sent to upper layer
     """
 
-    def __init__(self,source_node, entangle_node, mem_pos, new_fidelity, is_source):
+    def __init__(self, source_node, entangle_node, mem_pos, new_fidelity, is_source):
         super().__init__(source_node, entangle_node, mem_pos)
         self.fidelity = new_fidelity
         self.is_source = is_source
@@ -144,6 +144,7 @@ class VerificationStartSignalMessage(VerificationSignalMessage):
         super().__init__(entangle_node, verification_batch_id, verification_batch_poses)
         self.verif_teleport_measurement = verification_teleport_measurement
 
+
 class VerificationResultSignalMessage(VerificationSignalMessage):
     """
     Signal message for verification result
@@ -155,18 +156,70 @@ class VerificationResultSignalMessage(VerificationSignalMessage):
         self.verif_result = verification_result
         self.result_probability = result_probability
 
-class SwapSignalMessage:
+
+class SwapRequestResponseMessage:
     """
     Signal message for end to end swap request
 
     :param source_node: source node name
     :param target_node: entangle node name
-    :param swap_index: swap index
+    :param intermediate_node: intermediate node name who will perform the swap
+    :param memo_pos: memory position
+    :param operation_key: operation key is used to identify the swap operation
+    """
+
+    def __init__(self, source_node, target_node, intermediate_node, memo_pos, operation_key):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.intermediate_node = intermediate_node
+        self.memo_pos = memo_pos
+        self.operation_key = operation_key
+
+
+class SwapApplyCorrectionMessage:
+    """
+    Signal message for apply swap correction
+
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param intermediate_node: intermediate node name who will perform the swap
+    :param memo_pos: memory position
+    :param operation_key: operation key is used to identify the swap operation
+    :param m1 : measurement result source -> intermediate
+    :param m2 : measurement result intermediate -> target
+    """
+
+    def __init__(self, source_node, target_node, intermediate_node, operation_key, memo_pos, m1, m2):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.intermediate_node = intermediate_node
+        self.operation_key = operation_key
+        self.memo_pos = memo_pos
+        self.m1 = m1
+        self.m2 = m2
+
+
+class SwapApplyCorrectionSuccessMessage:
+    """
+    Signal message for swap correction success
+    :param operation_key: operation key is used to identify the swap operation
+    """
+
+    def __init__(self, operation_key):
+        self.operation_key = operation_key
+
+
+class SwapSuccessMessage:
+    """
+    Signal message for swap success from swap node to the left node
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param intermediate_node: intermediate node name who will perform the swap
     :param memo_pos: memory position
     """
 
-    def __init__(self, source_node, target_node, swap_index, memo_pos):
+    def __init__(self, source_node, target_node, intermediate_node, memo_pos):
         self.source_node = source_node
         self.target_node = target_node
-        self.swap_index = swap_index
+        self.intermediate_node = intermediate_node
         self.memo_pos = memo_pos
