@@ -109,7 +109,9 @@ class EndToEndProtocol(NodeProtocol):
         (i.e purfication or verification)
         :param cc_message_handler: the classical message handler
         :param final_entanglement: the final entanglement goal, (source node, target node)
+        :param max_pairs: the maximum number of pairs that can be entangled
         :param logger: the logger
+        :param is_top_layer: if we are the top layer of the simulation
     """
 
     def __init__(self, node,
@@ -118,6 +120,7 @@ class EndToEndProtocol(NodeProtocol):
                  qubit_ready_protocols,
                  cc_message_handler,
                  final_entanglement,
+                 max_pairs,
                  logger,
                  is_top_layer=False):
 
@@ -154,6 +157,7 @@ class EndToEndProtocol(NodeProtocol):
         else:
             self.logger = logger
 
+        self.max_pairs = max_pairs
         self.is_top_layer = is_top_layer
 
     def add_new_signal(self, signal):
@@ -599,12 +603,15 @@ class EndToEndProtocol(NodeProtocol):
 
             # case we finish the final entanglement
             if self.node.name == self.final_entanglement[0] and self.final_entanglement[1] in self.entangled_qubits:
-                # we finish the final entanglement
-                self.send_signal(Signals.SUCCESS,
-                                 {self.final_entanglement[1]: self.entangled_qubits[self.final_entanglement[1]]})
-                break
+                if len(self.entangled_qubits[self.final_entanglement[1]]) == self.max_pairs:
+                    # we finish the final entanglement
+                    self.send_signal(Signals.SUCCESS,
+                                     {self.final_entanglement[1]: self.entangled_qubits[self.final_entanglement[1]]})
+                    break
             if self.node.name == self.final_entanglement[1] and self.final_entanglement[0] in self.entangled_qubits:
-                # we finish the final entanglement
-                self.send_signal(Signals.SUCCESS,
-                                 {self.final_entanglement[0]: self.entangled_qubits[self.final_entanglement[0]]})
-                break
+                if len(self.entangled_qubits[self.final_entanglement[0]]) == self.max_pairs:
+                    # we finish the final entanglement
+                    self.send_signal(Signals.SUCCESS,
+                                     {self.final_entanglement[0]: self.entangled_qubits[self.final_entanglement[0]]})
+                    break
+
