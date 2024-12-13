@@ -459,7 +459,8 @@ class Purification(NodeProtocol):
                     self.cc_message_handler.send_signal(MessageType.PURIFICATION_FINISHED,
                                                         SignalMessages.ProtocolFinishedSignalMessage(
                                                             from_protocol=self,
-                                                            from_node=self.node.name
+                                                            from_node=self.node.name,
+                                                            entangle_node=self.entangled_node
                                                         )
                                                         )
                     # send signal to local protocol

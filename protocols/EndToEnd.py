@@ -1,38 +1,13 @@
 import operator
 from functools import reduce
+from collections import defaultdict
 
 import numpy as np
-import netsquid as ns
-import pydynaa as pd
-
-from netsquid.components import ClassicalChannel, QuantumChannel
-from netsquid.components.qdetector import defaultdict
-from netsquid.util.simtools import sim_time
-from netsquid.util.datacollector import DataCollector
-from netsquid.qubits.ketutil import outerprod
-from netsquid.qubits.ketstates import s0, s1
-from netsquid.qubits import operators as ops, ketstates, operators
+from netsquid.qubits import operators
 from netsquid.qubits import qubitapi as qapi
-from netsquid.protocols.nodeprotocols import NodeProtocol, LocalProtocol
+from netsquid.protocols.nodeprotocols import NodeProtocol
 from netsquid.protocols.protocol import Signals
-from netsquid.nodes.network import Network
-from netsquid.components.instructions import INSTR_MEASURE, INSTR_CNOT, IGate, INSTR_Z, INSTR_SWAP, INSTR_H, INSTR_X
-from netsquid.components.component import Message, Port
-from netsquid.components.qsource import QSource, SourceStatus
-from netsquid.components.qprocessor import QuantumProcessor
-from netsquid.components.qprogram import QuantumProgram
-from netsquid.qubits import ketstates as ks
-from netsquid.qubits.state_sampler import StateSampler
-from netsquid.components.models.delaymodels import FixedDelayModel, FibreDelayModel
-from netsquid.components.models import DepolarNoiseModel
-from netsquid.nodes.connections import DirectConnection
-from pandas.compat import set_function_name
-from pydynaa import EventExpression
-from netsquid.qubits.qubitapi import measure
-from netsquid.qubits.operators import CNOT, Z
-from netsquid.components.instructions import INSTR_MEASURE
-from netsquid.nodes import Node
-from netsquid.qubits.qubitapi import fidelity
+from netsquid.components.instructions import  INSTR_Z, INSTR_X
 
 from protocols.MessageHandler import MessageType
 from utils import Logging
@@ -587,7 +562,7 @@ class EndToEndProtocol(NodeProtocol):
                         self.await_signal(self.cc_message_handler, signal_label=MessageType.SWAP_FAILED) |
                         self.await_signal(self.cc_message_handler,
                                           signal_label=MessageType.SWAP_APPLY_CORRECTION_SUCCESS))
-
+        self.logger.info(f"Swap {self.name} -> Start swapping protocol", color="cyan")
         while True:
 
             # handle other operations first then we try to perform the swap operation
