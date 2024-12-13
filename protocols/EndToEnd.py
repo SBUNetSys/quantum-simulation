@@ -213,11 +213,11 @@ class EndToEndProtocol(NodeProtocol):
     def apply_corrections(self, message: SwapApplyCorrectionMessage):
         node_name = self.get_qmemory_from_stack(message.intermediate_node)
         self.logger.info(f"Swap {self.name} -> Apply correction\n"
-                     f"Target Node: {message.target_node}\n"
-                     f"Source Node: {message.source_node}\n"
-                     f"Mem Pos {message.memo_pos}\n"
-                     f"Intermediate Node: {message.intermediate_node}\n"
-                     f"Qmem_name: {node_name}", color="yellow")
+                         f"Target Node: {message.target_node}\n"
+                         f"Source Node: {message.source_node}\n"
+                         f"Mem Pos {message.memo_pos}\n"
+                         f"Intermediate Node: {message.intermediate_node}\n"
+                         f"Qmem_name: {node_name}", color="yellow")
 
         qmemory = self.get_qmemory(f"{node_name}_qmemory")
 
@@ -233,7 +233,7 @@ class EndToEndProtocol(NodeProtocol):
                 yield self.await_program(qmemory)
             self.logger.info(
                 f"Sawp {self.name} -> Apply correction X on qubit {message.memo_pos} with qmem_name: {qmemory.name}",
-            color="green")
+                color="green")
             qmemory.execute_instruction(INSTR_X, [message.memo_pos])
         # update the entangled qubits
         # TODO: what about the fidelity?
@@ -288,8 +288,8 @@ class EndToEndProtocol(NodeProtocol):
         q1_mem_pos = self.entangled_qubits[swapping_pair.left_pos]
         q2_mem_pos = self.entangled_qubits[swapping_pair.right_pos]
         self.logger.info(f"Swap {self.name} -> Perform swap\n"
-                   f"Between {left_node} and {right_node} "
-                   f"Swapping Node {self.node.name}", color="cyan")
+                         f"Between {left_node} and {right_node} "
+                         f"Swapping Node {self.node.name}", color="cyan")
         success, m1, m2 = yield from self.perform_swap(q1_mem_pos, q2_mem_pos, q1_mem_name, q2_mem_name)
         if success:
             # case we success the swap
@@ -314,6 +314,31 @@ class EndToEndProtocol(NodeProtocol):
             # case we failed the swap
             # TODO we need to re-entangle the qubits, we need send the information to both left and right
             self.logger.info(f"Swap {self.name} -> Swap failed, re-entangle the qubits", color="red")
+            # left node
+            self.cc_message_handler.send_message(MessageType.SWAP_FAILED,
+                                                 ClassicalMessage(
+                                                     from_node=self.node.name,
+                                                     to_node=swapping_pair.left_node,
+                                                     data=SwapFailedMessage(
+                                                         source_node=swapping_pair.left_node,
+                                                         target_node=swapping_pair.right_node,
+                                                         memo_pos=swapping_pair.left_pos)))
+            # right node
+            self.cc_message_handler.send_message(MessageType.SWAP_FAILED,
+                                                 ClassicalMessage(
+                                                     from_node=self.node.name,
+                                                     to_node=swapping_pair.right_node,
+                                                     data=SwapFailedMessage(
+                                                         source_node=swapping_pair.right_node,
+                                                         target_node=swapping_pair.left_node,
+                                                         memo_pos=swapping_pair.right_pos)))
+            # handle swap failed for our self
+            self.handle_swap_failed(SwapFailedMessage(source_node=self.node.name,
+                                                      target_node=swapping_pair.left_node,
+                                                      memo_pos=swapping_pair.left_pos))
+            self.handle_swap_failed(SwapFailedMessage(source_node=self.node.name,
+                                                        target_node=swapping_pair.right_node,
+                                                        memo_pos=swapping_pair.right_pos))
 
     def check_swap_condition(self):
         """
@@ -464,6 +489,64 @@ class EndToEndProtocol(NodeProtocol):
                 self.pending_swap_operation.pop(result.operation_key)
                 yield from self.handle_swapping(swapping_pair)
 
+    def handle_swap_failed(self, message):
+        """
+        Handle the swap failed signal. The swap node will send swap failed signal left, self, and right node
+        When a node received the swap failed signal, it will loop through the stack to find the original
+        entangled node and re-entangle the qubits by sending RE-ENTANGLE-UPPER with memo pos
+        Handle the re-entangle process when swap failed for a pair.
+        We will need
+        1. find the original entangled node
+        2. send re-entangle signal to the entangled node if we are not the swap node of this swap operation
+        3. send the re-entangle signal lower layer
+        :param message: SwapFailedMessage
+        :return:
+        """
+        # find the original entangled node
+        entangled_node = self.get_original_entangled_node((message.source_node, message.target_node))
+        # send the re-entangle to entangled node if we are not the swap node
+        if self.swapping_node and \
+                (self.swapping_node.left != entangled_node and self.swapping_node.right != entangled_node):
+            self.cc_message_handler.send_message(MessageType.SWAP_FAILED,
+                                                 ClassicalMessage(
+                                                     from_node=self.node.name,
+                                                     to_node=entangled_node,
+                                                     data=SwapFailedMessage(
+                                                         source_node=entangled_node,
+                                                         target_node=self.node.name,
+                                                         memo_pos=message.memo_pos)))
+
+        # send the re-entangle signal to the lower layer
+        self.send_re_entangle(entangled_node, message.memo_pos)
+
+    def get_original_entangled_node(self, edge: tuple):
+        """
+        find the original entangled node in the stack
+        :param edge: the edge of the swapping stack (source, target)
+        :return:
+        """
+        edge_copy = (edge[0], edge[1])
+        while edge_copy in self.swapping_stack:
+            inter_nodes = self.swapping_stack[edge_copy]
+            from_node = inter_nodes[0]
+            if from_node == self.node.name and len(inter_nodes) > 1:
+                return inter_nodes[1]
+            # avoid infinite loop
+            if edge_copy[1] == from_node:
+                return edge[1]
+        return edge[1]
+
+    def send_re_entangle(self, entangled_node, memo_pos):
+        """
+        Send the re-entangle to lower layer
+        :param entangled_node: entangled node name
+        :param memo_pos: the memory position
+        :return:
+        """
+        self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
+                                            ReEntangleSignalMessage(entangled_node,
+                                                                    memo_pos))
+
     def reset(self):
         self.entangle_reset()
         super().reset()
@@ -472,16 +555,7 @@ class EndToEndProtocol(NodeProtocol):
         """
         Run the protocol
         We will swap the qubits between the nodes if the qubits are entangled
-        1. we check the swapping tree to see if we are the swapping node
-        2. if we are the swapping node, we perform the swap operation if we have both qubits entangled
-        3. if we are not the swapping node, we wait for the measurement results to apply corrections
-        4. if measurement failed, we re-entangle the qubits, send a message to the both nodes to re-entangle
-        5. if the measurement is successful, we apply the corrections
-        6. we continue the process until we finish the final swapping goal
-        :return:
-
-
-        TODO: New logic implementation with multiple swapping paris. We will have continues entangled pairs being
+        New logic implementation with multiple swapping paris. We will have continues entangled pairs being
             created, therefore we have to keep track of the qubits position at each stage.
             1. we check if we are swapping node
             2. if we are the swapping node, we check if the qubits are ready to swap, left and right qubits are ready
@@ -500,13 +574,11 @@ class EndToEndProtocol(NodeProtocol):
                                  C -> G: E                                           G -> C: E
                  A -> E: C                                E -> A: C                      (Let's say we failed at here)
                  A -> G: E                                                           G -> A: E
-                - re-entangle signal will be send to:
+                - re-entangle signal will be sent to:
                     A            B           C            D            E            F            G
                     A -> C       B -> C      C -> E       D -> E       E -> C       F -> G       G -> E
                     A -> B       B -> B      C -> D       D -> D       E -> D       F -> F       G -> F
                     A -> A                   C -> C                    E -> E                    G -> G
-
-
         """
 
         swap_signals = (self.await_signal(self.cc_message_handler, signal_label=MessageType.SWAP_NEED) |
@@ -555,22 +627,22 @@ class EndToEndProtocol(NodeProtocol):
                         # the swap node tell the leaf node that they need to swap the qubits to target through source
                         message: SwapRequestResponseMessage = result.data
                         self.logger.info(f"Swap {self.name} -> Swap need signal\n"
-                                     f"From: {result.from_node}\n"
-                                     f"Source: {message.source_node}\n"
-                                     f"Target: {message.target_node}\n"
-                                     f"Intermediate: {message.intermediate_node}\n"
-                                     f"Mem Pos: {message.memo_pos}", color="yellow")
+                                         f"From: {result.from_node}\n"
+                                         f"Source: {message.source_node}\n"
+                                         f"Target: {message.target_node}\n"
+                                         f"Intermediate: {message.intermediate_node}\n"
+                                         f"Mem Pos: {message.memo_pos}", color="yellow")
                         self.handle_swap_need(message)
 
                     elif ready_signal.label == MessageType.SWAP_READY:
                         # the swap node knows that leaf node is ready to swap
                         message: SwapRequestResponseMessage = result.data
                         self.logger.info(f"Swap {self.name} -> Swap ready signal\n"
-                                     f"From: {result.from_node}\n"
-                                     f"Source: {message.source_node}\n"
-                                     f"Target: {message.target_node}\n"
-                                     f"Intermediate: {message.intermediate_node}\n"
-                                     f"Mem Pos: {message.memo_pos}", color="purple")
+                                         f"From: {result.from_node}\n"
+                                         f"Source: {message.source_node}\n"
+                                         f"Target: {message.target_node}\n"
+                                         f"Intermediate: {message.intermediate_node}\n"
+                                         f"Mem Pos: {message.memo_pos}", color="purple")
 
                         yield self.handle_swap_ready(message)
 
@@ -586,20 +658,17 @@ class EndToEndProtocol(NodeProtocol):
                         # the correction is successful and message send by the target node
                         message: SwapApplyCorrectionSuccessMessage = result.data
                         self.logger.info(f"Swap {self.name} -> Correction successful\n"
-                                    f"Operation Key: {message.operation_key}", color="green")
+                                         f"Operation Key: {message.operation_key}", color="green")
                         self.handle_swap_apply_success(message)
                     elif ready_signal.label == MessageType.SWAP_FAILED:
                         # re-entangle the qubits
-                        # TODO need to re-entangle the qubits
-                        self.logger.info(f"Swap {self.name} -> Re-entangle signal",
+                        message: SwapFailedMessage = result.data
+                        self.logger.info(f"Swap {self.name} -> Swap Failed\n"
+                                         f"Source Node: {message.source_node}\n"
+                                         f"Target Node: {message.target_node}\n"
+                                         f"Mem Pos: {message.memo_pos}",
                                          color="red")
-                        self.entangle_reset()
-                        mem_pos = result["mem_pos"]
-                        self.send_signal(f"entangle_{self.node.name}->{result['from']}",
-                                         {"mem_pos": mem_pos,
-                                          "qmemory_name": f"{result['from']}_qmemory"})
-
-            # process the entangle message
+                        self.handle_swap_failed(message)
 
             # case we finish the final entanglement
             if self.node.name == self.final_entanglement[0] and self.final_entanglement[1] in self.entangled_qubits:
@@ -614,4 +683,3 @@ class EndToEndProtocol(NodeProtocol):
                     self.send_signal(Signals.SUCCESS,
                                      {self.final_entanglement[0]: self.entangled_qubits[self.final_entanglement[0]]})
                     break
-

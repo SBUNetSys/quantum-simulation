@@ -223,3 +223,16 @@ class SwapSuccessMessage:
         self.target_node = target_node
         self.intermediate_node = intermediate_node
         self.memo_pos = memo_pos
+
+class SwapFailedMessage:
+    """
+    Signal message for swap failure from swap node to the left and right node
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param memo_pos: memory position
+    """
+
+    def __init__(self, source_node, target_node, memo_pos):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.memo_pos = memo_pos
