@@ -328,10 +328,14 @@ class EndToEndProtocol(NodeProtocol):
         if self.swapping_node is not None:
             # case we are the swap node
             # we check if we have the left and right qubits ready
-            if self.swapping_node.left in self.entangled_qubits and self.swapping_node.right in self.entangled_qubits:
+            left_ready = (self.swapping_node.left in self.entangled_qubits and
+                          len(self.entangled_qubits[self.swapping_node.left]) > 0)
+            right_ready = (self.swapping_node.right in self.entangled_qubits and
+                            len(self.entangled_qubits[self.swapping_node.right]) > 0)
+            if left_ready and right_ready:
                 # pop the qubits from the entangled qubits
-                left_qubit_pos, left_fid = self.entangled_qubits[self.swapping_node.left].pop(0)
-                right_qubit_pos, right_fid = self.entangled_qubits[self.swapping_node.right].pop(0)
+                left_qubit_pos, left_fid = self.entangled_qubits[self.swapping_node.left].popitem()
+                right_qubit_pos, right_fid = self.entangled_qubits[self.swapping_node.right].popitem()
                 # create a swapping pair
                 swapping_pair = SwappingPair(self.swapping_node.left, self.swapping_node.right,
                                              left_qubit_pos, right_qubit_pos, left_fid, right_fid,
@@ -431,6 +435,7 @@ class EndToEndProtocol(NodeProtocol):
                 result.memo_pos in self.entangled_qubits[result.intermediate_node]:
             # we have the qubit, send the swap ready signal to the swap node
             self.cc_message_handler.send_message(MessageType.SWAP_READY,
+                                                 result.intermediate_node,
                                                  ClassicalMessage(
                                                      from_node=self.node.name,
                                                      to_node=result.intermediate_node,
@@ -619,7 +624,7 @@ class EndToEndProtocol(NodeProtocol):
                                          f"Intermediate: {message.intermediate_node}\n"
                                          f"Mem Pos: {message.memo_pos}", color="purple")
 
-                        yield self.handle_swap_ready(message)
+                        yield from self.handle_swap_ready(message)
 
                     elif ready_signal.label == MessageType.SWAP_APPLY_CORRECTION:
                         # apply the correction
