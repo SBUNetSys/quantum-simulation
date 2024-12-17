@@ -54,7 +54,7 @@ class EndToEndExample(LocalProtocol):
         self.all_nodes = network_nodes
         self.max_entangle_pairs = max_entangle_pairs
         self.logger = Logging.Logger("EndToEnd", logging_enabled=True)
-        null_logger = Logging.Logger("null", logging_enabled=False)
+        null_logger = Logging.Logger("null", logging_enabled=True)
 
         super().__init__(nodes={node.name: node for node in network_nodes}, name="EndToEndExample")
         self.num_runs = num_runs
@@ -154,7 +154,7 @@ class EndToEndExample(LocalProtocol):
                                           final_entanglement=self.final_entanglement,
                                           cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
                                           qubit_ready_protocols=lower_protocols,
-                                          max_pairs=self.max_entangle_pairs,
+                                          max_pairs=self.max_entangle_pairs - 1,
                                           logger=self.logger,
                                           is_top_layer=True)
             self.add_subprotocol(end_to_end)
@@ -169,12 +169,14 @@ class EndToEndExample(LocalProtocol):
             end_time = sim_time()
 
             print(f"Swapping completed in {(end_time - start_time) / 1e9} seconds.")
-            result_a = self.subprotocols[f"swap_{self.final_entanglement[0]}"].get_signal_result(Signals.SUCCESS, self)
-            result_b = self.subprotocols[f"swap_{self.final_entanglement[1]}"].get_signal_result(Signals.SUCCESS, self)
+            result_a = self.subprotocols[f"e2e_{self.final_entanglement[0]}"].get_signal_result(Signals.SUCCESS, self)
+            result_b = self.subprotocols[f"e2e_{self.final_entanglement[1]}"].get_signal_result(Signals.SUCCESS, self)
             print(f"Swapping result: {result_a}, {result_b}")
+            mem_pos_a = list(result_a[self.final_entanglement[1]].keys())
+            mem_pos_b = list(result_b[self.final_entanglement[0]].keys())
             # check the final entanglement's fidelity
-            qubit_a = self.nodes[self.final_entanglement[0]].qmemory.peek(result_a[self.final_entanglement[1]])[0]
-            qubit_b = self.nodes[self.final_entanglement[1]].qmemory.peek(result_b[self.final_entanglement[0]])[0]
+            qubit_a = self.nodes[self.final_entanglement[0]].qmemory.peek(mem_pos_a[0])[0]
+            qubit_b = self.nodes[self.final_entanglement[1]].qmemory.peek(mem_pos_b[0])[0]
             # rd = qapi.reduced_dm([qubit_a, qubit_b])
             # fidelity_result = qapi.fidelity(rd, ks.b00)
             fidelity_result = qapi.fidelity([qubit_a, qubit_b], ns.b00)
@@ -208,7 +210,7 @@ class EndToEndExample(LocalProtocol):
             # print_red(f"Fidelity of the final entanglement after {10e9 / 1e9} seconds: {fidelity_result}")
             self.send_signal(Signals.SUCCESS, {"fidelity": fidelity_result})
             for subprotocol in self.subprotocols.values():
-                yield subprotocol.reset()
+                subprotocol.reset()
 
     def get_cc_ports(self, node):
         cc_ports = {}
@@ -276,7 +278,7 @@ def plot_line(xs, ys, title, x_label, y_label, data_legends, xlim=None, save=Tru
     plt.show()
 
 def run_e2e_test(distances=3):
-    nodes_list = [f"Node_{i}" for i in range(4)]
+    nodes_list = [f"Node_{i}" for i in range(3)]
     network = setup_network(nodes_list, "end-to-end-network",
                             memory_capacity=128, memory_depolar_rate=100,
                             node_distance=distances, source_delay=1)
