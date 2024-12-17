@@ -104,6 +104,8 @@ class ReEntangleSignalMessage:
     """
     Signal message for re-entanglement, now we support list of re-entangle memory positions to avoid
     race condition
+    : param entangle_node: entangle node name
+    : param re_entangle_mem_poses: list of memory positions to re-entangle
     """
 
     def __init__(self, entangle_node, re_entangle_mem_poses: list):

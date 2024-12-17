@@ -166,7 +166,7 @@ class EndToEndProtocol(NodeProtocol):
         # yield self.await_timer(1)  # Simulate some operation time
 
         # Simulate Bell state measurement
-        success_probability = 0.9  # 90% success rate for Bell state measurement
+        success_probability = 0.1  # 90% success rate for Bell state measurement
         if np.random.random() > success_probability:
             result.success = False
             return
@@ -317,7 +317,7 @@ class EndToEndProtocol(NodeProtocol):
                                                      to_node=swapping_pair.left_node,
                                                      data=SwapFailedMessage(
                                                          source_node=swapping_pair.left_node,
-                                                         target_node=swapping_pair.right_node,
+                                                         target_node=self.node.name,
                                                          memo_pos=swapping_pair.left_pos)))
             # right node
             self.cc_message_handler.send_message(MessageType.SWAP_FAILED,
@@ -327,7 +327,7 @@ class EndToEndProtocol(NodeProtocol):
                                                      to_node=swapping_pair.right_node,
                                                      data=SwapFailedMessage(
                                                          source_node=swapping_pair.right_node,
-                                                         target_node=swapping_pair.left_node,
+                                                         target_node=self.node.name,
                                                          memo_pos=swapping_pair.right_pos)))
             # handle swap failed for our self
             self.handle_swap_failed(SwapFailedMessage(source_node=self.node.name,
@@ -514,7 +514,11 @@ class EndToEndProtocol(NodeProtocol):
         :return:
         """
         # find the original entangled node
+
         entangled_node = self.get_original_entangled_node((message.source_node, message.target_node))
+        self.logger.info(f"Swap {self.name} -> Swap failed, re-entangle the qubits\n"
+                         f"Node {self.node}\n"
+                         f"Entangle {entangled_node}", color="red")
         # send the re-entangle to entangled node if we are not the swap node
         if self.swapping_node and \
                 (self.swapping_node.left != entangled_node and self.swapping_node.right != entangled_node):
@@ -544,7 +548,7 @@ class EndToEndProtocol(NodeProtocol):
             if from_node == self.node.name and len(inter_nodes) > 1:
                 return inter_nodes[1]
             # avoid infinite loop
-            if edge_copy[1] == from_node:
+            if from_node == self.node.name:
                 return edge[1]
         return edge[1]
 
@@ -555,9 +559,12 @@ class EndToEndProtocol(NodeProtocol):
         :param memo_pos: the memory position
         :return:
         """
+        if entangled_node in self.entangled_qubits:
+            if memo_pos in self.entangled_qubits[entangled_node]:
+                self.entangled_qubits[entangled_node].pop(memo_pos)
         self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                             ReEntangleSignalMessage(entangled_node,
-                                                                    memo_pos))
+                                                                    [memo_pos]))
 
     def reset(self):
         self.pending_swap_operation = {}

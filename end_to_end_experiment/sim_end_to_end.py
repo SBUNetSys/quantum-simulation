@@ -54,7 +54,7 @@ class EndToEndExample(LocalProtocol):
         self.all_nodes = network_nodes
         self.max_entangle_pairs = max_entangle_pairs
         self.logger = Logging.Logger("EndToEnd", logging_enabled=True)
-        null_logger = Logging.Logger("null", logging_enabled=True)
+        null_logger = Logging.Logger("null", logging_enabled=False)
 
         super().__init__(nodes={node.name: node for node in network_nodes}, name="EndToEndExample")
         self.num_runs = num_runs
@@ -278,7 +278,7 @@ def plot_line(xs, ys, title, x_label, y_label, data_legends, xlim=None, save=Tru
     plt.show()
 
 def run_e2e_test(distances=3):
-    nodes_list = [f"Node_{i}" for i in range(3)]
+    nodes_list = [f"Node_{i}" for i in range(4)]
     network = setup_network(nodes_list, "end-to-end-network",
                             memory_capacity=128, memory_depolar_rate=100,
                             node_distance=distances, source_delay=1)
