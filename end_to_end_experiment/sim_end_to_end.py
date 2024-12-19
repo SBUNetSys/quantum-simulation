@@ -1,7 +1,10 @@
 import json
 import os.path
 import sys
+from turtledemo.forest import start
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 import pydynaa as pd
 import netsquid as ns
@@ -53,7 +56,7 @@ class EndToEndExample(LocalProtocol):
         self.final_entanglement = (node_path[0], node_path[-1])
         self.all_nodes = network_nodes
         self.max_entangle_pairs = max_entangle_pairs
-        self.logger = Logging.Logger("EndToEnd", logging_enabled=True)
+        self.logger = Logging.Logger("EndToEnd", logging_enabled=False)
         null_logger = Logging.Logger("null", logging_enabled=False)
 
         super().__init__(nodes={node.name: node for node in network_nodes}, name="EndToEndExample")
@@ -161,17 +164,22 @@ class EndToEndExample(LocalProtocol):
 
 
     def run(self):
+
+        end_time = None
         self.start_subprotocols()
+        start_time = sim_time()
         for i in range(self.num_runs):
-            start_time = sim_time()
+            # repeat experiment we start from here
+            if end_time is not None:
+                start_time = sim_time()
             yield (self.await_signal(self.subprotocols[f"e2e_{self.final_entanglement[0]}"], Signals.SUCCESS) &
                    self.await_signal(self.subprotocols[f"e2e_{self.final_entanglement[1]}"], Signals.SUCCESS))
             end_time = sim_time()
 
-            print(f"Swapping completed in {(end_time - start_time) / 1e9} seconds.")
+            # print(f"Swapping completed in {(end_time - start_time) / 1e9} seconds.")
             result_a = self.subprotocols[f"e2e_{self.final_entanglement[0]}"].get_signal_result(Signals.SUCCESS, self)
             result_b = self.subprotocols[f"e2e_{self.final_entanglement[1]}"].get_signal_result(Signals.SUCCESS, self)
-            print(f"Swapping result: {result_a}, {result_b}")
+            # print(f"Swapping result: {result_a}, {result_b}")
             mem_pos_a = list(result_a[self.final_entanglement[1]].keys())
             mem_pos_b = list(result_b[self.final_entanglement[0]].keys())
             # check the final entanglement's fidelity
@@ -180,7 +188,7 @@ class EndToEndExample(LocalProtocol):
             # rd = qapi.reduced_dm([qubit_a, qubit_b])
             # fidelity_result = qapi.fidelity(rd, ks.b00)
             fidelity_result = qapi.fidelity([qubit_a, qubit_b], ns.b00)
-            print(f"Fidelity of the final entanglement: {fidelity_result}")
+            # print(f"Fidelity of the final entanglement: {fidelity_result}")
 
             # generate a qubit for teleportation
             # qubit = qapi.create_qubits(1)[0]
@@ -208,7 +216,15 @@ class EndToEndExample(LocalProtocol):
             # fidelity_result = qapi.fidelity(rd, ks.b00)
             # fidelity_result = qapi.fidelity([qubit_a, qubit_b], ks.b00)
             # print_red(f"Fidelity of the final entanglement after {10e9 / 1e9} seconds: {fidelity_result}")
-            self.send_signal(Signals.SUCCESS, {"fidelity": fidelity_result})
+            # start_teleportation, generate a qubit for teleportation
+            # rotate the qubit to y0 state
+            qubit = qapi.create_qubits(1)[0]
+            qapi.operate(qubit, ops.H)
+            qapi.operate(qubit, ops.S)
+            teleport_res = self.test_teleportation(qubit_a, qubit_b, qubit)
+            self.send_signal(Signals.SUCCESS, {"fidelity": fidelity_result,
+                                               "duration": end_time - start_time,
+                                               "teleportation_success": 1 if teleport_res else 0,})
             for subprotocol in self.subprotocols.values():
                 subprotocol.reset()
 
@@ -219,7 +235,31 @@ class EndToEndExample(LocalProtocol):
                 cc_ports[n.name] = node.get_conn_port(n.ID)
         return cc_ports
 
+    @staticmethod
+    def test_teleportation(qubit_a, qubit_b, teleport_qubit):
+        """
+        Test teleportation with two qubits
+        :return:
+        """
+        # Store the initial state
+        initial_state = teleport_qubit.qstate
 
+        # Perform teleportation
+        qapi.operate(qubits=[teleport_qubit, qubit_a], operator=ops.CNOT)
+        qapi.operate(teleport_qubit, ops.H)
+        m1, _ = qapi.measure(teleport_qubit)
+        m2, _ = qapi.measure(qubit_a)
+        if m1 == 1:
+            qapi.operate(qubit_b, ops.Z)
+        if m2 == 1:
+            qapi.operate(qubit_b, ops.X)
+
+        # Calculate fidelity
+        # teleported_state = qapi.reduced_dm(qubit_b)
+        # fidelity = qapi.fidelity(teleported_state, initial_state)
+        fidelity = qapi.fidelity(qubit_b, ns.y0)
+
+        return fidelity
 def example_sim_run(nodes, num_runs, memory_depolar_rate,
                     node_distance, max_entangle_pairs, target_fidelity):
     e2e_example = EndToEndExample(network_nodes=nodes,
@@ -233,7 +273,7 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate,
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Run completed: {result}")
+        # print(f"Run completed: {result}")
         return result
 
     dc = DataCollector(record_run, include_time_stamp=False,
@@ -263,12 +303,12 @@ def plot_line(xs, ys, title, x_label, y_label, data_legends, xlim=None, save=Tru
     # rotate x labels
     plt.xticks(rotation=45)
     ax.set_xlim(left=0)
-    ax.set_ylim(top=1)
+    # ax.set_ylim(top=1)
     if xlim:
         ax.set_xlim(xlim)
     # Group x labels
-    ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-    ax.xaxis.set_major_locator(plt.MaxNLocator(nbins=20))
+    # ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    # ax.xaxis.set_major_locator(plt.MaxNLocator(nbins=20))
     # ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{int(x)}'))  # Format the labels as integers
     plt.tight_layout()
     if save:
@@ -278,7 +318,7 @@ def plot_line(xs, ys, title, x_label, y_label, data_legends, xlim=None, save=Tru
     plt.show()
 
 def run_e2e_test(distances=3):
-    nodes_list = [f"Node_{i}" for i in range(4)]
+    nodes_list = [f"Node_{i}" for i in range(6)]
     network = setup_network(nodes_list, "end-to-end-network",
                             memory_capacity=128, memory_depolar_rate=100,
                             node_distance=distances, source_delay=1)
@@ -293,8 +333,123 @@ def run_e2e_test(distances=3):
     ns.sim_run()
     collected_data = dc.dataframe
     print(collected_data)
+    for c in collected_data.columns:
+        print(collected_data[c])
 
+def run_e2e_multi_node(max_node, distances=3):
+    os.makedirs("./multi-node", exist_ok=True)
+    final_data = {}
+    for node_count in range(3, max_node + 1 ):
+        node_data = {}
+        nodes_list = [f"Node_{i}" for i in range(node_count)]
+        network = setup_network(nodes_list, "end-to-end-network",
+                                memory_capacity=128, memory_depolar_rate=100,
+                                node_distance=distances, source_delay=1)
+        sample_nodes = [node for node in network.nodes.values()]
+        end_to_end_example, dc = example_sim_run(sample_nodes,
+                                                 1000,
+                                                 100,
+                                                 distances,
+                                                 2,
+                                                 0.995)
+        end_to_end_example.start()
+        ns.sim_run()
+        collected_data = dc.dataframe
+        for c in collected_data.columns:
+            node_data[c] = collected_data[c].mean()
+            if len(collected_data[c]) < 1000:
+                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+            print(f"{node_count}->{c}: {collected_data[c].mean()}")
+        final_data[node_count] = node_data
+        end_to_end_example.stop()
+        ns.sim_reset()
+    with open(f"./multi-node/max_{max_node}_nodes.json", "w") as f:
+        json.dump(final_data, f)
+
+def plot_multi_node(max_node):
+    with open(f"./multi-node/max_{max_node}_nodes.json", "r") as f:
+        final_data = json.load(f)
+    # plot the fidelity
+    x = [int(i) for i in final_data.keys()]
+    y_fid = [final_data[str(i)]["fidelity"] for i in x ]
+    y_time = [final_data[str(i)]["duration"] for i in x ]
+    y_tel = [final_data[str(i)]["teleportation_success"] for i in x ]
+
+    plot_line([x, x], [y_fid, y_tel],
+              "Multiple Node End to End Fidelity and Teleportation Success Comparison",
+              "Node Count",
+              "Success/Fidelity",
+              ["Fidelity", "Teleportation Success Rate"],
+              xlim=[3, max_node],
+              save_dir="./multi-node/figures")
+    plot_line([x], [y_time],
+              "Multiple Node End to End Entanglement Time Comparison",
+              "Node Count",
+              "Time (ns)",
+              ["Time"],
+              xlim=[3, max_node],
+              save_dir="./multi-node/figures")
+
+def run_e2e_distance(max_distance):
+    os.makedirs("./distance", exist_ok=True)
+    final_data = {}
+    node_count = 5
+    for distances in range(1, max_distance):
+        node_data = {}
+        nodes_list = [f"Node_{i}" for i in range(node_count)]
+        network = setup_network(nodes_list, "end-to-end-network",
+                                memory_capacity=128, memory_depolar_rate=100,
+                                node_distance=distances, source_delay=1)
+        sample_nodes = [node for node in network.nodes.values()]
+        end_to_end_example, dc = example_sim_run(sample_nodes,
+                                                 1000,
+                                                 100,
+                                                 distances,
+                                                 2,
+                                                 0.995)
+        end_to_end_example.start()
+        ns.sim_run()
+        collected_data = dc.dataframe
+        for c in collected_data.columns:
+            node_data[c] = collected_data[c].mean()
+            if len(collected_data[c]) < 1000:
+                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+            print(f"{distances}->{c}: {collected_data[c].mean()}")
+        final_data[distances] = node_data
+        end_to_end_example.stop()
+        ns.sim_reset()
+    with open(f"./distance/max_{max_distance}_km.json", "w") as f:
+        json.dump(final_data, f)
+
+def plot_distance(max_distance):
+    with open(f"./distance/max_{max_distance}_km.json", "r") as f:
+        final_data = json.load(f)
+    # plot the fidelity
+    x = [int(i) for i in final_data.keys()]
+    y_fid = [final_data[str(i)]["fidelity"] for i in x ]
+    y_time = [final_data[str(i)]["duration"] for i in x ]
+    y_tel = [final_data[str(i)]["teleportation_success"] for i in x ]
+
+    plot_line([x, x], [y_fid, y_tel],
+              "Multi Distance (5 Nodes) End to End Fidelity and Teleportation Success Comparison",
+              "Node Distance (Km)",
+              "Success/Fidelity",
+              ["Fidelity", "Teleportation Success Rate"],
+              # xlim=[1, max_distance],
+              save_dir="./distance/figures")
+    plot_line([x], [y_time],
+              "Multi Distance (5 Nodes) End to End Entanglement Time Comparison",
+              "Node Distance (Km)",
+              "Time (ns)",
+              ["Time"],
+              # xlim=[3, max_distance],
+              save_dir="./distance/figures")
 if __name__ == '__main__':
+    # seed = np.random.randint(0, 10000)
+    # seed = 524
+    # np.random.seed(seed)
+    # print(f'{seed}')
+
     # node_list = ["node_A", "node_B", "node_C", "node_D", "node_E", "node_F"]
     # network = example_network_setup(nodes_list=node_list, node_distance=20, memory_depolar_rate=100)
     # sample_nodes = [node for node in network.nodes.values()]
@@ -309,4 +464,12 @@ if __name__ == '__main__':
     # data = experiment_with_increasing_node(50)
     # data = experiment_with_increase_memory_noise(100000)
     # data = experiment_with_increase_node_distance(1000)
-    run_e2e_test(3)
+    # run_e2e_test(3)
+    # run_e2e_multi_node(11, distances=3)
+    # import matplotlib
+    # matplotlib.use('TkAgg')
+    import matplotlib
+    matplotlib.use('module://backend_interagg')
+    # plot_multi_node(11)
+    # run_e2e_distance(10)
+    plot_distance(10)

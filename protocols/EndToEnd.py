@@ -168,7 +168,7 @@ class EndToEndProtocol(NodeProtocol):
         # yield self.await_timer(1)  # Simulate some operation time
 
         # Simulate Bell state measurement
-        success_probability = 0.1  # 90% success rate for Bell state measurement
+        success_probability = 0.9  # 90% success rate for Bell state measurement
         if np.random.random() > success_probability:
             result.success = False
             return
@@ -548,7 +548,8 @@ class EndToEndProtocol(NodeProtocol):
                              f"Target Node: {message.target_node}\n"
                              f"Swapping Stack {self.swapping_stack}", color="yellow")
             return
-        entangled_nodes, new_edge = self.get_original_entangled_node((message.source_node, message.target_node))
+        entangled_nodes, new_edge = self.get_original_entangled_node((message.source_node, message.target_node),
+                                                                     message.memo_pos)
         if len(entangled_nodes) > 1 :
             # case we are the source node, we need tell remote nodes
 
@@ -584,10 +585,11 @@ class EndToEndProtocol(NodeProtocol):
         self.re_entangle_edge[(message.source_node, message.target_node, message.memo_pos)] = True
         self.send_re_entangle(entangled_node, message.memo_pos)
 
-    def get_original_entangled_node(self, edge: tuple):
+    def get_original_entangled_node(self, edge: tuple, mem_pos):
         """
         find the original entangled node in the stack
         :param edge: the edge of the swapping stack (source, target)
+        :param mem_pos: the memory position of the entangled node
         :return:
         """
         edge_copy = (edge[0], edge[1])
@@ -598,6 +600,18 @@ class EndToEndProtocol(NodeProtocol):
             if from_node == self.node.name:
                 return inter_nodes, edge_copy
             edge_copy = (edge_copy[0], from_node)
+            self.logger.info(f"Swap {self.name} -> Swap faild, sending message to everyone\n"
+                             f"Node {self.node.name}\n"
+                             f"To Node: {from_node}\n", color="cyan")
+            self.cc_message_handler.send_message(MessageType.SWAP_FAILED,
+                                                 from_node,
+                                                 ClassicalMessage(
+                                                     from_node=self.node.name,
+                                                     to_node=from_node,
+                                                     data=SwapFailedMessage(
+                                                         source_node=from_node,
+                                                         target_node=self.node.name,
+                                                         memo_pos=mem_pos)))
         return edge_copy
 
     def send_re_entangle(self, entangled_node, memo_pos):
@@ -625,6 +639,9 @@ class EndToEndProtocol(NodeProtocol):
         self.pending_swap_request = {}
         self.entangled_qubits = defaultdict(dict)
         self.swapping_stack = defaultdict(list)
+        self.re_entangle_paris = defaultdict(dict)
+        self.re_entangle_edge = defaultdict(bool)
+
         super().reset()
 
     def run(self):
