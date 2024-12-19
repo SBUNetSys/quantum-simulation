@@ -128,7 +128,9 @@ class EndToEndProtocol(NodeProtocol):
         self.qubit_input_signal = reduce(operator.or_, await_signals)
         # classical message handler
         self.cc_message_handler = cc_message_handler
-
+        # re-entangle tracking
+        self.re_entangle_paris = defaultdict(dict) # entangle_node : {mem_pos:}
+        self.re_entangle_edge = defaultdict(bool)
         # final entanglement
         self.final_entanglement = final_entanglement
         # keep track of the node name and actual memory name
@@ -239,6 +241,10 @@ class EndToEndProtocol(NodeProtocol):
                                                  data=SwapApplyCorrectionSuccessMessage(
                                                      operation_key=message.operation_key)
                                              ))
+        self.logger.info(f"Swap {self.name} -> Applied correction\n"
+                         f"Node: {self.node.name}\n"
+                         f"Entangled Pairs {self.entangled_qubits}\n"
+                         f"Swapping Stack: {self.swapping_stack}", color="green")
 
     def get_qmemory_from_stack(self, node_name):
         """
@@ -386,31 +392,41 @@ class EndToEndProtocol(NodeProtocol):
                                                                                          self.node.name,
                                                                                          right_qubit_pos,
                                                                                          pair_key)))
-        else:
-            # case we are not the swap node
-            # we check if we have the swap request from the swap node
-            remove_keys = []
-            for key, value in self.pending_swap_request.items():
-                value: SwapRequestResponseMessage
-                if (value.intermediate_node in self.entangled_qubits and
-                        value.memo_pos in self.entangled_qubits[value.intermediate_node]):
-                    # TODO send the swap ready signal to the swap node
-                    self.cc_message_handler.send_message(MessageType.SWAP_READY,
-                                                            value.intermediate_node,
-                                                         ClassicalMessage(
-                                                             from_node=self.node.name,
-                                                             to_node=value.intermediate_node,
-                                                             data=SwapRequestResponseMessage(value.source_node,
-                                                                                             value.target_node,
-                                                                                             value.intermediate_node,
-                                                                                             value.memo_pos,
-                                                                                             value.operation_key)))
-                    # remove the pending swap result
-                    remove_keys.append(key)
-                    # pop the qubit as it was being used for swapping operation
-                    self.entangled_qubits[value.intermediate_node].pop(value.memo_pos)
-            for key in remove_keys:
-                self.pending_swap_request.pop(key)
+                # remove any re-entangle info
+                left_edge = (self.node.name, swapping_pair.left_node, swapping_pair.left_pos)
+                right_edge = (self.node.name, swapping_pair.right_node, swapping_pair.right_pos)
+                if left_edge in self.re_entangle_edge:
+                    self.re_entangle_edge.pop(left_edge)
+                if right_edge in self.re_entangle_edge:
+                    self.re_entangle_edge.pop(right_edge)
+        # we check if we have the swap request from the swap node
+        remove_keys = []
+        for key, value in self.pending_swap_request.items():
+            value: SwapRequestResponseMessage
+            if (value.intermediate_node in self.entangled_qubits and
+                    value.memo_pos in self.entangled_qubits[value.intermediate_node]):
+                # TODO send the swap ready signal to the swap node
+                self.cc_message_handler.send_message(MessageType.SWAP_READY,
+                                                        value.intermediate_node,
+                                                     ClassicalMessage(
+                                                         from_node=self.node.name,
+                                                         to_node=value.intermediate_node,
+                                                         data=SwapRequestResponseMessage(value.source_node,
+                                                                                         value.target_node,
+                                                                                         value.intermediate_node,
+                                                                                         value.memo_pos,
+                                                                                         value.operation_key)))
+                # remove the pending swap result
+                remove_keys.append(key)
+                # pop the qubit as it was being used for swapping operation
+                self.entangled_qubits[value.intermediate_node].pop(value.memo_pos)
+
+                # remove re-entangle info
+                edge = (self.node.name, value.intermediate_node, value.memo_pos)
+                if edge in self.re_entangle_edge:
+                    self.re_entangle_edge.pop(edge)
+        for key in remove_keys:
+            self.pending_swap_request.pop(key)
     def handle_swap_apply_success(self, message: SwapApplyCorrectionSuccessMessage):
         """
         Handle the swap success message,
@@ -443,14 +459,16 @@ class EndToEndProtocol(NodeProtocol):
         """
         # update the entangled qubits
         # TODO: what about the fidelity?
-        self.logger.info(f"Swap {self.name} -> Swap success\n"
-                            f"Source Node: {message.source_node}\n"
-                            f"Target Node: {message.target_node}\n"
-                            f"Intermediate Node: {message.intermediate_node}\n"
-                            f"Memo Pos: {message.memo_pos}", color="green")
         self.entangled_qubits[message.target_node][message.memo_pos] = 1.0
         # update the stack
         self.swapping_stack[(message.source_node, message.target_node)].append(message.intermediate_node)
+        self.logger.info(f"Swap {self.name} -> Swap success update on left node\n"
+                         f"Source Node: {message.source_node}\n"
+                         f"Target Node: {message.target_node}\n"
+                         f"Intermediate Node: {message.intermediate_node}\n"
+                         f"Memo Pos: {message.memo_pos}\n"
+                         f"Entangled Pairs {self.entangled_qubits}\n"
+                         f"Swapping Stack {self.swapping_stack}", color="green")
 
     def handle_swap_need(self, result: SwapRequestResponseMessage):
         """
@@ -464,6 +482,9 @@ class EndToEndProtocol(NodeProtocol):
         """
         if result.intermediate_node in self.entangled_qubits and \
                 result.memo_pos in self.entangled_qubits[result.intermediate_node]:
+            edge = (self.node.name, result.intermediate_node, result.memo_pos)
+            if edge in self.re_entangle_edge:
+                self.re_entangle_edge.pop(edge)
             # we have the qubit, send the swap ready signal to the swap node
             self.cc_message_handler.send_message(MessageType.SWAP_READY,
                                                  result.intermediate_node,
@@ -514,14 +535,34 @@ class EndToEndProtocol(NodeProtocol):
         :return:
         """
         # find the original entangled node
+        self.logger.info(f"Swap {self.name} -> Handle Swap Failed\n"
+                         f"Node {self.node.name}\n"
+                         f"Source Node: {message.source_node}\n"
+                         f"Target Node: {message.target_node}\n"
+                         f"Swapping Stack {self.swapping_stack}", color="red")
+        if (message.source_node, message.target_node, message.memo_pos) in self.re_entangle_edge:
+            # we pop the duplicate
+            self.logger.info(f"Swap {self.name} -> Handle Swap Failed Duplicated\n"
+                             f"Node {self.node.name}\n"
+                             f"Source Node: {message.source_node}\n"
+                             f"Target Node: {message.target_node}\n"
+                             f"Swapping Stack {self.swapping_stack}", color="yellow")
+            return
+        entangled_nodes, new_edge = self.get_original_entangled_node((message.source_node, message.target_node))
+        if len(entangled_nodes) > 1 :
+            # case we are the source node, we need tell remote nodes
 
-        entangled_node = self.get_original_entangled_node((message.source_node, message.target_node))
-        self.logger.info(f"Swap {self.name} -> Swap failed, re-entangle the qubits\n"
-                         f"Node {self.node}\n"
-                         f"Entangle {entangled_node}", color="red")
-        # send the re-entangle to entangled node if we are not the swap node
-        if self.swapping_node and \
-                (self.swapping_node.left != entangled_node and self.swapping_node.right != entangled_node):
+            self.logger.info(f"Swap {self.name} -> Swap failed as source nodes, re-entangle the qubits\n"
+                             f"Node {self.node.name}\n"
+                             f"Entangled Nodes: {entangled_nodes}\n"
+                             f"New Edge: {new_edge}\n"
+                             f"Source Node: {message.source_node}\n"
+                             f"Target Node: {message.target_node}", color="red")
+            entangled_node = entangled_nodes[1]
+            self.logger.info(f"Swap {self.name} -> Swap failed, sending message to entangle node\n"
+                             f"Node {self.node.name}\n"
+                             f"To Node: {entangled_node}\n"
+                             f"Entangle Nodes {entangled_nodes}", color="yellow")
             self.cc_message_handler.send_message(MessageType.SWAP_FAILED,
                                                  entangled_node,
                                                  ClassicalMessage(
@@ -531,8 +572,16 @@ class EndToEndProtocol(NodeProtocol):
                                                          source_node=entangled_node,
                                                          target_node=self.node.name,
                                                          memo_pos=message.memo_pos)))
-
+        else:
+            entangled_node = new_edge[1]
         # send the re-entangle signal to the lower layer
+        self.logger.info(f"Swap {self.name} -> Swap failed sending signal to lower layer\n"
+                         f"Node {self.node.name}\n"
+                         f"New Edge: {new_edge}\n"
+                         f"Entangled Node: {entangled_node}\n"
+                         f"Source Node: {message.source_node}\n"
+                         f"Target Node: {message.target_node}", color="yellow")
+        self.re_entangle_edge[(message.source_node, message.target_node, message.memo_pos)] = True
         self.send_re_entangle(entangled_node, message.memo_pos)
 
     def get_original_entangled_node(self, edge: tuple):
@@ -545,12 +594,11 @@ class EndToEndProtocol(NodeProtocol):
         while edge_copy in self.swapping_stack:
             inter_nodes = self.swapping_stack[edge_copy]
             from_node = inter_nodes[0]
-            if from_node == self.node.name and len(inter_nodes) > 1:
-                return inter_nodes[1]
             # avoid infinite loop
             if from_node == self.node.name:
-                return edge[1]
-        return edge[1]
+                return inter_nodes, edge_copy
+            edge_copy = (edge_copy[0], from_node)
+        return edge_copy
 
     def send_re_entangle(self, entangled_node, memo_pos):
         """
@@ -562,6 +610,11 @@ class EndToEndProtocol(NodeProtocol):
         if entangled_node in self.entangled_qubits:
             if memo_pos in self.entangled_qubits[entangled_node]:
                 self.entangled_qubits[entangled_node].pop(memo_pos)
+        if entangled_node in self.re_entangle_paris:
+            if memo_pos in self.re_entangle_paris[entangled_node]:
+                # skip already entangled mem pos
+                return
+        self.re_entangle_paris[entangled_node][memo_pos] = None
         self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                             ReEntangleSignalMessage(entangled_node,
                                                                     [memo_pos]))
@@ -637,6 +690,8 @@ class EndToEndProtocol(NodeProtocol):
                         # add additional stack as we are the source node
                         if result.is_source:
                             self.swapping_stack[(result.source_node, result.entangle_node)].append(entangle_node)
+                    if entangle_node in self.re_entangle_paris and mem_pos in self.re_entangle_paris[entangle_node]:
+                        self.re_entangle_paris[entangle_node].pop(mem_pos)
                     # check if the qubits are ready to swap
                     self.check_swap_condition()
 
@@ -687,11 +742,12 @@ class EndToEndProtocol(NodeProtocol):
                     elif ready_signal.label == MessageType.SWAP_FAILED:
                         # re-entangle the qubits
                         message: SwapFailedMessage = result.data
-                        self.logger.info(f"Swap {self.name} -> Swap Failed\n"
+                        self.logger.info(f"Swap {self.name} -> Received Swap Failed\n"
+                                         f"From {result.from_node}\n"
                                          f"Source Node: {message.source_node}\n"
                                          f"Target Node: {message.target_node}\n"
                                          f"Mem Pos: {message.memo_pos}",
-                                         color="red")
+                                         color="yellow")
                         self.handle_swap_failed(message)
             # check if the qubits are ready to swap
             self.check_swap_condition()
