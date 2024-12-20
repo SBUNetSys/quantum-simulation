@@ -239,15 +239,24 @@ class SwapFailedMessage:
         self.target_node = target_node
         self.memo_pos = memo_pos
 
-# class SwapFailedMessage:
-#     """
-#     Signal message for swap failure from swap node to the left and right node
-#     :param source_node: source node name
-#     :param target_node: entangle node name
-#     :param memo_pos: memory position
-#     """
-#
-#     def __init__(self, source_node, target_node, memo_pos):
-#         self.source_node = source_node
-#         self.target_node = target_node
-#         self.memo_pos = memo_pos
+class TransportRequestMessage:
+    """
+    Signal message for requesting a teleportation
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param target_memo_pos: teleporting node qubit memory position
+    :param operation_key: operation key is used to identify the transmission operation
+    """
+
+    def __init__(self, source_node, target_node, target_memo_pos, operation_key):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.target_memo_pos = target_memo_pos
+        self.operation_key = operation_key
+class TransportResponseMessage:
+    """
+    Signal message for ready for a teleportation operation
+    :param operation_key : the operation key is used to identify the transmission operation
+    """
+    def __init__(self, operation_key):
+        self.operation_key = operation_key

@@ -14,6 +14,13 @@ from utils import Logging
 from utils.ClassicalMessages import ClassicalMessage
 from utils.SignalMessages import *
 
+class TransportOperation:
+    def __init__(self, source_node, source_mem_pos, target_node, target_mem_pos):
+        self.source_node = source_node
+        self.source_mem_pos = source_mem_pos
+        self.target_node = target_node
+        self.target_mem_pos = target_mem_pos
+
 class TransportProtocol(NodeProtocol):
     """
     A protocol that send qubits in hop by hop setting.
@@ -75,7 +82,10 @@ class TransportProtocol(NodeProtocol):
         # variable for transport use
         self.entangled_qubits = defaultdict(dict) # key: entangled_node(in_node), value = {mem_pos: fid}
         # qubits that needs to be transport to next hop
-        self.transport_qubits = defaultdict(dict) # key: entangled_node(in_node), value = {mem_pos: fid}
+        self.qubits_need_transport = defaultdict(dict) # key: entangled_node(in_node), value = {mem_pos: fid}
+        self.sent_qubit_count = 0
+        self.transport_need_queue = []
+
     def run(self):
         """
         Run the protocol
@@ -103,7 +113,24 @@ class TransportProtocol(NodeProtocol):
                                      f"mem_pos: {mem_pos}",
                                      color="blue")
                     self.entangled_qubits[entangle_node][mem_pos] = result.fidelity
-
+            elif expr.second_term.value:
+                for event in expr.second_term.triggered_events:
+                    source_protocol = event.source
+                    ready_signal = source_protocol.get_signal_by_event(
+                        event=event, receiver=self)
+                    result = ready_signal.result
+                    if ready_signal.label == MessageType.TRANSPORT_REQUEST:
+                        # the left node need to start transport request to the next hop
+                        message: TransportRequestMessage = result.data
+                        self.logger.info(f"Transport {self.name} -> Transport need signal\n"
+                                         f"From: {result.from_node}\n"
+                                         f"Source: {message.source_node}\n"
+                                         f"Target: {message.target_node}\n"
+                                         f"Mem Pos: {message.memo_pos}", color="yellow")
+                        self.handle_transport_need(message)
+                    elif ready_signal.label == MessageType.TRANSPORT_READY:
+                        # we are ready to teleport
+                        pass
 
     def check_transport_ready(self):
         """
@@ -111,3 +138,26 @@ class TransportProtocol(NodeProtocol):
         :return:
         """
 
+    def handle_transport_need(self, message: TransportRequestMessage):
+        """
+        handle transport need signal from source node
+        :param message:  TransportRequest
+        :return:
+        """
+        if message.source_node in self.entangled_qubits and \
+            message.target_memo_pos in self.entangled_qubits[message.source_node]:
+            # case we are ready, we need to send the ready signal
+            self.cc_message_handler.send_message(MessageType.TRANSPORT_READY,
+                                                 message.source_node,
+                                                 ClassicalMessage(
+                                                     from_node=self.node.name,
+                                                     to_node=message.source_node,
+                                                     data=TransportRequestMessage(
+                                                         source_node=self.node.name,
+                                                         target_node=message.target_node,
+                                                         source_memo_pos=message.memo_pos,
+                                                     )
+                                                 ))
+        else:
+            # append to queue for later process when ready
+            self.transport_need_queue.append(message)
