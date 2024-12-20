@@ -1,9 +1,8 @@
 import json
 import os.path
 import sys
-from turtledemo.forest import start
 
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 import numpy as np
 
 import pydynaa as pd
@@ -468,8 +467,11 @@ if __name__ == '__main__':
     # run_e2e_multi_node(11, distances=3)
     # import matplotlib
     # matplotlib.use('TkAgg')
-    import matplotlib
-    matplotlib.use('module://backend_interagg')
+    # import matplotlib
+    # print(matplotlib.get_backend())
+    # print(matplotlib.matplotlib_fname())
+    # matplotlib.use('qtagg')
+    # matplotlib.use('module://backend_interagg')
     # plot_multi_node(11)
     # run_e2e_distance(10)
     plot_distance(10)

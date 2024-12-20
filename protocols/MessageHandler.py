@@ -37,7 +37,11 @@ class MessageType(Enum):
     SWAP_APPLY_CORRECTION_SUCCESS = auto()
     SWAP_SUCCESS = auto()
     SWAP_FAILED = auto()
-
+    # transport signals
+    TRANSPORT_REQUEST = auto()
+    TRANSPORT_READY = auto()
+    TRANSPORT_APPLY_CORRECTION = auto()
+    TRANSPORT_APPLY_CORRECTION_SUCCESS = auto()
     # termination signals
     ENTANGLEMENT_HANDLER_FINISHED = auto()
     PURIFICATION_FINISHED = auto()
