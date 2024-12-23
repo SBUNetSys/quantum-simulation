@@ -246,9 +246,16 @@ class Verification(NodeProtocol):
                              f"\t Mem pos:{message.verif_batch_poses}", color="green")
             self.successful_verification_batches[message.verif_batch_id] = message.verif_batch_poses
             del self.current_verification_batches[message.verif_batch_id]
-            self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSignalMessage(self.entangled_node,
-                                                                                       message.verif_batch_id,
-                                                                                       message.verif_batch_poses))
+            # self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSignalMessage(self.entangled_node,
+            #                                                                            message.verif_batch_id,
+            #                                                                            message.verif_batch_poses))
+            # TODO: should we remove the success batch as we dont have them anymore?
+            self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSuccessSignalMessage(
+                source_node=self.node.name,
+                entangle_node=self.entangled_node,
+                is_source=self.is_source,
+                verification_batch_poses=message.verif_batch_poses
+            ))
             # send to lower layer to generate the teleportation qubits
             self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                                 SignalMessages.ReEntangleSignalMessage(self.entangled_node,
@@ -367,9 +374,16 @@ class Verification(NodeProtocol):
             self.successful_verification_probability.append(p)
             self.successful_verification_batches[verification_batch_id] = verification_batch_positions
             del self.current_verification_batches[verification_batch_id]
-            self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSignalMessage(self.entangled_node,
-                                                                                       verification_batch_id,
-                                                                                       verification_batch_positions))
+            # self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSignalMessage(self.entangled_node,
+            #                                                                            verification_batch_id,
+            #                                                                            verification_batch_positions))
+            # TODO: should we remove the success batch as we dont have them anymore?
+            self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSuccessSignalMessage(
+                source_node=self.node.name,
+                entangle_node=self.entangled_node,
+                is_source=self.is_source,
+                verification_batch_poses=verification_batch_positions
+            ))
             # send to lower layer to generate the teleportation qubits
             self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                                 SignalMessages.ReEntangleSignalMessage(self.entangled_node,
