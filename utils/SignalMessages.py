@@ -158,6 +158,15 @@ class VerificationResultSignalMessage(VerificationSignalMessage):
         self.verif_result = verification_result
         self.result_probability = result_probability
 
+class VerificationSuccessSignalMessage(EntangleSignalMessage):
+    """
+    Verification success signal message for send to upper layer. It is a subclass of EntangleSignalMessage
+
+    """
+
+    def __init__(self, source_node,entangle_node, is_source, verification_batch_poses: list):
+        super().__init__(source_node,entangle_node, verification_batch_poses)
+        self.is_source = is_source
 
 class SwapRequestResponseMessage:
     """
@@ -253,9 +262,38 @@ class TransportRequestMessage:
         self.target_node = target_node
         self.target_memo_pos = target_memo_pos
         self.operation_key = operation_key
+
 class TransportResponseMessage:
     """
     Signal message for ready for a teleportation operation
+    :param operation_key : the operation key is used to identify the transmission operation
+    """
+    def __init__(self, operation_key):
+        self.operation_key = operation_key
+
+class TransportApplyCorrectionMessage:
+    """
+    Signal message for apply correction on teleportation operation
+
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param target_memo_pos: memory position
+    :param operation_key: operation key is used to identify the swap operation
+    :param m1 : measurement result source -> intermediate
+    :param m2 : measurement result intermediate -> target
+    """
+
+    def __init__(self, source_node, target_node, target_memo_pos, operation_key, m1, m2):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.operation_key = operation_key
+        self.target_memo_pos = target_memo_pos
+        self.m1 = m1
+        self.m2 = m2
+
+class TransportApplySuccessMessage:
+    """
+    Signal message for successfully applied correction on teleportation operation
     :param operation_key : the operation key is used to identify the transmission operation
     """
     def __init__(self, operation_key):
