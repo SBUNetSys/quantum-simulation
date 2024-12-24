@@ -197,8 +197,11 @@ class Transportation(NodeProtocol):
             return
         # case we are the sending node
         if self.is_source_node and self.sent_qubit_count < self.transmitting_qubit_size:
-            entangled_qubits = len(self.entangled_qubits[self.entangled_node])
-            for _ in range(entangled_qubits):
+            entangled_qubits_size = len(self.entangled_qubits[self.entangled_node])
+            qubits_need_size = self.transmitting_qubit_size - self.sent_qubit_count
+            # we only can do min of the condition, ether we have more qubits entangled than we will need
+            # to transmit. Or vice versa
+            for _ in range(min(entangled_qubits_size, qubits_need_size)):
                 mem_pos, _ = self.entangled_qubits[self.entangled_node].popitem()
                 op = TransportOperation(self.node.name, mem_pos, self.entangled_node, mem_pos)
                 op_key = (self.node.name, mem_pos, self.entangled_node, mem_pos)
@@ -244,9 +247,12 @@ class Transportation(NodeProtocol):
         self.process_transmit_queue()
 
     def process_transmit_queue(self):
-        for key in self.entangled_qubits[self.entangled_node].keys():
-            if (self.entangled_node, key) in self.transport_need_queue:
-                message = self.transport_need_queue[(self.entangled_node, key)]
+        remove_message = []
+        for key in self.transport_need_queue.keys():
+            node = key[0]
+            mem_pos = key[1]
+            if node in self.entangled_qubits and mem_pos in self.entangled_qubits[node]:
+                message = self.transport_need_queue[key]
                 self.cc_message_handler.send_message(MessageType.TRANSPORT_READY,
                                                      message.target_node,
                                                      ClassicalMessage(
@@ -256,7 +262,9 @@ class Transportation(NodeProtocol):
                                                              operation_key=message.operation_key
                                                          )
                                                      ))
-                del self.transport_need_queue[(self.entangled_node, key)]
+                remove_message.append(key)
+        for key in remove_message:
+            self.transport_need_queue.pop(key)
 
     def handle_transport_need(self, message: TransportRequestMessage):
         """

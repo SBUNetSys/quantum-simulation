@@ -263,7 +263,7 @@ class TransportWithPurificationExample(LocalProtocol):
         self.qubits_to_transport = qubits_to_transport
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleTransportation")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=False)
+        self.logger = Logging.Logger(self.name, logging_enabled=True)
         null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
 
@@ -502,7 +502,7 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
                                      event_type=Signals.SUCCESS.value))
     return transport_example, dc
 
-def run_test_example(qubit_number=1):
+def run_test_example_with_verification(qubit_number=1):
     nodes_list = [f"Node_{i}" for i in range(4)]
     network = setup_network(nodes_list, "hop-by-hop-transportation",
                             memory_capacity=128, memory_depolar_rate=100,
@@ -521,5 +521,25 @@ def run_test_example(qubit_number=1):
     print(results.columns)
     print(results)
 
+def run_test_example_with_purification(qubit_number=1):
+    nodes_list = [f"Node_{i}" for i in range(4)]
+    network = setup_network(nodes_list, "hop-by-hop-transportation",
+                            memory_capacity=128, memory_depolar_rate=100,
+                            node_distance=3, source_delay=1)
+    # create a protocol to entangle two nodes
+    sample_nodes = [node for node in network.nodes.values()]
+    transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1, memory_depolar_rate=100,
+                                         node_distance=3,
+                                         max_entangle_pairs=10, target_fidelity=0.995,
+                                         skip_noise=True,qubit_to_transport=qubit_number)
+    # Run the simulation
+    transport_example.start()
+    ns.sim_run()
+    # Collect the data
+    results = dc.dataframe
+    print(results.columns)
+    print(results)
+
 if __name__ == '__main__':
-    run_test_example()
+    run_test_example_with_purification()
+    # run_test_example_with_verification()
