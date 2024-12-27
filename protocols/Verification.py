@@ -256,6 +256,9 @@ class Verification(NodeProtocol):
                 is_source=self.is_source,
                 verification_batch_poses=message.verif_batch_poses
             ))
+            if not self.is_top_layer:
+                # we remove this as we sent the information to the upper layer. If we are the top we keep this
+                del self.successful_verification_batches[message.verif_batch_id]
             # send to lower layer to generate the teleportation qubits
             self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                                 SignalMessages.ReEntangleSignalMessage(self.entangled_node,
@@ -384,6 +387,9 @@ class Verification(NodeProtocol):
                 is_source=self.is_source,
                 verification_batch_poses=verification_batch_positions
             ))
+            if not self.is_top_layer:
+                # remove this information as we sent to top layer already
+                del self.successful_verification_batches[verification_batch_id]
             # send to lower layer to generate the teleportation qubits
             self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                                 SignalMessages.ReEntangleSignalMessage(self.entangled_node,
