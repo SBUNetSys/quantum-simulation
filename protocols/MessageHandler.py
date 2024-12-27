@@ -46,6 +46,8 @@ class MessageType(Enum):
     ENTANGLEMENT_HANDLER_FINISHED = auto()
     PURIFICATION_FINISHED = auto()
     VERIFICATION_FINISHED = auto()
+    SWAP_FINISHED = auto()
+    TRANSPORT_FINISHED = auto()
 
 
 class MessageHandler(NodeProtocol):
@@ -84,9 +86,10 @@ class MessageHandler(NodeProtocol):
     #     self.node.send_signal(signal, msg)
 
     def run(self):
+        expression = reduce(operator.or_, [self.await_port_input(port) for port in self.cc_ports.values()])
         while True:
             # yield until a message is received
-            expr = yield reduce(operator.or_, [self.await_port_input(port) for port in self.cc_ports.values()])
+            expr = yield expression
             for event in expr.triggered_events:
                 port = event.source
                 message = port.rx_input()
@@ -111,3 +114,7 @@ class MessageHandler(NodeProtocol):
             #     self.node.qmemory.put(message.data)
             # else:
             #     raise ValueError(f"Unknown message type: {message.header}")
+
+    def reset(self):
+        for port in self.cc_ports.values():
+            port.reset()
