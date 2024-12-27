@@ -1,0 +1,56 @@
+{
+  "3": {
+    "teleport_success_count": 0.988,
+    "total_count": 1,
+    "teleport_success_rate": 0.988,
+    "duration": 105000
+  },
+  "4": {
+    "teleport_success_count": 0.965,
+    "total_count": 1,
+    "teleport_success_rate": 0.965,
+    "duration": 150000
+  },
+  "5": {
+    "teleport_success_count": 0.944,
+    "total_count": 1,
+    "teleport_success_rate": 0.944,
+    "duration": 195000
+  },
+  "6": {
+    "teleport_success_count": 0.941,
+    "total_count": 1,
+    "teleport_success_rate": 0.941,
+    "duration": 240000
+  },
+  "7": {
+    "teleport_success_count": 0.913,
+    "total_count": 1,
+    "teleport_success_rate": 0.913,
+    "duration": 285000
+  },
+  "8": {
+    "teleport_success_count": 0.873,
+    "total_count": 1,
+    "teleport_success_rate": 0.873,
+    "duration": 330000
+  },
+  "9": {
+    "teleport_success_count": 0.862,
+    "total_count": 1,
+    "teleport_success_rate": 0.862,
+    "duration": 375000
+  },
+  "10": {
+    "teleport_success_count": 0.83,
+    "total_count": 1,
+    "teleport_success_rate": 0.83,
+    "duration": 420000
+  },
+  "11": {
+    "teleport_success_count": 0.758,
+    "total_count": 1,
+    "teleport_success_rate": 0.758,
+    "duration": 465000
+  }
+}

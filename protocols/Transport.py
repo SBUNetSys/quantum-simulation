@@ -3,6 +3,7 @@ from functools import reduce
 from collections import defaultdict
 
 import numpy as np
+from netsquid import sim_time
 from netsquid.qubits import operators
 from netsquid.qubits import qubitapi as qapi
 from netsquid.protocols.nodeprotocols import NodeProtocol
@@ -82,18 +83,21 @@ class Transportation(NodeProtocol):
             self.logger = logger
         self.transmitting_qubit_size = int(transmitting_qubit_size)
         self.is_top_layer = is_top_layer
-
         # variable for transport use
         self.entangled_qubits = defaultdict(dict)  # key: entangled_node(in_node), value = {mem_pos: fid}
         # qubits that needs to be transport to next hop
         self.pending_transmission_qubits = defaultdict(dict)  # key: entangled_node(in_node), value = {mem_pos: fid}
         self.pending_re_entangled_qubits = defaultdict(dict)  # key: entangled_node, value = {mem_pos:true}
         self.pending_transmission_operations = {}  # key: operation_key: TransportOperation
+        self.final_result = defaultdict(dict) # key:entangle_node, value = {mem_pos: fid}
         # pending apply correct tion success ops
         self.pending_confirmation_operations = {}  # key: operation_key: TransportOperation
         self.sent_qubit_count = 0
         self.transport_need_queue = {}  # key(entangle_node, mem_pos): TransportRequestMessage
+        self.memory_mapping = {} # key entangled_node value: actual entangled_name
+        self.start_time = sim_time()
 
+        self.add_signal(MessageType.TRANSPORT_FINISHED)
     def run(self):
         """
         Run the protocol
@@ -107,6 +111,7 @@ class Transportation(NodeProtocol):
                                               signal_label=MessageType.TRANSPORT_APPLY_CORRECTION_SUCCESS)
                             )
         self.logger.info(f"Transport {self.name} -> Start transport protocol", color="cyan")
+        self.start_time = sim_time()
         while True:
             # handle other operations first then we try to perform the transport operation
             expr = yield self.qubit_input_signal | transport_signal
@@ -125,6 +130,8 @@ class Transportation(NodeProtocol):
                                      f"entangle_node {entangle_node}\n"
                                      f"mem_pos: {mem_pos}",
                                      color="blue")
+                    if type(result) is SwapEntangledSuccess:
+                        self.memory_mapping[entangle_node] = result.actual_entangle_node
                     # this is used incase we have verification, they come in batches
                     if type(mem_pos) == list:
                         for pos in mem_pos:
@@ -138,6 +145,8 @@ class Transportation(NodeProtocol):
                     ready_signal = source_protocol.get_signal_by_event(
                         event=event, receiver=self)
                     result = ready_signal.result
+                    if result.data.timestamp < self.start_time:
+                        continue
                     if ready_signal.label == MessageType.TRANSPORT_REQUEST:
                         # the left node need to start transport request to the next hop
                         message: TransportRequestMessage = result.data
@@ -174,11 +183,14 @@ class Transportation(NodeProtocol):
             self.check_transport_ready()
 
             if self.is_destination_node and \
-                len(self.pending_transmission_qubits[self.entangled_node]) == self.transmitting_qubit_size:
+                len(self.final_result[self.entangled_node]) == self.transmitting_qubit_size:
                 # we finish the final entanglement
-                self.send_signal(Signals.SUCCESS,
-                                 {"entangle_node": self.entangled_node,
-                                  "mem_poses":[x for x in self.pending_transmission_qubits[self.entangled_node]]})
+                entangle_node = self.entangled_node
+                if entangle_node in self.memory_mapping:
+                    entangle_node = self.memory_mapping[entangle_node]
+                self.send_signal(MessageType.TRANSPORT_FINISHED,
+                                 {"entangle_node": entangle_node,
+                                  "results":self.final_result[self.entangled_node],})
                 break
 
     def check_transport_ready(self):
@@ -194,6 +206,7 @@ class Transportation(NodeProtocol):
         """
         # destination node does not forward anything
         if self.is_destination_node:
+            self.process_transmit_queue()
             return
         # case we are the sending node
         if self.is_source_node and self.sent_qubit_count < self.transmitting_qubit_size:
@@ -304,12 +317,12 @@ class Transportation(NodeProtocol):
             qapi.operate(teleport_qubit, ops.H)
             qapi.operate(teleport_qubit, ops.S)
         else:
-            qmemory = self.get_qmemory(f"{op.source_node}_qmemory")
+            qmemory = self.get_qmemory(op.source_node)
             if qmemory.busy:
                 yield self.await_program(qmemory)
             teleport_qubit, = qmemory.pop(op.source_mem_pos, skip_noise=False)
 
-        qmemory_a = self.get_qmemory(f"{op.target_node}_qmemory")
+        qmemory_a = self.get_qmemory(op.target_node)
         if qmemory_a.busy:
             yield self.await_program(qmemory_a)
         qubit_a, = qmemory_a.pop(op.target_mem_pos, skip_noise=False)
@@ -352,7 +365,7 @@ class Transportation(NodeProtocol):
             f"Target node: {message.target_node}\n"
             f"Target memo pos: {message.target_memo_pos}\n", color="yellow"
         )
-        qmemory = self.get_qmemory(f"{message.target_node}_qmemory")
+        qmemory = self.get_qmemory(message.target_node)
 
         if message.m1 == 1:
             if qmemory.busy:
@@ -382,6 +395,11 @@ class Transportation(NodeProtocol):
                                              ))
         # add the qubit to pending transmission
         self.pending_transmission_qubits[message.target_node][message.target_memo_pos] = True
+        if self.is_destination_node:
+            # pop and compare the result
+            qubit, = qmemory.pop(message.target_memo_pos, skip_noise=False)
+            fid = qapi.fidelity(qubit, ns.y0)
+            self.final_result[message.target_node][message.target_memo_pos] = fid
 
     def handle_apply_correction_success(self, message: TransportApplySuccessMessage):
         """
@@ -390,17 +408,26 @@ class Transportation(NodeProtocol):
         :param message: TransportApplySuccessMessage
         :return:
         """
+        # if message.operation_key not in self.pending_confirmation_operations:
+        #     return
         del self.pending_confirmation_operations[message.operation_key]
         # TODO add logic for re-entangle the old pair as we are done with teleportation
 
-    def get_qmemory(self, memory_name):
+    def get_qmemory(self, node_name):
         """
         Get the quantum memory of the node
-        :param memory_name:
+        :param node_name: the name of the node we want to get the quantum memory
         :return:
         """
+        if node_name in self.memory_mapping:
+            node_name = self.memory_mapping[node_name]
+        memory_name = f"{node_name}_qmemory"
         return self.node.subcomponents[memory_name]
+
     def reset(self):
+        # broadcast the verification finished signal to lower layer
+        self.logger.info(f"Transport {self.name} -> Resetting Transport, sending message", color="red")
+
         self.entangled_qubits = defaultdict(dict)  # key: entangled_node(in_node), value = {mem_pos: fid}
         # qubits that needs to be transport to next hop
         self.pending_transmission_qubits = defaultdict(dict)  # key: entangled_node(in_node), value = {mem_pos: fid}
@@ -410,4 +437,16 @@ class Transportation(NodeProtocol):
         self.pending_confirmation_operations = {}  # key: operation_key: TransportOperation
         self.sent_qubit_count = 0
         self.transport_need_queue = {}  # key(entangle_node, mem_pos): TransportRequestMessage
+        self.memory_mapping = {}
+        self.final_result = defaultdict(dict)
         super().reset()
+
+    def stop(self):
+        self.logger.info(f"Transport {self.name} -> Stopping Transport, sending message", color="red")
+        # self.cc_message_handler.send_signal(MessageType.VERIFICATION_FINISHED,
+        #                                     ProtocolFinishedSignalMessage(
+        #                                         from_protocol=self,
+        #                                         from_node=self.node.name,
+        #                                         entangle_node=self.entangled_node
+        #                                     ))
+        super().stop()
