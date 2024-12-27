@@ -741,6 +741,9 @@ def run_multi_node_verification_example_one_run(max_node,qubit_number=1):
         with open(f"./transportation_results/max_{max_node}_nodes_verification.json", "r") as f:
             final_data = json.load(f)
     for node_count in range(3, max_node + 1):
+        if str(node_count) in final_data:
+            print(f"Skipping {node_count} / {max_node}, as we already have data.")
+            continue
         node_data = {}
         nodes_list = [f"Node_{i}" for i in range(node_count)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
@@ -813,5 +816,5 @@ if __name__ == '__main__':
         # run_test_example_with_purification()
         # run_test_example_with_verification()
         # run_multi_node_purification_example(11)
-        run_multi_node_verification_example_one_run(11)
+        run_multi_node_verification_example_one_run(3)
         # run_multi_node_verification_example(3)
