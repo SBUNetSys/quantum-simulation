@@ -560,7 +560,7 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
     return transport_example, dc
 
 def run_test_example_with_verification(qubit_number=1):
-    nodes_list = [f"Node_{i}" for i in range(3)]
+    nodes_list = [f"Node_{i}" for i in range(5)]
     network = setup_network(nodes_list, "hop-by-hop-transportation",
                             memory_capacity=128, memory_depolar_rate=100,
                             node_distance=3, source_delay=1)
@@ -754,7 +754,7 @@ def run_multi_node_verification_example_one_run(max_node,qubit_number=1):
         transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1000, memory_depolar_rate=100,
                                                                   node_distance=3,
                                                                   max_entangle_pairs=10, target_fidelity=0.995,
-                                                                  m_size=3, batch_size=4,
+                                                                  m_size=1, batch_size=4,
                                                                   skip_noise=True, qubit_to_transport=qubit_number)
         # Run the simulation
         transport_example.start()
@@ -814,7 +814,7 @@ if __name__ == '__main__':
         run_multi_node_verification_example_one_run(int(sys.argv[1]))
     else:
         # run_test_example_with_purification()
-        # run_test_example_with_verification()
+        run_test_example_with_verification()
         # run_multi_node_purification_example(11)
-        run_multi_node_verification_example_one_run(3)
+        # run_multi_node_verification_example_one_run(3)
         # run_multi_node_verification_example(3)
