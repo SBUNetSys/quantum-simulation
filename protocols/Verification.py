@@ -60,6 +60,8 @@ class Verification(NodeProtocol):
 
         # classical message queue
         self.cc_message_queue = []
+
+        self.start_time = sim_time()
         # statistics
         self.verification_counter = 0
         self.successful_verification_counter = 0
@@ -93,7 +95,7 @@ class Verification(NodeProtocol):
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_REQUEST) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_READY) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_RESULT))
-
+        self.start_time = sim_time()
         while True:
             exper = yield entangle_signals | verification_signals
             if exper.first_term.value:
@@ -116,6 +118,8 @@ class Verification(NodeProtocol):
                     ready_signal = source_protocol.get_signal_by_event(event=event, receiver=self)
                     result: ClassicalMessage = ready_signal.result
                     if result.from_node != self.entangled_node:
+                        continue
+                    if result.data.timestamp < self.start_time:
                         continue
                     if ready_signal.label == MessageType.VERIFICATION_REQUEST:
                         message: SignalMessages.VerificationSignalMessage = result.data
