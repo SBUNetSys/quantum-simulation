@@ -47,6 +47,7 @@ class PurifySignalMessage:
         self.entangle_node = entangle_node
         self.qubit1_pos = qubit1_pos
         self.qubit2_pos = qubit2_pos
+        self.timestamp = ns.sim_time()
 
 
 class PurifyStartSignalMessage(PurifySignalMessage):
@@ -98,6 +99,7 @@ class PurifyFinishedSignalMessage:
 
     def __init__(self, entangle_node):
         self.entangle_node = entangle_node
+        self.timestamp = ns.sim_time()
 
 
 class ReEntangleSignalMessage:
@@ -111,7 +113,7 @@ class ReEntangleSignalMessage:
     def __init__(self, entangle_node, re_entangle_mem_poses: list):
         self.entangle_node = entangle_node
         self.re_entangle_mem_poses = re_entangle_mem_poses
-
+        self.timestamp = ns.sim_time()
 
 class ProtocolFinishedSignalMessage:
     """
@@ -134,6 +136,7 @@ class VerificationSignalMessage:
         self.entangle_node = entangle_node
         self.verif_batch_id = verification_batch_id
         self.verif_batch_poses = verification_batch_poses
+        self.timestamp = ns.sim_time()
 
 
 class VerificationStartSignalMessage(VerificationSignalMessage):
@@ -145,6 +148,7 @@ class VerificationStartSignalMessage(VerificationSignalMessage):
                  verification_teleport_measurement: dict):
         super().__init__(entangle_node, verification_batch_id, verification_batch_poses)
         self.verif_teleport_measurement = verification_teleport_measurement
+
 
 
 class VerificationResultSignalMessage(VerificationSignalMessage):
@@ -185,6 +189,7 @@ class SwapRequestResponseMessage:
         self.intermediate_node = intermediate_node
         self.memo_pos = memo_pos
         self.operation_key = operation_key
+        self.timestamp = ns.sim_time()
 
 
 class SwapApplyCorrectionMessage:
@@ -208,6 +213,7 @@ class SwapApplyCorrectionMessage:
         self.memo_pos = memo_pos
         self.m1 = m1
         self.m2 = m2
+        self.timestamp = ns.sim_time()
 
 
 class SwapApplyCorrectionSuccessMessage:
@@ -218,6 +224,7 @@ class SwapApplyCorrectionSuccessMessage:
 
     def __init__(self, operation_key):
         self.operation_key = operation_key
+        self.timestamp = ns.sim_time()
 
 
 class SwapSuccessMessage:
@@ -234,6 +241,7 @@ class SwapSuccessMessage:
         self.target_node = target_node
         self.intermediate_node = intermediate_node
         self.memo_pos = memo_pos
+        self.timestamp = ns.sim_time()
 
 class SwapFailedMessage:
     """
@@ -247,6 +255,21 @@ class SwapFailedMessage:
         self.source_node = source_node
         self.target_node = target_node
         self.memo_pos = memo_pos
+        self.timestamp = ns.sim_time()
+
+class SwapEntangledSuccess(EntangleSignalMessage):
+    """
+    Signal message for swap success from source node to target node. This will be used to send to upper layer.
+    :param source_node: source node name
+    :param entangle_node: entangle node name
+    :param actual_entangle_node: the actual entangle node name for this entanglement
+    :param memo_pos: memory position
+    """
+
+    def __init__(self, source_node, entangle_node, actual_entangle_node, memo_pos):
+        super().__init__(source_node, entangle_node, memo_pos)
+        self.actual_entangle_node = actual_entangle_node
+
 
 class TransportRequestMessage:
     """
@@ -262,6 +285,7 @@ class TransportRequestMessage:
         self.target_node = target_node
         self.target_memo_pos = target_memo_pos
         self.operation_key = operation_key
+        self.timestamp = ns.sim_time()
 
 class TransportResponseMessage:
     """
@@ -270,6 +294,7 @@ class TransportResponseMessage:
     """
     def __init__(self, operation_key):
         self.operation_key = operation_key
+        self.timestamp = ns.sim_time()
 
 class TransportApplyCorrectionMessage:
     """
@@ -290,6 +315,7 @@ class TransportApplyCorrectionMessage:
         self.target_memo_pos = target_memo_pos
         self.m1 = m1
         self.m2 = m2
+        self.timestamp = ns.sim_time()
 
 class TransportApplySuccessMessage:
     """
@@ -298,3 +324,4 @@ class TransportApplySuccessMessage:
     """
     def __init__(self, operation_key):
         self.operation_key = operation_key
+        self.timestamp = ns.sim_time()
