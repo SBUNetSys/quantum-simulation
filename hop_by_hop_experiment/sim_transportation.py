@@ -737,6 +737,9 @@ def run_multi_node_verification_example(max_node,qubit_number=1):
 def run_multi_node_verification_example_one_run(max_node,qubit_number=1):
     os.makedirs("./transportation_results", exist_ok=True)
     final_data = {}
+    if os.path.exists(f"./transportation_results/max_{max_node}_nodes_verification.json"):
+        with open(f"./transportation_results/max_{max_node}_nodes_verification.json", "r") as f:
+            final_data = json.load(f)
     for node_count in range(3, max_node + 1):
         node_data = {}
         nodes_list = [f"Node_{i}" for i in range(node_count)]
