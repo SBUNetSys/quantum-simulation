@@ -78,6 +78,7 @@ class Purification(NodeProtocol):
         self.purification_success_count = 0
         # graceful shutdown from uppler's termination
         self.shutdown = False
+        self.start_time = sim_time()
         # logger
         if logger is None:
             self.logger = Logging.Logger(f"{self.name}_logger", logging_enabled=False)
@@ -118,11 +119,15 @@ class Purification(NodeProtocol):
                                                              mem_pos=message.mem_pos,
                                                              new_fidelity=message.fidelity)
                                                      ))
+                if not self.is_top_layer:
+                    # remove this info from our record keeping
+                    del self.satisfied_pairs[message.mem_pos]
                 # send signal to upper layer
                 self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
                     source_node=self.node.name,
                     entangle_node=entangled_node, mem_pos=message.mem_pos, new_fidelity=message.fidelity,
                     is_source=True))
+
             else:
                 self.entangled_pairs[message.mem_pos] = message.fidelity
 
@@ -245,6 +250,9 @@ class Purification(NodeProtocol):
                     mem_pos=message.qubit1_pos,
                     new_fidelity=new_fidelity,
                     is_source=True))
+                if not self.is_top_layer:
+                    # remove this info from our record keeping
+                    del self.satisfied_pairs[message.qubit1_pos]
             else:
                 self.entangled_pairs[message.qubit1_pos] = new_fidelity
             # re-entangle the second qubit
@@ -279,10 +287,18 @@ class Purification(NodeProtocol):
         """
         if message.mem_pos not in self.entangled_pairs:
             self.logger.error(f"Purify {self.name} -> "
-                              f"Node {self.node.name} does not have the qubits in the memory for {message.__dict__}",
-                              color="red")
+                              f"Node {self.node.name} does not have the qubits in the memory for {message.__dict__}\n"
+                              f"Source:{self.is_source_node}"
+                              ,color="red")
+            self.print_status()
             self.classical_messages_queue.append(message)
             return
+        self.logger.info(f"Purify {self.name} -> Purification target met processed\n"
+                         f"Node{self.node.name} \n"
+                         f"Entangled: {message.entangle_node}\n"
+                         f"MemPos: {message.mem_pos}\n"
+                         f"Fid: {message.fidelity}", color="green")
+        self.print_status()
         self.satisfied_pairs[message.mem_pos] = message.fidelity
         # emit signal to upper layer
         self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
@@ -292,6 +308,11 @@ class Purification(NodeProtocol):
             is_source=False))
         # delete the pair from the entangled pairs
         del self.entangled_pairs[message.mem_pos]
+        # remove info for non-top layer
+        if not self.is_top_layer:
+            # remove this info from our record keeping
+            del self.satisfied_pairs[message.mem_pos]
+        self.print_status()
 
     def re_entangle(self, entangle_node, mem_poses):
         """
@@ -302,18 +323,20 @@ class Purification(NodeProtocol):
                 A List of memory positions to re-entangle
         :return:
         """
+        actual_poses = []
         for mem_pos in mem_poses:
             # remove the pair from the entangled pairs
             if mem_pos in self.entangled_pairs:
                 del self.entangled_pairs[mem_pos]
-            if not self.is_top_layer:
-                if mem_pos in self.satisfied_pairs:
-                    del self.satisfied_pairs[mem_pos]
+            if mem_pos in self.satisfied_pairs:
+                del self.satisfied_pairs[mem_pos]
             # add the pair to the re-entangle pairs
-            self.re_entangle_pairs[mem_pos] = None
+            if mem_pos not in self.re_entangle_pairs:
+                self.re_entangle_pairs[mem_pos] = None
+                actual_poses.append(mem_pos)
         # re-entangle the memory position
         self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE, SignalMessages.ReEntangleSignalMessage(
-            entangle_node=entangle_node, re_entangle_mem_poses=mem_poses))
+            entangle_node=entangle_node, re_entangle_mem_poses=actual_poses))
 
     def run(self):
         entangle_signal = self.await_signal(self.entanglement_handler, signal_label=Signals.SUCCESS)
@@ -328,6 +351,7 @@ class Purification(NodeProtocol):
                              self.await_signal(self.cc_message_handler,
                                                signal_label=MessageType.RE_ENTANGLE_FROM_UPPER_LAYER)
                              )
+        self.start_time = sim_time()
         while True:
             expr = yield entangle_signal | cc_message_signal
             if expr.first_term.value:
@@ -341,6 +365,8 @@ class Purification(NodeProtocol):
                         self.logger.info(f"Purify {self.name} -> "
                                          f"Node {self.node.name} received entangle signal: {result.__dict__}",
                                          color="blue")
+                        if result.entangle_node != self.entangled_node:
+                            continue
                         self.handle_entangle_signal(result)
 
             if expr.second_term.value:
@@ -357,9 +383,13 @@ class Purification(NodeProtocol):
                                           f"Node {self.node.name} error processing classical message: {e}",
                                           color="red")
                         continue
-                    if isinstance(result, ClassicalMessage) and result.from_node != self.entangled_node:
-                        # we do not care about the message from other nodes
-                        continue
+                    if isinstance(result, ClassicalMessage):
+                        if result.from_node != self.entangled_node:
+                            # we do not care about the message from other nodes
+                            continue
+                        if result.data.timestamp < self.start_time:
+                            # discard race condition where previous round info just arrived
+                            continue
                     if ready_signal.label == MessageType.PURIFICATION_START:
                         # start purification measurement
                         result: SignalMessages.PurifyStartSignalMessage = result.data
@@ -424,6 +454,9 @@ class Purification(NodeProtocol):
                                          f"Node {self.node.name} received verification finished signal",
                                          color="purple")
                         self.shutdown = True
+                        # yield a bit for cc message to arrive if any
+                        self.shutdown_count_down = 0
+                        self.shutdown_time = sim_time()
 
             # check status
             self.print_status()
@@ -670,8 +703,7 @@ class Purification(NodeProtocol):
         new_fidelity = (10 * f1 * f2 - f1 - f2 + 1) / (8 * f1 * f2 - 2 * f1 - 2 * f2 + 5)
         return new_fidelity
 
-    def reset(self):
-        self.logger.info(f"Purify {self.name} -> Node {self.node.name} Resetting purification protocol", color="red")
+    def clear_info(self):
         # record are we source node or not
         self.is_source_node = False
         # mapping of entangled qubits to memory positions key: memory position, value: fidelity
@@ -691,7 +723,13 @@ class Purification(NodeProtocol):
         # reset the shutdown flag and finished flag
         self.finished = False
         self.shutdown = False
+
+    def reset(self):
+        self.logger.info(f"Purify {self.name} -> Node {self.node.name} Resetting purification protocol", color="red")
+        self.clear_info()
         super().reset()
 
     def stop(self):
+        self.logger.info(f"Purify {self.name} -> Node {self.node.name} Stop purification protocol", color="red")
+    #     self.clear_info()
         super().stop()
