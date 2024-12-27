@@ -804,8 +804,11 @@ def run_multi_node_verification_example_one_run(max_node,qubit_number=1):
     with open(f"./transportation_results/max_{max_node}_nodes_verification.json", "w") as f:
         json.dump(final_data, f)
 if __name__ == '__main__':
-    # run_test_example_with_purification()
-    # run_test_example_with_verification()
-    # run_multi_node_purification_example(11)
-    run_multi_node_verification_example_one_run(3)
-    # run_multi_node_verification_example(3)
+    if len(sys.argv) == 2:
+        run_multi_node_verification_example(sys.argv[1])
+    else:
+        # run_test_example_with_purification()
+        # run_test_example_with_verification()
+        # run_multi_node_purification_example(11)
+        run_multi_node_verification_example_one_run(11)
+        # run_multi_node_verification_example(3)
