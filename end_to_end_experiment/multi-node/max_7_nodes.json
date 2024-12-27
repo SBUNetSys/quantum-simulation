@@ -1,0 +1,27 @@
+{
+  "3": {
+    "fidelity": 0.9889999999999999,
+    "duration": 113850.0,
+    "teleportation_success": 0.994
+  },
+  "4": {
+    "fidelity": 0.9609999999999999,
+    "duration": 193050.0,
+    "teleportation_success": 0.975
+  },
+  "5": {
+    "fidelity": 0.9259999999999999,
+    "duration": 212520.0,
+    "teleportation_success": 0.956
+  },
+  "6": {
+    "fidelity": 0.8979999999999999,
+    "duration": 306465.0,
+    "teleportation_success": 0.93
+  },
+  "7": {
+    "fidelity": 0.8839999999999999,
+    "duration": 308250.0,
+    "teleportation_success": 0.926
+  }
+}
