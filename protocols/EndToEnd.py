@@ -3,6 +3,7 @@ from functools import reduce
 from collections import defaultdict
 
 import numpy as np
+from netsquid import sim_time
 from netsquid.qubits import operators
 from netsquid.qubits import qubitapi as qapi
 from netsquid.protocols.nodeprotocols import NodeProtocol
@@ -142,6 +143,7 @@ class EndToEndProtocol(NodeProtocol):
         self.max_pairs = max_pairs
         self.is_top_layer = is_top_layer
         self.add_signal(MessageType.SWAP_FINISHED)
+        self.start_time = sim_time()
 
     def add_new_signal(self, signal):
         self.add_signal(signal)
@@ -699,6 +701,7 @@ class EndToEndProtocol(NodeProtocol):
                                           signal_label=MessageType.SWAP_APPLY_CORRECTION_SUCCESS) |
                         self.await_signal(self.cc_message_handler, signal_label=MessageType.SWAP_SUCCESS))
         self.logger.info(f"Swap {self.name} -> Start swapping protocol", color="cyan")
+        self.start_time = sim_time()
         while True:
 
             # handle other operations first then we try to perform the swap operation
@@ -716,7 +719,12 @@ class EndToEndProtocol(NodeProtocol):
                     entangle_node = result.entangle_node
                     self.logger.info(f"Swap {self.name} -> Entangle signal from {entangle_node}, mem_pos: {mem_pos}",
                                      color="blue")
-                    self.entangled_qubits[entangle_node][mem_pos] = result.fidelity
+
+                    if type(mem_pos) == list:
+                        for pos in mem_pos:
+                            self.entangled_qubits[entangle_node][pos] = True
+                    else:
+                        self.entangled_qubits[entangle_node][mem_pos] = result.fidelity
 
                     # keep track of the stack of node edge
                     if (result.source_node, result.entangle_node) not in self.swapping_stack:
@@ -736,6 +744,8 @@ class EndToEndProtocol(NodeProtocol):
                     ready_signal = source_protocol.get_signal_by_event(
                         event=event, receiver=self)
                     result = ready_signal.result
+                    if result.data.timestamp < self.start_time:
+                        continue
                     if ready_signal.label == MessageType.SWAP_NEED:
                         # the swap node tell the leaf node that they need to swap the qubits to target through source
                         message: SwapRequestResponseMessage = result.data
