@@ -801,11 +801,11 @@ def run_multi_node_verification_example_one_run(max_node,qubit_number=1):
         # print(f"{node_count}: {data}\n{len(list(node_data.values())[0])}")
         # final_data[node_count] = data
     # final_data = {k: np.mean(list(val)) for k, val in final_data.items()}
-    with open(f"./transportation_results/max_{max_node}_nodes_verification.json", "w") as f:
-        json.dump(final_data, f)
+        with open(f"./transportation_results/max_{max_node}_nodes_verification.json", "w") as f:
+            json.dump(final_data, f)
 if __name__ == '__main__':
     if len(sys.argv) == 2:
-        run_multi_node_verification_example(sys.argv[1])
+        run_multi_node_verification_example_one_run(int(sys.argv[1]))
     else:
         # run_test_example_with_purification()
         # run_test_example_with_verification()
