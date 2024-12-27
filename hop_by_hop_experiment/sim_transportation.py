@@ -821,7 +821,7 @@ def run_multi_node_verification_example_one_run(max_node,qubit_number=1):
         transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1000, memory_depolar_rate=100,
                                                                   node_distance=3,
                                                                   max_entangle_pairs=25, target_fidelity=0.995,
-                                                                  m_size=3, batch_size=10,
+                                                                  m_size=3, batch_size=4,
                                                                   skip_noise=True, qubit_to_transport=qubit_number)
         # Run the simulation
         transport_example.start()
