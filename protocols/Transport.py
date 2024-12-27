@@ -408,8 +408,8 @@ class Transportation(NodeProtocol):
         :param message: TransportApplySuccessMessage
         :return:
         """
-        # if message.operation_key not in self.pending_confirmation_operations:
-        #     return
+        if message.operation_key not in self.pending_confirmation_operations:
+            return
         del self.pending_confirmation_operations[message.operation_key]
         # TODO add logic for re-entangle the old pair as we are done with teleportation
 
