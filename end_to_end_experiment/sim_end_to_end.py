@@ -2,6 +2,7 @@ import json
 import os.path
 import sys
 
+import matplotlib
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -16,14 +17,15 @@ from netsquid.qubits import operators as ops, ketstates
 from netsquid.qubits import qubitapi as qapi
 from netsquid.protocols.nodeprotocols import NodeProtocol, LocalProtocol
 from netsquid.protocols.protocol import Signals
-from wheel.cli.convert import egg2wheel
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network
 from utils import Logging, GenSwappingTree
-from utils.Gates import controlled_unitary, measure_operator
 from protocols.MessageHandler import MessageHandler, MessageType
+
 from protocols.EntanglementHandler import EntanglementHandler
+
+
 from protocols.GenEntanglement import GenEntanglement
 from protocols.Purification import Purification
 from protocols.EndToEnd import EndToEndProtocol
@@ -33,6 +35,7 @@ plt.rcParams['axes.labelsize'] = 16
 plt.rcParams['axes.titlesize'] = 18
 plt.rcParams['xtick.labelsize'] = 14
 plt.rcParams['ytick.labelsize'] = 14
+
 
 
 class EndToEndExample(LocalProtocol):
@@ -55,7 +58,7 @@ class EndToEndExample(LocalProtocol):
         self.final_entanglement = (node_path[0], node_path[-1])
         self.all_nodes = network_nodes
         self.max_entangle_pairs = max_entangle_pairs
-        self.logger = Logging.Logger("EndToEnd", logging_enabled=False)
+        self.logger = Logging.Logger("EndToEnd", logging_enabled=True)
         null_logger = Logging.Logger("null", logging_enabled=False)
 
         super().__init__(nodes={node.name: node for node in network_nodes}, name="EndToEndExample")
@@ -171,19 +174,24 @@ class EndToEndExample(LocalProtocol):
             # repeat experiment we start from here
             if end_time is not None:
                 start_time = sim_time()
-            yield (self.await_signal(self.subprotocols[f"e2e_{self.final_entanglement[0]}"], Signals.SUCCESS) &
-                   self.await_signal(self.subprotocols[f"e2e_{self.final_entanglement[1]}"], Signals.SUCCESS))
+            yield (self.await_signal(self.subprotocols[f"e2e_{self.final_entanglement[0]}"], MessageType.SWAP_FINISHED) &
+                   self.await_signal(self.subprotocols[f"e2e_{self.final_entanglement[1]}"], MessageType.SWAP_FINISHED))
             end_time = sim_time()
 
             # print(f"Swapping completed in {(end_time - start_time) / 1e9} seconds.")
-            result_a = self.subprotocols[f"e2e_{self.final_entanglement[0]}"].get_signal_result(Signals.SUCCESS, self)
-            result_b = self.subprotocols[f"e2e_{self.final_entanglement[1]}"].get_signal_result(Signals.SUCCESS, self)
-            # print(f"Swapping result: {result_a}, {result_b}")
+            result_a = self.subprotocols[f"e2e_{self.final_entanglement[0]}"].get_signal_result(MessageType.SWAP_FINISHED, self)
+            result_b = self.subprotocols[f"e2e_{self.final_entanglement[1]}"].get_signal_result(MessageType.SWAP_FINISHED, self)
+            print(f"Swapping result: {result_a}, {result_b}")
             mem_pos_a = list(result_a[self.final_entanglement[1]].keys())
             mem_pos_b = list(result_b[self.final_entanglement[0]].keys())
             # check the final entanglement's fidelity
             qubit_a = self.nodes[self.final_entanglement[0]].qmemory.peek(mem_pos_a[0])[0]
             qubit_b = self.nodes[self.final_entanglement[1]].qmemory.peek(mem_pos_b[0])[0]
+
+            # print(f"Qubit names: {q_a_name}, {q_b_name}")
+            if qubit_a.qstate != qubit_a.qstate:
+                raise ValueError(f"Qubit states are not the same: {qubit_a.qstate}, {qubit_b.qstate}")
+
             # rd = qapi.reduced_dm([qubit_a, qubit_b])
             # fidelity_result = qapi.fidelity(rd, ks.b00)
             fidelity_result = qapi.fidelity([qubit_a, qubit_b], ns.b00)
@@ -317,13 +325,13 @@ def plot_line(xs, ys, title, x_label, y_label, data_legends, xlim=None, save=Tru
     plt.show()
 
 def run_e2e_test(distances=3):
-    nodes_list = [f"Node_{i}" for i in range(6)]
+    nodes_list = [f"Node_{i}" for i in range(10)]
     network = setup_network(nodes_list, "end-to-end-network",
                             memory_capacity=128, memory_depolar_rate=100,
                             node_distance=distances, source_delay=1)
     sample_nodes = [node for node in network.nodes.values()]
     end_to_end_example, dc = example_sim_run(sample_nodes,
-                                             1,
+                                             10,
                                              100,
                                              distances,
                                              2,
@@ -332,8 +340,6 @@ def run_e2e_test(distances=3):
     ns.sim_run()
     collected_data = dc.dataframe
     print(collected_data)
-    for c in collected_data.columns:
-        print(collected_data[c])
 
 def run_e2e_multi_node(max_node, distances=3):
     os.makedirs("./multi-node", exist_ok=True)
@@ -443,6 +449,7 @@ def plot_distance(max_distance):
               ["Time"],
               # xlim=[3, max_distance],
               save_dir="./distance/figures")
+
 if __name__ == '__main__':
     # seed = np.random.randint(0, 10000)
     # seed = 524
@@ -465,13 +472,11 @@ if __name__ == '__main__':
     # data = experiment_with_increase_node_distance(1000)
     # run_e2e_test(3)
     # run_e2e_multi_node(11, distances=3)
-    # import matplotlib
     # matplotlib.use('TkAgg')
     # import matplotlib
     # print(matplotlib.get_backend())
-    # print(matplotlib.matplotlib_fname())
-    # matplotlib.use('qtagg')
+    # matplotlib.use('QtAgg')
     # matplotlib.use('module://backend_interagg')
-    # plot_multi_node(11)
+    plot_multi_node(11)
     # run_e2e_distance(10)
-    plot_distance(10)
+    # plot_distance(10)
