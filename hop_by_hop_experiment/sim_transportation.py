@@ -292,8 +292,8 @@ class TransportWithPurificationExample(LocalProtocol):
         self.qubits_to_transport = qubits_to_transport
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleTransportation")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=False)
-        null_logger = Logging.Logger("null", logging_enabled=False)
+        self.logger = Logging.Logger(self.name, logging_enabled=True)
+        null_logger = Logging.Logger("null", logging_enabled=True)
         self.skip_noise = skip_noise
 
 
@@ -405,14 +405,30 @@ class TransportWithPurificationExample(LocalProtocol):
         self.start_subprotocols()
         # for subprotoco, val in self.subprotocols.items():
         #     print(f"Subprotocol: {subprotoco}")
-
         for i in range(self.num_runs):
             # print(f"Run {i}")
             start_time = sim_time()
 
             yield self.await_signal(self.subprotocols[f"transport_{self.all_nodes[-1].name}"],
                                     MessageType.TRANSPORT_FINISHED)
+            # yield self.await_signal(self.subprotocols[f"transport_{self.all_nodes[0].name}"],
+            #                         MessageType.TRANSPORT_FINISHED)
             end_time = sim_time()
+
+            # new logic with
+            # p = self.subprotocols[f"transport_{self.all_nodes[-1].name}"]
+            # res = p.final_result[p.entangled_node]
+            # t_count = 0
+            # s_count = 0
+            # result_dic = {"teleport_success_count": 0,
+            #               "total_count": self.qubits_to_transport,
+            #               "teleport_success_rate": 0,
+            #               "duration": end_time - start_time,}
+            # for mem_pos, fid in res.items():
+            #     if fid > 0.99:
+            #         result_dic["teleport_success_count"] += 1
+            # result_dic["teleport_success_rate"] = result_dic["teleport_success_count"] / result_dic["total_count"]
+            # print(f"Success rate: {result_dic['teleport_success_rate']}")
             results = self.subprotocols[f"transport_{self.all_nodes[-1].name}"].get_signal_result(
                 MessageType.TRANSPORT_FINISHED, self)
             """
@@ -422,7 +438,7 @@ class TransportWithPurificationExample(LocalProtocol):
                           "total_count": 0,
                           "teleport_success_rate": 0,
                           "duration": end_time - start_time,}
-            for mem_pos, fid  in results["results"].items():
+            for mem_pos, fid in results["results"].items():
                 result_dic["total_count"] += 1
                 # # get the qubit
                 # qubit = self.all_nodes[-1].subcomponents[f"{results['entangle_node']}_qmemory"].pop(
@@ -431,6 +447,7 @@ class TransportWithPurificationExample(LocalProtocol):
                 # fidelity = qapi.fidelity(qubit, ns.y0)
                 if fid > 0.99:
                     result_dic["teleport_success_count"] += 1
+            print(f"Values {results['results'].values()}")
             # final success rate
             result_dic["teleport_success_rate"] = result_dic["teleport_success_count"] / result_dic["total_count"]
             # for subprotocol_name, subprotocol in self.subprotocols.items():
@@ -550,6 +567,7 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
+        # result = protocol.get_signal_result(Signals.FINISHED)
         # print(f"Purification Run {result['run_index']} completed: {result}")
         return result["results"]
 
@@ -578,16 +596,16 @@ def run_test_example_with_verification(qubit_number=1):
     print(results.columns)
     print(results)
 
-def run_test_example_with_purification(qubit_number=1):
-    nodes_list = [f"Node_{i}" for i in range(11)]
+def run_test_example_with_purification(qubit_number=5):
+    nodes_list = [f"Node_{i}" for i in range(5)]
     network = setup_network(nodes_list, "hop-by-hop-transportation",
-                            memory_capacity=128, memory_depolar_rate=100,
-                            node_distance=3, source_delay=1)
+                            memory_capacity=10, memory_depolar_rate=0.001,
+                            node_distance=1, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
-    transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1, memory_depolar_rate=100,
-                                         node_distance=3,
-                                         max_entangle_pairs=10, target_fidelity=0.995,
+    transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1, memory_depolar_rate=0.001,
+                                         node_distance=1,
+                                         max_entangle_pairs=9, target_fidelity=0.995,
                                          skip_noise=True,qubit_to_transport=qubit_number)
     # Run the simulation
     transport_example.start()
@@ -881,9 +899,9 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         run_multi_node_verification_example_one_run(int(sys.argv[1]))
     else:
-        # run_test_example_with_purification()
+        run_test_example_with_purification()
         # run_test_example_with_verification()
         # run_multi_node_purification_example(11)
         # run_multi_node_verification_example_one_run(3)
         # run_multi_node_verification_example(5)
-        run_multi_node_purification_example_distance(11)
+        # run_multi_node_purification_example_distance(11)

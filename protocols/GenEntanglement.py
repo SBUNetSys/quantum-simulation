@@ -316,6 +316,19 @@ class GenEntanglement(NodeProtocol):
                 self.re_entangle_position(result.re_entangle_mem_poses)
                 if send_signal:
                     self.send_signal(MessageType.RE_ENTANGLE_READY_SOURCE, result)
+            else:
+                # case of qubit lost due to timeout signal
+                self.logger.info(
+                    f"GenEntangle {self.name} -> Node {self.node.name} received qubit loss signal\n"
+                    f"\tfrom: {result.entangle_node}\n"
+                    f"\tmem_pos: {result.re_entangle_mem_poses}",
+                    color="cyan")
+                if result.re_entangle_type != "timeout":
+                    self.logger.error(
+                        f"GenEntangle {self.name} -> Node {self.node.name} Signal timeout not match with message type.",
+                        color="red")
+                    return
+                self.re_entangle_timeout(result.re_entangle_mem_poses)
 
         except KeyError as e:
             self.logger.error(f"GenEntangle {self.name} -> Node {self.node.name} Signal not found in source protocol.",
@@ -328,7 +341,17 @@ class GenEntanglement(NodeProtocol):
                          f"\tAdding Memory position: {re_entangle_mem_poses}\n"
                          f"\tIs Source: {self._is_source}\n"
                          f"\tCurrent Re-entangle position: {self.re_entangle_pos}", color="red")
-
+    def re_entangle_timeout(self, re_entangle_mem_poses):
+        for mem_pos in re_entangle_mem_poses:
+            self.aval_mem_postions.insert(0, mem_pos)
+            self.used_mem_positions.remove(mem_pos)
+        self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} re-entangling timeout signal received\n"
+                         f"\tRe-active mem poses: {re_entangle_mem_poses}\n"
+                         f"\tIs Source: {self._is_source}\n"
+                         f"\tCurrent Available Poses: {self.aval_mem_postions}\n"
+                         f"\tUsed Poses: {self.used_mem_positions}\n"
+                         f"\tCurrent Re-entangle position: {self.re_entangle_pos}", color="red")
+        self.send_signal(MessageType.GEN_ENTANGLE_READY, None)
     def start(self):
         """
         Start the protocol.
@@ -516,7 +539,8 @@ class ReEntangleSignalWatcher(NodeProtocol):
 
     def run(self):
         while self.is_running:
-            expr = self.await_signal(self.watch_protocol, signal_label=self.watch_signal)
+            expr = (self.await_signal(self.watch_protocol, signal_label=self.watch_signal) |
+                    self.await_signal(self.watch_protocol, signal_label=MessageType.RE_ENTANGLE_QUBIT_LOST))
             yield expr
             self.logger.info(f"ReEntangleSignalWatcher {self.name} -> Node {self.node.name} received signal\n"
                              f"\tSignal: {self.watch_signal}", color="red")

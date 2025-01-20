@@ -192,6 +192,12 @@ class Transportation(NodeProtocol):
                                  {"entangle_node": entangle_node,
                                   "results":self.final_result[self.entangled_node],})
                 break
+            # if self.is_source_node and self.sent_qubit_count == self.transmitting_qubit_size:
+            #     # we finished all transmission, and we wait X times then sent signa
+            #     # this will allow us to capture the transmission success rate
+            #     yield self.await_timer(65000)
+            #     self.send_signal(MessageType.TRANSPORT_FINISHED, {"finished_time": sim_time()})
+            #     break
 
     def check_transport_ready(self):
         """
@@ -232,6 +238,10 @@ class Transportation(NodeProtocol):
                                                          )
                                                      ))
                 self.sent_qubit_count += 1
+                self.logger.info(f"Transport {self.name} sending qubits\n"
+                                 f"Qubit Sent: {self.sent_qubit_count}\n"
+                                 f"Qubit Need Transmission: {self.transmitting_qubit_size}\n",
+                                 color="cyan")
         # case we are the middle node
         for key in self.pending_transmission_qubits.keys():
             if len(self.pending_transmission_qubits[key]) > 0:
@@ -400,6 +410,9 @@ class Transportation(NodeProtocol):
             qubit, = qmemory.pop(message.target_memo_pos, skip_noise=False)
             fid = qapi.fidelity(qubit, ns.y0)
             self.final_result[message.target_node][message.target_memo_pos] = fid
+            self.logger.info(f"Transport {self.name} -> received Qubits\n"
+                             f"Current Qubits Received {len(self.final_result[self.entangled_node])}\n"
+                             f"Target Qubits Needed {self.transmitting_qubit_size}\n", color="green")
 
     def handle_apply_correction_success(self, message: TransportApplySuccessMessage):
         """

@@ -20,6 +20,7 @@ class MessageType(Enum):
     RE_ENTANGLE_READY_REMOTE = auto()
     RE_ENTANGLE_READY_SOURCE = auto()
     RE_ENTANGLE_FROM_UPPER_LAYER = auto()
+    RE_ENTANGLE_QUBIT_LOST = auto()
     # purification signals
     PURIFICATION_START = auto()
     PURIFICATION_RESULT = auto()

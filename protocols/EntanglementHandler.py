@@ -4,6 +4,7 @@ from functools import reduce
 from venv import logger
 
 import numpy as np
+from netsquid.components.qprocessor import sim_time
 from netsquid.protocols.nodeprotocols import NodeProtocol
 from netsquid.protocols.protocol import Signals
 import netsquid as ns
@@ -61,7 +62,7 @@ class EntanglementHandler(NodeProtocol):
         # mapping of entangled qubits to memory positions key: memory position, value: fidelity
         self.entangled_qubits = {}
         # mapping of temporary qubits to memory positions
-        self.temp_qubits = {}
+        self.temp_qubits = {}  # {mempos: (fid, time)}
         # keep track of the number of entangled pairs
         self.entangled_pairs_count = 0
         # entangle_message_queue
@@ -81,6 +82,9 @@ class EntanglementHandler(NodeProtocol):
         # classical message handler
         self.cc_message_handler = cc_message_handler
 
+        # add entanglement watcher
+        self.entanglement_watcher = EntanglementWatcher(node, self, f"{name}_watcher", logger)
+
         # set the logger
         if logger is None:
             self.logger = Logging.Logger(f"{self.name}_logger", logging_enabled=True)
@@ -91,6 +95,7 @@ class EntanglementHandler(NodeProtocol):
         self.add_new_signal(f"{qubit_input_protocol.name}_re_entangle_ready")
         self.add_new_signal(f"{qubit_input_protocol.name}_re_entangle")
 
+        self.add_new_signal(MessageType.RE_ENTANGLE_QUBIT_LOST)
         self.add_new_signal(MessageType.ENTANGLED)
         self.add_new_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED)
         self.shutdown = False
@@ -117,11 +122,14 @@ class EntanglementHandler(NodeProtocol):
         entangle_data = message.data
         # get the mem_pos from the entangle data
         mem_pos = entangle_data.mem_pos
-        self.logger.info(f"ManageEntangle {self.name} -> Entanglement signal from {from_node} to {to_node},"
-                         f" mem_pos: {mem_pos}", color="blue")
+        self.logger.info(f"ManageEntangle {self.name} -> Entanglement signal from {from_node} to {to_node}\n"
+                         f"mem_pos: {mem_pos}\n"
+                         f"time: {sim_time()}", color="blue")
         if mem_pos in self.temp_qubits:
             # add the qubit to the entangled qubits
-            self.entangled_qubits[mem_pos] = self.temp_qubits[mem_pos]
+            fid, _ = self.temp_qubits[mem_pos]
+            # self.entangled_qubits[mem_pos] = self.temp_qubits[mem_pos]
+            self.entangled_qubits[mem_pos] = fid
             # remove the temporary qubit
             del self.temp_qubits[mem_pos]
             self.entangled_pairs_count += 1
@@ -192,6 +200,35 @@ class EntanglementHandler(NodeProtocol):
             batch_message = SignalMessages.ReEntangleSignalMessage(self.entangle_node, ready_mem_poses)
             self.process_re_entangle_message(batch_message)
 
+    def check_temp_entanglement(self):
+        """
+        this function check all temp qubit established time
+        if is over 5000 ns, we consider it was lost and need re-entangle
+        :return
+        """
+
+        re_entangle_poses = []
+        current_time = sim_time()
+        pos = list(self.temp_qubits.keys())
+        for p in pos:
+            _, t = self.temp_qubits[p]
+            if current_time - t > 5000:
+                re_entangle_poses.append(p)
+                self.temp_qubits.pop(p)
+        # send to lower layer as the remote is ready for re-entangle.
+        # we can do this because remote never received this qubit, therefore it is ready by default
+        if len(re_entangle_poses) > 0:
+            self.logger.info(f"ManageEntangle {self.name} -> Time out for entanglement establishment\n"
+                             f"\tRe-entangle Qubits Mem: {re_entangle_poses}\n"
+                             f"\tTemp Qubits: {self.temp_qubits.keys()}\n"
+                             f"\tEntangled Qubits: {self.entangled_qubits.keys()}\n", color="red")
+            re_entangle_data = SignalMessages.ReEntangleSignalMessage(
+                self.entangle_node, re_entangle_poses, re_entangle_type="timeout")
+            self.send_signal(MessageType.RE_ENTANGLE_QUBIT_LOST,
+                             re_entangle_data)
+            # # send the entangled signal to lower layer try to re-activate the generation process
+            # self.send_signal(MessageType.ENTANGLED, None)
+
     def estimate_fidelity_theoretical(self, initial_fidelity):
         """Estimate fidelity based on noise parameters and channel length."""
         # depolar_rate = noise_params['depolar_rate']
@@ -220,6 +257,7 @@ class EntanglementHandler(NodeProtocol):
                                               signal_label=MessageType.RE_ENTANGLE_READY_REMOTE) |
                             self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_FINISHED) |
                             self.re_entangle_ready_signals)
+        self.entanglement_watcher.start()
         while True:
             # wait for entanglement
             expr = yield self.qubit_input_signal | entangle_signals
@@ -240,11 +278,12 @@ class EntanglementHandler(NodeProtocol):
                     initial_fidelity = gen_data.init_fidelity
                     if is_source:
                         # store the qubit in the temporary qubits
-                        self.temp_qubits[mem_pos] = self.estimate_fidelity_theoretical(initial_fidelity)
+                        self.temp_qubits[mem_pos] = (self.estimate_fidelity_theoretical(initial_fidelity), sim_time())
                         self.logger.info(
                             f"ManageEntangle {self.name} -> Entangle signal from QSource, mem_pos: {mem_pos}\n"
                             f"\tInitial Fidelity: {initial_fidelity}\n "
-                            f"\tEstimated Fidelity: {self.temp_qubits[mem_pos]}", color="blue")
+                            f"\tEstimated Fidelity: {self.temp_qubits[mem_pos]}\n"
+                            f"\tTime {sim_time()}", color="blue")
                     else:
                         # add the qubit to the entangled qubits
                         self.logger.info(
@@ -368,7 +407,12 @@ class EntanglementHandler(NodeProtocol):
         self.re_entangle_flush_time = None
         # reset the shutdown flag
         self.shutdown = False
+        self.entanglement_watcher.stop()
         super().reset()
+
+    def stop(self):
+        self.entanglement_watcher.stop()
+        super().stop()
 
     @property
     def is_connected(self):
@@ -381,3 +425,27 @@ class EntanglementHandler(NodeProtocol):
             print(f"Memory {self.entangle_node}_qmemory not found")
             return False
         return True
+
+
+class EntanglementWatcher(NodeProtocol):
+    """
+    A protocol that will just watch entangle pairs from EH protocol and
+    re-entangle if qubits lost during transmission
+    """
+
+    def __init__(self, node, main_protocol: EntanglementHandler, name, lg=None):
+        super().__init__(node=node, name=name)
+        self.main_protocol = main_protocol
+        # logger setup
+        if lg is None:
+            self.logger = Logging.Logger(f"{self.name}_logger", logging_enabled=True)
+        else:
+            self.logger = lg
+
+    def run(self):
+        while self.is_running:
+            yield self.await_timer(5000)
+            self.main_protocol.check_temp_entanglement()
+
+    def stop(self):
+        super().stop()

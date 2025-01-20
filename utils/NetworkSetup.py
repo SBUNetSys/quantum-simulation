@@ -7,7 +7,7 @@ from netsquid.components import ClassicalChannel, QuantumChannel
 from netsquid.components.qsource import QSource, SourceStatus
 from netsquid.components.qprocessor import QuantumProcessor
 from netsquid.components.models.delaymodels import FibreDelayModel
-from netsquid.components.models.qerrormodels import DepolarNoiseModel
+from netsquid.components.models.qerrormodels import DepolarNoiseModel, FibreLossModel
 from netsquid.qubits.state_sampler import StateSampler
 
 
@@ -72,7 +72,7 @@ def setup_network(nodes_list, network_name,
             right_node = nodes[index + 1]
             # case of we are the source node
             internal_qchannel = QuantumChannel(name=f"QChannel_{node.name}->{node.name}", length=0,
-                                               models={"quantum_loss_model": None,
+                                               models={"quantum_loss_model": FibreLossModel(p_loss_init=0),
                                                        # "delay_model": FibreDelayModel(c=200e3),
                                                        "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
             # internal qchannel to link right_qmemory for source node
@@ -81,7 +81,7 @@ def setup_network(nodes_list, network_name,
              .connect(node.subcomponents[right_node.name + "_qmemory"].ports["qin0"]))
             # create a quantum channel between the source node and the next node
             qchannel = QuantumChannel(name=f"QChannel_{node.name}->{right_node.name}", length=node_distance,
-                                      models={"quantum_loss_model": None,
+                                      models={"quantum_loss_model": FibreLossModel(p_loss_init=0),
                                               # "delay_model": FibreDelayModel(c=200e3),
                                               "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
 
