@@ -124,7 +124,9 @@ class EntanglementHandler(NodeProtocol):
         mem_pos = entangle_data.mem_pos
         self.logger.info(f"ManageEntangle {self.name} -> Entanglement signal from {from_node} to {to_node}\n"
                          f"mem_pos: {mem_pos}\n"
-                         f"time: {sim_time()}", color="blue")
+                         f"time: {sim_time()}\n"
+                         f"message time: {entangle_data.timestamp}\n"
+                         f"temp qubits: {self.temp_qubits}", color="blue")
         if mem_pos in self.temp_qubits:
             # add the qubit to the entangled qubits
             fid, _ = self.temp_qubits[mem_pos]
@@ -206,13 +208,16 @@ class EntanglementHandler(NodeProtocol):
         if is over 5000 ns, we consider it was lost and need re-entangle
         :return
         """
-
         re_entangle_poses = []
         current_time = sim_time()
         pos = list(self.temp_qubits.keys())
         for p in pos:
             _, t = self.temp_qubits[p]
-            if current_time - t > 5000:
+            if current_time - t > 10001:
+                self.logger.info(f"ManageEntangle {self.name} -> Time out for entanglement establishment\n"
+                                 f"\tRe-entangle Qubits Mem: {p}\n"
+                                 f"\tCurrent Time: {current_time}\n"
+                                 f"\tEntangle Time: {t}\n", color="red")
                 re_entangle_poses.append(p)
                 self.temp_qubits.pop(p)
         # send to lower layer as the remote is ready for re-entangle.
@@ -238,8 +243,10 @@ class EntanglementHandler(NodeProtocol):
         time_spend = self.node_distance / 200e3
         # p_depolar = 1 - np.exp(-depolar_rate * channel_length)
         # f_depolar = (1 - p_depolar) + (p_depolar / 4)
-        p_depolar = 1 - np.exp(-self.depolar_rate * time_spend)
+        p_depolar = 1 - np.exp(-(self.depolar_rate) * time_spend)
         f_depolar = (1 - p_depolar) + (p_depolar / 4)
+
+        # final_fidelity = initial_fidelity * (0.25 + 0.75 * np.exp(-self.depolar_rate * time_spend))
 
         # # Dephasing effect
         # p_dephase = 1 - np.exp(-dephase_rate * channel_length)
@@ -258,6 +265,7 @@ class EntanglementHandler(NodeProtocol):
                             self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_FINISHED) |
                             self.re_entangle_ready_signals)
         self.entanglement_watcher.start()
+        start_time = sim_time()
         while True:
             # wait for entanglement
             expr = yield self.qubit_input_signal | entangle_signals
@@ -287,8 +295,10 @@ class EntanglementHandler(NodeProtocol):
                     else:
                         # add the qubit to the entangled qubits
                         self.logger.info(
-                            f"ManageEntangle {self.name} -> Entangle signal from {entangle_node}, mem_pos: {mem_pos}",
-                            color="blue")
+                            f"ManageEntangle {self.name} -> Entangle signal from Remote node\n"
+                            f"from {entangle_node}\n"
+                            f"mem_pos: {mem_pos}",
+                            color="yellow")
                         # we don't need to estimate the fidelity for the remote node
                         # as we don't know the initial fidelity. Here it will be None
                         self.entangled_qubits[mem_pos] = initial_fidelity
@@ -296,8 +306,8 @@ class EntanglementHandler(NodeProtocol):
                         # send the entangled signal to the source node
                         self.cc_message_handler.send_message(MessageType.ENTANGLED, entangle_node,
                                                              ClassicalMessage(
-                                                                 self.node.name, entangle_node,
-                                                                 SignalMessages.EntangleSignalMessage(
+                                                                 from_node=self.node.name, to_node=entangle_node,
+                                                                 data=SignalMessages.EntangleSignalMessage(
                                                                      self.node.name,
                                                                      self.node.name,
                                                                      mem_pos)
@@ -324,12 +334,17 @@ class EntanglementHandler(NodeProtocol):
                         if result.from_node != self.entangle_node:
                             # we don't process the message that is not from the entangle node
                             continue
+                        if result.data.timestamp < start_time:
+                            continue
                     if isinstance(result, SignalMessages.ReEntangleSignalMessage):
                         if result.entangle_node != self.entangle_node:
                             # we don't process the message that is not for the current node
                             continue
+                        if result.timestamp < start_time:
+                            continue
                     if ready_signal.label == MessageType.ENTANGLED:
                         result: ClassicalMessage
+
                         self.process_entangle_message(result)
                     elif ready_signal.label == MessageType.RE_ENTANGLE:
                         # process re-entangle signal

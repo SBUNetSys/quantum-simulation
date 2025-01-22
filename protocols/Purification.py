@@ -358,8 +358,14 @@ class Purification(NodeProtocol):
                 # handle the entangle signal from the entanglement handler
                 for event in expr.first_term.triggered_events:
                     source_protocol = event.source
-                    ready_signal = source_protocol.get_signal_by_event(
+                    try:
+                        ready_signal = source_protocol.get_signal_by_event(
                         event=event, receiver=self)
+                    except Exception as e:
+                        self.logger.info(f"Purify {self.name} -> "
+                                         f"Node {self.node.name} failed to get signal: {e}",
+                                         color="red")
+                        continue
                     result: SignalMessages.EntangleSuccessSignalMessage = ready_signal.result
                     if ready_signal.label == Signals.SUCCESS:
                         self.logger.info(f"Purify {self.name} -> "

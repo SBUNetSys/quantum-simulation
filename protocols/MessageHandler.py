@@ -94,6 +94,10 @@ class MessageHandler(NodeProtocol):
             for event in expr.triggered_events:
                 port = event.source
                 message = port.rx_input()
+                # TODO why we have None here??? possible reason is due to reset?
+                #  Temp fix is ignore the None
+                if message is None:
+                    continue
                 for msg in message.items:
                     self.send_signal(message.meta['header'], msg)
             # if message.header == MessageType.ENTANGLED:

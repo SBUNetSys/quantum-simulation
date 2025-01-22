@@ -1,4 +1,5 @@
 import netsquid as ns
+from netsquid import sim_time
 
 from netsquid.qubits import ketstates as ks
 from netsquid.qubits import qubitapi as qapi
@@ -63,6 +64,8 @@ class GenEntanglement(NodeProtocol):
         self._input_mem_pos = input_mem_pos
         self.entangle_node = entangle_node
         self._is_source = is_source
+        # keep track of when we started the protocol. we can use this avoid process old data
+        self.start_time = None
         # re-entangle helper
         # TODO: can we combine with to aval_mem_positions? Since we are now aligning the memory positions
         self.re_entangle_pos = []
@@ -104,9 +107,10 @@ class GenEntanglement(NodeProtocol):
                          f"\tinput memory position: {self._input_mem_pos}\n"
                          f"\tStarting Time: {ns.sim_time()}"
                          )
+
         if self.entanglement_handler is None:
             raise ValueError("Re-entangle sender must be specified.")
-
+        self.start_time = ns.sim_time()
         # the EntanglementHandler will send the {self.entangle_node}_re_entangle and we will listen for it
         # the EntanglementHandler will also send the {self.entangle_node}_re_entangle_ready and we will listen for it
 
@@ -131,6 +135,8 @@ class GenEntanglement(NodeProtocol):
         self.qubit_watcher.start()
         self.signal_watcher.start()
         self.qubit_generator.start()
+
+        yield self.await_timer(1000)
         # start the main logic
         while True:
             # the logic that we generate qubits and send them to the entangle node
@@ -155,9 +161,15 @@ class GenEntanglement(NodeProtocol):
             #         self.handle_re_entangle(event)
 
     def handle_entangle(self, init_fidelity):
+        # TODO this is a dirty way to get rid of previous round of simulation qubit input
+        if sim_time() - self.start_time < 1000:
+            self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
+                             f"Detected Previous Round Data", color="red")
+            return
         # if the qubit is received from the entangle node
         if not self._is_source:
             init_fidelity = None
+
         if len(self.aval_mem_postions) > 0:
             mem_pos = self.aval_mem_postions.pop(0)
             if self.qmemory.busy:
@@ -259,8 +271,6 @@ class GenEntanglement(NodeProtocol):
                              f"\tQubit1: {qubit_1}\n"
                              f"\tQubit2: {qubit_2}\n"
                              f"\tQState: {qubit_1.qstate}", color="red")
-            # send qubit right qmemory
-            self._qport.tx_input(qubit_1)
             # send the qubit to the right neighbour
             self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
                              f"\tSending qubit to {self.entangle_node}\n"
@@ -269,6 +279,9 @@ class GenEntanglement(NodeProtocol):
             # NETSQUID WILL THROW ERROR AS IT CANNOT HANDLE FORWARD MESSAGE TOO FAST
             # yield self.await_timer(1)
             self.node.ports[f"qout_{self.entangle_node}"].tx_output(qubit_2)
+            # send qubit to our own qmemory
+            self._qport.tx_input(qubit_1)
+
 
     def handle_re_entangle(self, event):
         source_protocol = event.source
@@ -342,9 +355,16 @@ class GenEntanglement(NodeProtocol):
                          f"\tIs Source: {self._is_source}\n"
                          f"\tCurrent Re-entangle position: {self.re_entangle_pos}", color="red")
     def re_entangle_timeout(self, re_entangle_mem_poses):
+        self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} re-entangling timeout signal received\n"
+                         f"\tRe-active mem poses: {re_entangle_mem_poses}\n"
+                         f"\tIs Source: {self._is_source}\n"
+                         f"\tCurrent Available Poses: {self.aval_mem_postions}\n"
+                         f"\tUsed Poses: {self.used_mem_positions}\n"
+                         f"\tCurrent Re-entangle position: {self.re_entangle_pos}", color="yellow")
         for mem_pos in re_entangle_mem_poses:
             self.aval_mem_postions.insert(0, mem_pos)
             self.used_mem_positions.remove(mem_pos)
+            self.entangled_pairs -= 1
         self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} re-entangling timeout signal received\n"
                          f"\tRe-active mem poses: {re_entangle_mem_poses}\n"
                          f"\tIs Source: {self._is_source}\n"

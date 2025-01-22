@@ -14,9 +14,9 @@ from netsquid.qubits.state_sampler import StateSampler
 def calculate_channel_depolar_rate(length_km, loss_db_per_km=0.2, c=200e3):
     # c is speed of light in fiber (m/s)
     loss_rate = 1 - 10 ** (-loss_db_per_km * length_km / 10)
-    transit_time = (length_km * 1000) / c  # in seconds
+    transit_time = (length_km / c) * 1e9  # in nano seconds
     depolar_rate = -np.log(1 - loss_rate) / transit_time
-    return depolar_rate
+    return 0.001
 
 
 def setup_network(nodes_list, network_name,
@@ -71,18 +71,19 @@ def setup_network(nodes_list, network_name,
         if index + 1 < len(nodes):
             right_node = nodes[index + 1]
             # case of we are the source node
-            internal_qchannel = QuantumChannel(name=f"QChannel_{node.name}->{node.name}", length=0,
-                                               models={"quantum_loss_model": FibreLossModel(p_loss_init=0),
-                                                       # "delay_model": FibreDelayModel(c=200e3),
-                                                       "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
+            internal_qchannel = QuantumChannel(name=f"QChannel_{node.name}->{node.name}", length=0, models={
+                "delay_model": FibreDelayModel(c=200e3), })
+            # models={"quantum_loss_model": FibreLossModel(p_loss_init=0),
+            #         "delay_model": FibreDelayModel(c=200e3),
+            #         "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
             # internal qchannel to link right_qmemory for source node
             node.add_subcomponent(internal_qchannel, name="internal_qchannel")
             (node.subcomponents["internal_qchannel"].ports["recv"]
              .connect(node.subcomponents[right_node.name + "_qmemory"].ports["qin0"]))
             # create a quantum channel between the source node and the next node
             qchannel = QuantumChannel(name=f"QChannel_{node.name}->{right_node.name}", length=node_distance,
-                                      models={"quantum_loss_model": FibreLossModel(p_loss_init=0),
-                                              # "delay_model": FibreDelayModel(c=200e3),
+                                      models={"quantum_loss_model": FibreLossModel(p_loss_init=0.01, p_loss_length=0.5),
+                                              "delay_model": FibreDelayModel(c=200e3),
                                               "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
 
             port_name_a, port_name_b = network.add_connection(

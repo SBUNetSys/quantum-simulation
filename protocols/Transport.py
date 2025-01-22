@@ -120,8 +120,14 @@ class Transportation(NodeProtocol):
                 # case we have qubit input signal
                 for event in expr.first_term.triggered_events:
                     source_protocol = event.source
-                    ready_signal = source_protocol.get_signal_by_event(
+                    try:
+                        ready_signal = source_protocol.get_signal_by_event(
                         event=event, receiver=self)
+                    except Exception as e:
+                        self.logger.info(f"Transport {self.name} -> Failed to parse signal\n"
+                                         f"Node: {self.node.name}\n"
+                                         f"Error: {e}", color="red")
+                        continue
                     # result -> EntangleSignalMessage (Maybe Purification or Verification)
                     result = ready_signal.result
                     mem_pos = result.mem_pos
@@ -410,6 +416,8 @@ class Transportation(NodeProtocol):
             qubit, = qmemory.pop(message.target_memo_pos, skip_noise=False)
             fid = qapi.fidelity(qubit, ns.y0)
             self.final_result[message.target_node][message.target_memo_pos] = fid
+            if fid < 0.99:
+                print("hi")
             self.logger.info(f"Transport {self.name} -> received Qubits\n"
                              f"Current Qubits Received {len(self.final_result[self.entangled_node])}\n"
                              f"Target Qubits Needed {self.transmitting_qubit_size}\n", color="green")
