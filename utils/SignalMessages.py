@@ -201,12 +201,13 @@ class SwapApplyCorrectionMessage:
     :param target_node: entangle node name
     :param intermediate_node: intermediate node name who will perform the swap
     :param memo_pos: memory position
+    :param target_mem_pos: memory position that is on the other side of node
     :param operation_key: operation key is used to identify the swap operation
     :param m1 : measurement result source -> intermediate
     :param m2 : measurement result intermediate -> target
     """
 
-    def __init__(self, source_node, target_node, intermediate_node, operation_key, memo_pos, m1, m2):
+    def __init__(self, source_node, target_node, intermediate_node, operation_key, memo_pos, target_mem_pos, m1, m2):
         self.source_node = source_node
         self.target_node = target_node
         self.intermediate_node = intermediate_node
@@ -214,6 +215,7 @@ class SwapApplyCorrectionMessage:
         self.memo_pos = memo_pos
         self.m1 = m1
         self.m2 = m2
+        self.target_mem_pos = target_mem_pos
         self.timestamp = ns.sim_time()
 
 
@@ -235,13 +237,15 @@ class SwapSuccessMessage:
     :param target_node: entangle node name
     :param intermediate_node: intermediate node name who will perform the swap
     :param memo_pos: memory position
+    :param target_memo_pos: the entangled memory position respect to the remote node
     """
 
-    def __init__(self, source_node, target_node, intermediate_node, memo_pos):
+    def __init__(self, source_node, target_node, intermediate_node, memo_pos, target_memo_pos):
         self.source_node = source_node
         self.target_node = target_node
         self.intermediate_node = intermediate_node
         self.memo_pos = memo_pos
+        self.target_memo_pos = target_memo_pos
         self.timestamp = ns.sim_time()
 
 class SwapFailedMessage:
@@ -265,11 +269,13 @@ class SwapEntangledSuccess(EntangleSignalMessage):
     :param entangle_node: entangle node name
     :param actual_entangle_node: the actual entangle node name for this entanglement
     :param memo_pos: memory position
+    :param target_memo_pos: target memory position with current entanglement
     """
 
-    def __init__(self, source_node, entangle_node, actual_entangle_node, memo_pos):
+    def __init__(self, source_node, entangle_node, actual_entangle_node, memo_pos, target_memo_pos):
         super().__init__(source_node, entangle_node, memo_pos)
         self.actual_entangle_node = actual_entangle_node
+        self.target_memo_pos = target_memo_pos
 
 
 class TransportRequestMessage:

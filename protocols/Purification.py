@@ -367,6 +367,8 @@ class Purification(NodeProtocol):
                                          color="red")
                         continue
                     result: SignalMessages.EntangleSuccessSignalMessage = ready_signal.result
+                    if result.timestamp < self.start_time:
+                        continue
                     if ready_signal.label == Signals.SUCCESS:
                         self.logger.info(f"Purify {self.name} -> "
                                          f"Node {self.node.name} received entangle signal: {result.__dict__}",
@@ -676,9 +678,14 @@ class Purification(NodeProtocol):
             yield self.await_program(qmemory)
         # Apply CNOT gate to qubit 1 and qubit 2
         self.logger.info(
-            f"Purify {self.name} -> Node {self.node.name} Applying CNOT gate to qubits {q1_pos} and {q2_pos}",
+            f"Purify {self.name} -> Node {self.node.name} Applying CNOT gate to qubits {q1_pos} and {q2_pos}\n"
+            f"\tTime:{sim_time()}\n"
+            f"\tMemName:{qmemory.name}",
             color="yellow")
-        qmemory.execute_instruction(INSTR_CNOT, [q1_pos, q2_pos])
+        try:
+            qmemory.execute_instruction(INSTR_CNOT, [q1_pos, q2_pos])
+        except Exception as e:
+            self.logger.error(e)
         # Apply Hadamard gate to qubit 1
         if qmemory.busy:
             yield self.await_program(qmemory)
@@ -737,5 +744,5 @@ class Purification(NodeProtocol):
 
     def stop(self):
         self.logger.info(f"Purify {self.name} -> Node {self.node.name} Stop purification protocol", color="red")
-    #     self.clear_info()
+        self.clear_info()
         super().stop()

@@ -107,7 +107,7 @@ class EndToEndExample(LocalProtocol):
                                              max_entangled_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
-                                             logger=self.logger
+                                             logger=null_logger
                                              )
                 self.add_subprotocol(pure_protocol)
                 lower_protocols.append(pure_protocol)
@@ -147,7 +147,7 @@ class EndToEndExample(LocalProtocol):
                                              max_entangled_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
-                                             logger=self.logger
+                                             logger=null_logger
                                              )
                 # Initialize the purification protocol
                 self.add_subprotocol(pure_protocol)
@@ -159,7 +159,7 @@ class EndToEndExample(LocalProtocol):
                                           final_entanglement=self.final_entanglement,
                                           cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
                                           qubit_ready_protocols=lower_protocols,
-                                          max_pairs=self.max_entangle_pairs - 1,
+                                          max_pairs=1,
                                           logger=self.logger,
                                           is_top_layer=True)
             self.add_subprotocol(end_to_end)
@@ -189,12 +189,13 @@ class EndToEndExample(LocalProtocol):
             qubit_b = self.nodes[self.final_entanglement[1]].qmemory.peek(mem_pos_b[0])[0]
 
             # print(f"Qubit names: {q_a_name}, {q_b_name}")
-            if qubit_a.qstate != qubit_a.qstate:
+            print(f"Final QState {qubit_a.qstate}, {qubit_b.qstate}")
+            if str(qubit_a.qstate) != str(qubit_a.qstate):
                 raise ValueError(f"Qubit states are not the same: {qubit_a.qstate}, {qubit_b.qstate}")
 
             # rd = qapi.reduced_dm([qubit_a, qubit_b])
             # fidelity_result = qapi.fidelity(rd, ks.b00)
-            fidelity_result = qapi.fidelity([qubit_a, qubit_b], ns.b00)
+            # fidelity_result = qapi.fidelity([qubit_a, qubit_b], ns.b00)
             # print(f"Fidelity of the final entanglement: {fidelity_result}")
 
             # generate a qubit for teleportation
@@ -229,7 +230,7 @@ class EndToEndExample(LocalProtocol):
             qapi.operate(qubit, ops.H)
             qapi.operate(qubit, ops.S)
             teleport_res = self.test_teleportation(qubit_a, qubit_b, qubit)
-            self.send_signal(Signals.SUCCESS, {"fidelity": fidelity_result,
+            self.send_signal(Signals.SUCCESS, {"fidelity": teleport_res,
                                                "duration": end_time - start_time,
                                                "teleportation_success": 1 if teleport_res else 0,})
             for subprotocol in self.subprotocols.values():
@@ -324,18 +325,18 @@ def plot_line(xs, ys, title, x_label, y_label, data_legends, xlim=None, save=Tru
         plt.savefig(os.path.join(save_dir, f"{title}.png"))
     plt.show()
 
-def run_e2e_test(distances=3):
-    nodes_list = [f"Node_{i}" for i in range(10)]
+def run_e2e_test(distances=1):
+    nodes_list = [f"Node_{i}" for i in range(5)]
     network = setup_network(nodes_list, "end-to-end-network",
-                            memory_capacity=128, memory_depolar_rate=100,
+                            memory_capacity=5, memory_depolar_rate=63109,
                             node_distance=distances, source_delay=1)
     sample_nodes = [node for node in network.nodes.values()]
     end_to_end_example, dc = example_sim_run(sample_nodes,
-                                             10,
-                                             100,
+                                             1,
+                                             63109,
                                              distances,
-                                             2,
-                                             0.995)
+                                             5,
+                                             0.98)
     end_to_end_example.start()
     ns.sim_run()
     collected_data = dc.dataframe
@@ -452,9 +453,9 @@ def plot_distance(max_distance):
 
 if __name__ == '__main__':
     # seed = np.random.randint(0, 10000)
-    # seed = 524
+    # # seed = 524
     # np.random.seed(seed)
-    # print(f'{seed}')
+    # print(f'seed {seed}')
 
     # node_list = ["node_A", "node_B", "node_C", "node_D", "node_E", "node_F"]
     # network = example_network_setup(nodes_list=node_list, node_distance=20, memory_depolar_rate=100)
@@ -470,7 +471,7 @@ if __name__ == '__main__':
     # data = experiment_with_increasing_node(50)
     # data = experiment_with_increase_memory_noise(100000)
     # data = experiment_with_increase_node_distance(1000)
-    run_e2e_test(3)
+    run_e2e_test(1)
     # run_e2e_multi_node(11, distances=3)
     # matplotlib.use('TkAgg')
     # import matplotlib

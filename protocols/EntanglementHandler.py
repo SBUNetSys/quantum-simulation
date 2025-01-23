@@ -69,6 +69,8 @@ class EntanglementHandler(NodeProtocol):
         self.entangle_message_queue = []
         # re-entangle message queue
         self.re_entangle_message_queue = []
+        # deal with remote ready messages
+        self.re_entangle_remote_message_queue = []
         self.re_entangle_flush_time = None
         # store the depolar rate and node distance
         self.depolar_rate = memory_depolar_rate
@@ -99,11 +101,10 @@ class EntanglementHandler(NodeProtocol):
         self.add_new_signal(MessageType.ENTANGLED)
         self.add_new_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED)
         self.shutdown = False
-
+        self.processed_re_entangled = False
         self.is_top_layer = is_top_layer
         # if self.is_top_layer:
         #     self.add_new_signal(MessageType.PROTOCOL_FINISHED)
-
     def add_new_signal(self, signal_label):
         """
         Add a new signal to the protocol. This allows the protocol to emit the signal with the signal label.
@@ -151,14 +152,21 @@ class EntanglementHandler(NodeProtocol):
                                  self.node.name,
                                  from_node, mem_pos,
                                  self.entangled_qubits[mem_pos]))
+
+            # process any re-tangle message before we start generate next round of qubits
+            if len(self.re_entangle_remote_message_queue) >0:
+                self.process_re_entangle_ready_remote_message_queue(caller="after_entangle")
+                self.processed_re_entangled = True
+            yield self.await_timer(1)
             # send the entangled signal to lower layer, which is the source node
             self.send_signal(MessageType.ENTANGLED, None)
 
         else:
             # store the qubit in the temporary qubits
             self.entangle_message_queue.append(message)
-            self.logger.info(f"ManageEntangle {self.name} -> Entangle signal from {from_node}, mem_pos: {mem_pos}"
-                             f" not ready yet", color="blue")
+            self.logger.info(f"ManageEntangle {self.name} -> Remote Entangle signal from {from_node} arrived early\n"
+                             f"\tmem_pos: {mem_pos}\n",
+                              color="Red")
 
     def process_re_entangle_message(self, message: SignalMessages.ReEntangleSignalMessage):
         """
@@ -188,7 +196,7 @@ class EntanglementHandler(NodeProtocol):
             self.process_entangle_message(message)
 
     def process_re_entangle_message_queue(self):
-        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time > 100:
+        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time > 5000:
             if len(self.re_entangle_message_queue) == 0:
                 return
             self.re_entangle_flush_time = ns.sim_time()
@@ -202,6 +210,22 @@ class EntanglementHandler(NodeProtocol):
             batch_message = SignalMessages.ReEntangleSignalMessage(self.entangle_node, ready_mem_poses)
             self.process_re_entangle_message(batch_message)
 
+    def process_re_entangle_ready_remote_message_queue(self, caller="upper"):
+        # we dont do anything if we have pending qubit to confirm. This is to avoid conflict with qubit timeout and
+        # re-entangle causing qport overwhelm
+        if len(self.temp_qubits) > 0 or len(self.re_entangle_remote_message_queue) == 0:
+            return
+        data = self.re_entangle_remote_message_queue
+        self.re_entangle_remote_message_queue = []
+        re_poses = []
+        for re_entangle_data in data:
+            # self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
+            #                 re_entangle_data)
+            re_poses+=re_entangle_data.re_entangle_mem_poses
+        r_data = SignalMessages.ReEntangleSignalMessage(entangle_node=self.entangle_node,
+                                                        re_entangle_mem_poses=re_poses, re_entangle_type=caller)
+        self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
+                        r_data)
     def check_temp_entanglement(self):
         """
         this function check all temp qubit established time
@@ -213,7 +237,7 @@ class EntanglementHandler(NodeProtocol):
         pos = list(self.temp_qubits.keys())
         for p in pos:
             _, t = self.temp_qubits[p]
-            if current_time - t > 10001:
+            if current_time - t > 15001:
                 self.logger.info(f"ManageEntangle {self.name} -> Time out for entanglement establishment\n"
                                  f"\tRe-entangle Qubits Mem: {p}\n"
                                  f"\tCurrent Time: {current_time}\n"
@@ -243,7 +267,8 @@ class EntanglementHandler(NodeProtocol):
         time_spend = self.node_distance / 200e3
         # p_depolar = 1 - np.exp(-depolar_rate * channel_length)
         # f_depolar = (1 - p_depolar) + (p_depolar / 4)
-        p_depolar = 1 - np.exp(-(self.depolar_rate) * time_spend)
+        # p_depolar = 1 - np.exp(-(self.depolar_rate) * time_spend)
+        p_depolar = 1 - np.exp(-8641 * time_spend)
         f_depolar = (1 - p_depolar) + (p_depolar / 4)
 
         # final_fidelity = initial_fidelity * (0.25 + 0.75 * np.exp(-self.depolar_rate * time_spend))
@@ -268,6 +293,7 @@ class EntanglementHandler(NodeProtocol):
         start_time = sim_time()
         while True:
             # wait for entanglement
+            self.processed_re_entangled = False
             expr = yield self.qubit_input_signal | entangle_signals
             if expr.first_term.value:
                 # case we have qubit input signal
@@ -278,6 +304,8 @@ class EntanglementHandler(NodeProtocol):
                     result = ready_signal.result
                     gen_data: SignalMessages.NewEntanglementSignalMessage = result
                     if gen_data.source_node != self.node.name:
+                        continue
+                    if gen_data.timestamp < start_time:
                         continue
                     mem_pos = gen_data.mem_pos
                     is_source = gen_data.is_source
@@ -292,12 +320,14 @@ class EntanglementHandler(NodeProtocol):
                             f"\tInitial Fidelity: {initial_fidelity}\n "
                             f"\tEstimated Fidelity: {self.temp_qubits[mem_pos]}\n"
                             f"\tTime {sim_time()}", color="blue")
+
                     else:
                         # add the qubit to the entangled qubits
                         self.logger.info(
                             f"ManageEntangle {self.name} -> Entangle signal from Remote node\n"
                             f"from {entangle_node}\n"
-                            f"mem_pos: {mem_pos}",
+                            f"mem_pos: {mem_pos}\n"
+                            f"time {sim_time()}",
                             color="yellow")
                         # we don't need to estimate the fidelity for the remote node
                         # as we don't know the initial fidelity. Here it will be None
@@ -345,7 +375,7 @@ class EntanglementHandler(NodeProtocol):
                     if ready_signal.label == MessageType.ENTANGLED:
                         result: ClassicalMessage
 
-                        self.process_entangle_message(result)
+                        yield from self.process_entangle_message(result)
                     elif ready_signal.label == MessageType.RE_ENTANGLE:
                         # process re-entangle signal
                         result: SignalMessages.ReEntangleSignalMessage
@@ -375,12 +405,14 @@ class EntanglementHandler(NodeProtocol):
                         # process re-entangle ready remote signal
                         # only source node will receive this signal, we can clear up the memory and generate new qubit
                         re_entangle_data: SignalMessages.ReEntangleSignalMessage = result.data
-                        self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal from "
-                                         f"{re_entangle_data.entangle_node},"
-                                         f" mem_pos: {re_entangle_data.re_entangle_mem_poses}", color="purple")
+                        self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal ready remote\n"
+                                         f"\tfrom {re_entangle_data.entangle_node}\n"
+                                         f"\tmem_pos: {re_entangle_data.re_entangle_mem_poses}\n"
+                                         f"\ttemp qubit: {self.temp_qubits}", color="purple")
                         # forwards the re-entangle signal to the source node
-                        self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
-                                         re_entangle_data)
+                        # self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
+                                         # re_entangle_data)
+                        self.re_entangle_remote_message_queue.append(re_entangle_data)
                     elif ready_signal.label == MessageType.PURIFICATION_FINISHED:
                         # we upper layer is finished, we need gracefully shutdown
                         # ignore the message if the signal not meant for us
@@ -393,6 +425,9 @@ class EntanglementHandler(NodeProtocol):
 
             self.process_message_queue()
             self.process_re_entangle_message_queue()
+            if not self.processed_re_entangled:
+                self.process_re_entangle_ready_remote_message_queue()
+
             if self.shutdown:
                 # by default the graceful shutdown will not continue generation of qubits
                 # check if we need to stop the simulation, ths case that we happen to have no more qubits to generate
@@ -420,6 +455,7 @@ class EntanglementHandler(NodeProtocol):
         # reset the shutdown flag
         self.re_entangle_message_queue = []
         self.re_entangle_flush_time = None
+        self.re_entangle_remote_message_queue = []
         # reset the shutdown flag
         self.shutdown = False
         self.entanglement_watcher.stop()

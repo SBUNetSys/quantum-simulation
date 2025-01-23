@@ -136,7 +136,7 @@ class GenEntanglement(NodeProtocol):
         self.signal_watcher.start()
         self.qubit_generator.start()
 
-        yield self.await_timer(1000)
+        yield self.await_timer(15001)
         # start the main logic
         while True:
             # the logic that we generate qubits and send them to the entangle node
@@ -162,10 +162,10 @@ class GenEntanglement(NodeProtocol):
 
     def handle_entangle(self, init_fidelity):
         # TODO this is a dirty way to get rid of previous round of simulation qubit input
-        if sim_time() - self.start_time < 1000:
-            self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
-                             f"Detected Previous Round Data", color="red")
-            return
+        # if sim_time() - self.start_time < 15001:
+        #     self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
+        #                      f"Detected Previous Round Data", color="red")
+        #     return
         # if the qubit is received from the entangle node
         if not self._is_source:
             init_fidelity = None
@@ -271,6 +271,8 @@ class GenEntanglement(NodeProtocol):
                              f"\tQubit1: {qubit_1}\n"
                              f"\tQubit2: {qubit_2}\n"
                              f"\tQState: {qubit_1.qstate}", color="red")
+            # send qubit to our own qmemory
+            self._qport.tx_input(qubit_1)
             # send the qubit to the right neighbour
             self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
                              f"\tSending qubit to {self.entangle_node}\n"
@@ -279,8 +281,7 @@ class GenEntanglement(NodeProtocol):
             # NETSQUID WILL THROW ERROR AS IT CANNOT HANDLE FORWARD MESSAGE TOO FAST
             # yield self.await_timer(1)
             self.node.ports[f"qout_{self.entangle_node}"].tx_output(qubit_2)
-            # send qubit to our own qmemory
-            self._qport.tx_input(qubit_1)
+
 
 
     def handle_re_entangle(self, event):
@@ -319,15 +320,29 @@ class GenEntanglement(NodeProtocol):
             elif ready_signal.label == f"{self.name}_re_entangle_ready" and self._is_source:
                 self.logger.info(
                     f"GenEntangle {self.name} -> Node {self.node.name} received re-entangle ready signal from "
-                    f"{result.entangle_node}, mem_pos: {result.re_entangle_mem_poses}",
+                    f"{result.entangle_node}, mem_pos: {result.re_entangle_mem_poses}, type:{result.re_entangle_type}",
                     color="cyan")
                 # TODO: we need to check if we need to send the re-entangle signal or not
                 #       to trigger qubit generation. We cannot send the signal if we have available memory positions
                 #       or we already have re-entangle positions which the main loop will take care of it
-                send_signal = len(self.re_entangle_pos) == 0 and len(self.aval_mem_postions) == 0
+                # after entangle means re-entangle is being processed during a EPR matched, otherwise normal process
+                # this is to deal the edge case of stall after last re-entangle is processed
+                if result.re_entangle_type == "after_entangle":
+                    send_signal = False
+                else:
+                    send_signal = len(self.re_entangle_pos) == 0 and len(self.aval_mem_postions) == 0
+
                 # we need to add the memory position to the re-entangle position
                 self.re_entangle_position(result.re_entangle_mem_poses)
                 if send_signal:
+                    self.logger.info(
+                        f"GenEntangle {self.name} -> Node {self.node.name} received re-entangle ready "
+                        f"sending RE_ENTANGLE_READY_SOURCE signal\n"
+                        f"\tEntangle Node {result.entangle_node}\n"
+                        f"\tmem_pos: {result.re_entangle_mem_poses}\n"
+                        f"\tUsed Mem:{self.used_mem_positions}\n"
+                        f"\tRe-entangle positions: {result.re_entangle_mem_poses}",
+                        color="cyan")
                     self.send_signal(MessageType.RE_ENTANGLE_READY_SOURCE, result)
             else:
                 # case of qubit lost due to timeout signal
@@ -364,6 +379,12 @@ class GenEntanglement(NodeProtocol):
         for mem_pos in re_entangle_mem_poses:
             self.aval_mem_postions.insert(0, mem_pos)
             self.used_mem_positions.remove(mem_pos)
+            # have case of retangle lost
+            # if len(self.aval_mem_postions) > 0:
+            #     self.aval_mem_postions.insert(0, mem_pos)
+            #     self.used_mem_positions.remove(mem_pos)
+            # else:
+            #     self.re_entangle_pos.insert(0, mem_pos)
             self.entangled_pairs -= 1
         self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} re-entangling timeout signal received\n"
                          f"\tRe-active mem poses: {re_entangle_mem_poses}\n"
@@ -496,6 +517,8 @@ class QubitGenerationProtocol(NodeProtocol):
             expr = (self.await_signal(self.main_protocol, MessageType.GEN_ENTANGLE_READY) |
                     self.await_signal(self.main_protocol, MessageType.RE_ENTANGLE_READY_SOURCE))
             yield expr
+            if sim_time() - self.main_protocol.start_time < 15001:
+                continue
             if expr.first_term:
                 self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
                                  f"\tSignal: {expr.triggered_events[0].type}", color="red")
@@ -538,6 +561,10 @@ class QubitSignalWatcher(NodeProtocol):
         while self.is_running:
             # wait for qubit from qport
             yield self.await_port_input(self.qport)
+            if sim_time() - self.gen_protocol.start_time < 15001:
+                self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
+                                 f"Detected Previous Round Data", color="red")
+                continue
             yield from self.gen_protocol.handle_entangle(1)
 
     def stop(self):
@@ -561,7 +588,12 @@ class ReEntangleSignalWatcher(NodeProtocol):
         while self.is_running:
             expr = (self.await_signal(self.watch_protocol, signal_label=self.watch_signal) |
                     self.await_signal(self.watch_protocol, signal_label=MessageType.RE_ENTANGLE_QUBIT_LOST))
+
             yield expr
+            if sim_time() - self.main_protocol.start_time < 15001:
+                self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
+                                 f"Detected Previous Round Data", color="red")
+                continue
             self.logger.info(f"ReEntangleSignalWatcher {self.name} -> Node {self.node.name} received signal\n"
                              f"\tSignal: {self.watch_signal}", color="red")
             self.main_protocol.handle_re_entangle(expr.triggered_events[0])
