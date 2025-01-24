@@ -245,7 +245,7 @@ class TransportWithVerificationExample(LocalProtocol):
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": index})
             p_done = False
-            # print(f"Start Stop Purification of run index {index}")
+            print(f"Start Stop Purification of run index {index}")
             start_end_time = sim_time()
             while not p_done:
                 yield self.await_timer(1000)
@@ -256,7 +256,7 @@ class TransportWithVerificationExample(LocalProtocol):
                             all_done = False
                 if all_done:
                     p_done = True
-                if sim_time() - start_end_time > 1000000000:
+                if sim_time() - start_end_time > 100000:
                     break
             # print(f"Finished Stop Purification of run index {index}")
             for subprotocol in self.subprotocols.values():
