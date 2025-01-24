@@ -538,7 +538,8 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Verification Run {result['run_index']} completed, fid{result['results']['teleport_fids']}")
+        print(f"Verification Run {result['run_index']} completed, fid{result['results']['teleport_fids']}, "
+              f"sim_time {sim_time()}")
         return result["results"]
 
     dc = DataCollector(record_run, include_time_stamp=False,
@@ -1049,6 +1050,10 @@ def run_evaluation_4_node_verify_new(qubit_number=1):
 
 
 if __name__ == '__main__':
+    seed = np.random.randint(0, 10000)
+    # seed = 524
+    np.random.seed(seed)
+    print(f'seed {seed}')
     if len(sys.argv) == 2:
         run_multi_node_verification_example_one_run(int(sys.argv[1]))
     else:
