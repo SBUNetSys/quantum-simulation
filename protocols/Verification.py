@@ -106,6 +106,8 @@ class Verification(NodeProtocol):
                     result: SignalMessages.PurifySuccessSignalMessage = ready_signal.result
                     if result.entangle_node != self.entangled_node:
                         continue
+                    if result.timestamp < self.start_time:
+                        continue
                     if ready_signal.label == Signals.SUCCESS:
                         self.logger.info(f"{self.name} -> {self.node.name} "
                                          f"received entanglement signal from {source_protocol.name}\n"
