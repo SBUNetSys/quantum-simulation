@@ -377,7 +377,7 @@ class Purification(NodeProtocol):
                             continue
                         self.handle_entangle_signal(result)
 
-            if expr.second_term.value:
+            elif expr.second_term.value:
                 for event in expr.second_term.triggered_events:
                     source_protocol = event.source
                     try:

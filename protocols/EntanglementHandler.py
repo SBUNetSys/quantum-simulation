@@ -196,7 +196,7 @@ class EntanglementHandler(NodeProtocol):
             self.process_entangle_message(message)
 
     def process_re_entangle_message_queue(self):
-        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time > 5000:
+        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time >= 5000:
             if len(self.re_entangle_message_queue) == 0:
                 return
             self.re_entangle_flush_time = ns.sim_time()
