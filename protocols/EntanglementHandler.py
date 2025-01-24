@@ -75,6 +75,7 @@ class EntanglementHandler(NodeProtocol):
         # store the depolar rate and node distance
         self.depolar_rate = memory_depolar_rate
         self.node_distance = node_distance
+        self.timeout_time = 3 *(self.node_distance / 200e3)*1e9
         # store the qubit input protocol
         self.qubit_input_protocol = qubit_input_protocol
         # re-entangle ready signal from GenEntanglement protocol
@@ -196,7 +197,7 @@ class EntanglementHandler(NodeProtocol):
             self.process_entangle_message(message)
 
     def process_re_entangle_message_queue(self):
-        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time >= 5000:
+        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time >= 10000:
             if len(self.re_entangle_message_queue) == 0:
                 return
             self.re_entangle_flush_time = ns.sim_time()
@@ -221,7 +222,8 @@ class EntanglementHandler(NodeProtocol):
         for re_entangle_data in data:
             # self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
             #                 re_entangle_data)
-            re_poses+=re_entangle_data.re_entangle_mem_poses
+            for pos in re_entangle_data.re_entangle_mem_poses:
+                re_poses.append(pos)
         r_data = SignalMessages.ReEntangleSignalMessage(entangle_node=self.entangle_node,
                                                         re_entangle_mem_poses=re_poses, re_entangle_type=caller)
         self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
@@ -237,7 +239,7 @@ class EntanglementHandler(NodeProtocol):
         pos = list(self.temp_qubits.keys())
         for p in pos:
             _, t = self.temp_qubits[p]
-            if current_time - t > 15001:
+            if current_time - t > self.timeout_time:
                 self.logger.info(f"ManageEntangle {self.name} -> Time out for entanglement establishment\n"
                                  f"\tRe-entangle Qubits Mem: {p}\n"
                                  f"\tCurrent Time: {current_time}\n"
