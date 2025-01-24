@@ -104,7 +104,7 @@ class TransportWithVerificationExample(LocalProtocol):
                                              max_entangled_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
-                                             logger=self.logger
+                                             logger=null_logger
                                              )
                 self.add_subprotocol(pure_protocol)
                 verify_protocol = Verification(node=node,
@@ -161,7 +161,7 @@ class TransportWithVerificationExample(LocalProtocol):
                                              max_entangled_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
-                                             logger=self.logger
+                                             logger=null_logger
                                              )
                 self.add_subprotocol(pure_protocol)
                 verify_protocol = Verification(node=node,
@@ -219,16 +219,18 @@ class TransportWithVerificationExample(LocalProtocol):
             result_dic = {"teleport_success_count": 0,
                           "total_count": 0,
                           "teleport_success_rate": 0,
-                          "duration": end_time - start_time,}
-            for mem_pos, fid  in results["results"].items():
+                          "teleport_fids": [],
+                          "duration": end_time - start_time, }
+            for mem_pos, fid in results["results"].items():
                 result_dic["total_count"] += 1
-                # get the qubit
+                # # get the qubit
                 # qubit = self.all_nodes[-1].subcomponents[f"{results['entangle_node']}_qmemory"].pop(
                 #     mem_pos, skip_noise=True)[0]
-                # measure the state
+                # # measure the state
                 # fidelity = qapi.fidelity(qubit, ns.y0)
                 if fid > 0.99:
                     result_dic["teleport_success_count"] += 1
+                result_dic['teleport_fids'].append(fid)
             # final success rate
             result_dic["teleport_success_rate"] = result_dic["teleport_success_count"] / result_dic["total_count"]
             for subprotocol_name, subprotocol in self.subprotocols.items():
@@ -244,6 +246,7 @@ class TransportWithVerificationExample(LocalProtocol):
                                                "run_index": index})
             p_done = False
             # print(f"Start Stop Purification of run index {index}")
+            start_end_time = sim_time()
             while not p_done:
                 yield self.await_timer(1000)
                 all_done = True
@@ -253,6 +256,8 @@ class TransportWithVerificationExample(LocalProtocol):
                             all_done = False
                 if all_done:
                     p_done = True
+                if sim_time() - start_end_time > 1000000000:
+                    break
             # print(f"Finished Stop Purification of run index {index}")
             for subprotocol in self.subprotocols.values():
                 subprotocol.reset()
@@ -529,7 +534,7 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Verification Run {result['run_index']} completed")
+        print(f"Verification Run {result['run_index']} completed, fid{result['results']['teleport_fids']}")
         return result["results"]
 
     dc = DataCollector(record_run, include_time_stamp=False,
@@ -919,7 +924,8 @@ def run_evaluation_5_node(qubit_number=5):
     transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1000, memory_depolar_rate=63109,
                                                               node_distance=1,
                                                               max_entangle_pairs=9, target_fidelity=0.98,
-                                                              skip_noise=True, qubit_to_transport=qubit_number)
+                                                              skip_noise=True, qubit_to_transport=qubit_number,
+                                                              )
     # Run the simulation
     transport_example.start()
     ns.sim_run()
@@ -944,13 +950,49 @@ def run_evaluation_5_node(qubit_number=5):
     with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification.json", "w") as f:
         json.dump(node_data, f)
 
+def run_evaluation_4_node_verify(qubit_number=1):
+    nodes_list = [f"Node_{i}" for i in range(4)]
+    network = setup_network(nodes_list, "hop-by-hop-transportation",
+                            memory_capacity=10, memory_depolar_rate=63109,
+                            node_distance=1, source_delay=1)
+    # create a protocol to entangle two nodes
+    sample_nodes = [node for node in network.nodes.values()]
+    transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1000, memory_depolar_rate=63109,
+                                                              node_distance=1,
+                                                              max_entangle_pairs=9, target_fidelity=0.98,
+                                                              skip_noise=True, qubit_to_transport=qubit_number,
+                                                              m_size=3, batch_size=4)
+    # Run the simulation
+    transport_example.start()
+    ns.sim_run()
+    # Collect the data
+    collected_data = dc.dataframe
+    node_data = {}
+    collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
+    for c in collected_data.columns:
+        if c == "teleport_fids":
+            s = []
+            for t in collected_data[c]:
+                s += t
+            node_data[c] = np.mean(s)
+        else:
+            node_data[c] = collected_data[c].mean()
+        # if c not in node_data:
+        #     node_data[c] = []
+        # node_data[c].append(collected_data[c].mean())
+        if len(collected_data[c]) < 1000:
+            print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+        print(f"5 Node ->{c}: {collected_data[c]}")
+    with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification.json", "w") as f:
+        json.dump(node_data, f)
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:
         run_multi_node_verification_example_one_run(int(sys.argv[1]))
     else:
         # run_test_example_with_purification()
-        run_evaluation_5_node(1)
+        # run_evaluation_5_node(1)
+        run_evaluation_4_node_verify(1)
         # run_test_example_with_verification()
         # run_multi_node_purification_example(11)
         # run_multi_node_verification_example_one_run(3)

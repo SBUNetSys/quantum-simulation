@@ -145,9 +145,17 @@ class Transportation(NodeProtocol):
                             self.memory_pos_mapping[entangle_node] = {}
                         self.memory_pos_mapping[entangle_node][mem_pos] = result.target_memo_pos
                     # this is used incase we have verification, they come in batches
+                    # qmemory = self.get_qmemory(entangle_node)
                     if type(mem_pos) == list:
                         for pos in mem_pos:
                             self.entangled_qubits[entangle_node][pos] = True
+                            # qubit_a, = qmemory.peek(pos, skip_noise=False)
+                            # self.logger.info(
+                            #     f"Transport {self.name} Received Entangled Qubit\n"
+                            #     f"Target node: {entangle_node}\n"
+                            #     f"Target memo pos: {pos}\n"
+                            #     f"Source QState: {qubit_a.qstate}", color="green"
+                            # )
                     else:
                         self.entangled_qubits[entangle_node][mem_pos] = True
                     self.check_transport_ready()
@@ -348,10 +356,12 @@ class Transportation(NodeProtocol):
                 yield self.await_program(qmemory_a)
             qubit_a, = qmemory_a.pop(op.source_mem_pos, skip_noise=False)
             self.logger.info(
-                f"Transport {self.name} Start Teleporting Qubit\n"
+                f"Transport {self.name} Start Teleporting Qubit as Sender\n"
                 f"Operation: {message.operation_key}\n"
                 f"Target node: {op.target_node}\n"
-                f"Target memo pos: {op.source_mem_pos}", color="green"
+                f"Target memo pos: {op.source_mem_pos}\n"
+                # f"QState: {qubit_a.qstate}"
+                , color="green"
             )
         else:
             qmemory = self.get_qmemory(op.source_node)
@@ -363,7 +373,16 @@ class Transportation(NodeProtocol):
             if qmemory_a.busy:
                 yield self.await_program(qmemory_a)
             qubit_a, = qmemory_a.pop(op.target_mem_pos, skip_noise=False)
-
+            self.logger.info(
+                f"Transport {self.name} Start Teleporting Qubit as Middle Node\n"
+                f"Operation: {message.operation_key}\n"
+                f"Source Node: {op.source_node}\n"
+                f"Source memo pos: {op.source_mem_pos}\n"
+                f"Target node: {op.target_node}\n"
+                f"Target memo pos: {op.target_mem_pos}\n"
+                # f"QState: {qubit_a.qstate}"
+                , color="green"
+            )
         # perform teleport measurement
         qapi.operate(qubits=[teleport_qubit, qubit_a], operator=ops.CNOT)
         qapi.operate(teleport_qubit, ops.H)
@@ -436,8 +455,8 @@ class Transportation(NodeProtocol):
             qubit, = qmemory.pop(message.target_memo_pos, skip_noise=False)
             fid = qapi.fidelity(qubit, ns.y0)
             self.final_result[message.target_node][message.target_memo_pos] = fid
-            if 0 < fid < 0.99:
-                print("Hi")
+            # if 0 < fid < 0.99:
+            #     print("Hi")
             self.logger.info(f"Transport {self.name} -> received Qubits\n"
                              f"Current Qubits Received {len(self.final_result[self.entangled_node])}\n"
                              f"Target Qubits Needed {self.transmitting_qubit_size}\n", color="green")
