@@ -1003,6 +1003,7 @@ def run_evaluation_5_node(qubit_number=5):
 def run_evaluation_4_node_verify(qubit_number=1):
     node_data = {}
     for i in range(1000):
+        print(f"Run {i}/1000")
         nodes_list = [f"Node_{i}" for i in range(4)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
                                 memory_capacity=10, memory_depolar_rate=63109,
