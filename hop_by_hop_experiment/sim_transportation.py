@@ -13,6 +13,7 @@ from netsquid.protocols.nodeprotocols import LocalProtocol
 from netsquid.protocols.protocol import Signals
 from netsquid.qubits import ketstates as ks
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network
 from utils import Logging
@@ -25,6 +26,8 @@ from protocols.Verification import Verification
 from protocols.Transport import Transportation
 import netsquid.qubits.operators as ops
 from utils.SignalMessages import ProtocolFinishedSignalMessage
+
+
 class TransportWithVerificationExample(LocalProtocol):
     """
     Protocol for a complete verification example.
@@ -276,6 +279,8 @@ class TransportWithVerificationExample(LocalProtocol):
     def stop(self):
         for subprotocol in self.subprotocols.values():
             subprotocol.stop()
+
+
 class TransportWithPurificationExample(LocalProtocol):
     """
     Protocol for a complete verification example.
@@ -300,7 +305,6 @@ class TransportWithPurificationExample(LocalProtocol):
         self.logger = Logging.Logger(self.name, logging_enabled=False)
         null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
-
 
         # initialize the protocol for each node
         for index, node in enumerate(network_nodes):
@@ -443,7 +447,7 @@ class TransportWithPurificationExample(LocalProtocol):
                           "total_count": 0,
                           "teleport_success_rate": 0,
                           "teleport_fids": [],
-                          "duration": end_time - start_time,}
+                          "duration": end_time - start_time, }
             for mem_pos, fid in results["results"].items():
                 result_dic["total_count"] += 1
                 # # get the qubit
@@ -464,11 +468,11 @@ class TransportWithPurificationExample(LocalProtocol):
             for subprotocol_name, subprotocol in self.subprotocols.items():
                 if "purify" in subprotocol_name:
                     subprotocol.cc_message_handler.send_signal(MessageType.VERIFICATION_FINISHED,
-                                                                ProtocolFinishedSignalMessage(
-                                                                    from_protocol=subprotocol,
-                                                                    from_node=subprotocol.node.name,
-                                                                    entangle_node=subprotocol.entangled_node
-                                                                ))
+                                                               ProtocolFinishedSignalMessage(
+                                                                   from_protocol=subprotocol,
+                                                                   from_node=subprotocol.node.name,
+                                                                   entangle_node=subprotocol.entangled_node
+                                                               ))
             print(f"{i}/{self.num_runs} finished")
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": i})
@@ -501,9 +505,9 @@ class TransportWithPurificationExample(LocalProtocol):
 
 
 def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
-                    node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size,
+                                      node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size,
                                       qubit_to_transport,
-                    skip_noise=True):
+                                      skip_noise=True):
     """
     Run the example verification protocol
     :param nodes: list of nodes
@@ -520,15 +524,15 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
     """
     # Create the protocol
     transport_example = TransportWithVerificationExample(network_nodes=nodes,
-                                   num_runs=num_runs,
-                                   max_entangle_pairs=max_entangle_pairs,
-                                   memory_depolar_rate=memory_depolar_rate,
-                                   node_distance=node_distance,
-                                   target_fidelity=target_fidelity,
-                                   m_size=m_size,
-                                   batch_size=batch_size,
-                                   skip_noise=skip_noise,
-                                   qubits_to_transport=qubit_to_transport)
+                                                         num_runs=num_runs,
+                                                         max_entangle_pairs=max_entangle_pairs,
+                                                         memory_depolar_rate=memory_depolar_rate,
+                                                         node_distance=node_distance,
+                                                         target_fidelity=target_fidelity,
+                                                         m_size=m_size,
+                                                         batch_size=batch_size,
+                                                         skip_noise=skip_noise,
+                                                         qubits_to_transport=qubit_to_transport)
 
     # Run the protocol
     def record_run(evexpr):
@@ -543,10 +547,11 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
                                      event_type=Signals.SUCCESS.value))
     return transport_example, dc
 
+
 def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
-                    node_distance, max_entangle_pairs, target_fidelity,
+                                      node_distance, max_entangle_pairs, target_fidelity,
                                       qubit_to_transport,
-                    skip_noise=True):
+                                      skip_noise=True):
     """
     Run the example verification protocol
     :param nodes: list of nodes
@@ -561,13 +566,13 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
     """
     # Create the protocol
     transport_example = TransportWithPurificationExample(network_nodes=nodes,
-                                   num_runs=num_runs,
-                                   max_entangle_pairs=max_entangle_pairs,
-                                   memory_depolar_rate=memory_depolar_rate,
-                                   node_distance=node_distance,
-                                   target_fidelity=target_fidelity,
-                                   skip_noise=skip_noise,
-                                   qubits_to_transport=qubit_to_transport)
+                                                         num_runs=num_runs,
+                                                         max_entangle_pairs=max_entangle_pairs,
+                                                         memory_depolar_rate=memory_depolar_rate,
+                                                         node_distance=node_distance,
+                                                         target_fidelity=target_fidelity,
+                                                         skip_noise=skip_noise,
+                                                         qubits_to_transport=qubit_to_transport)
 
     # Run the protocol
     def record_run(evexpr):
@@ -583,6 +588,7 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
                                      event_type=Signals.SUCCESS.value))
     return transport_example, dc
 
+
 def run_test_example_with_verification(qubit_number=1):
     nodes_list = [f"Node_{i}" for i in range(5)]
     network = setup_network(nodes_list, "hop-by-hop-transportation",
@@ -591,9 +597,10 @@ def run_test_example_with_verification(qubit_number=1):
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=100, memory_depolar_rate=100,
-                                         node_distance=3,
-                                         max_entangle_pairs=10, target_fidelity=0.995, m_size=3, batch_size=10,
-                                         skip_noise=True,qubit_to_transport=qubit_number)
+                                                              node_distance=3,
+                                                              max_entangle_pairs=10, target_fidelity=0.995, m_size=3,
+                                                              batch_size=10,
+                                                              skip_noise=True, qubit_to_transport=qubit_number)
     # Run the simulation
     transport_example.start()
     ns.sim_run()
@@ -601,6 +608,7 @@ def run_test_example_with_verification(qubit_number=1):
     results = dc.dataframe
     print(results.columns)
     print(results)
+
 
 def run_test_example_with_purification(qubit_number=1):
     nodes_list = [f"Node_{i}" for i in range(5)]
@@ -634,7 +642,8 @@ def run_test_example_with_purification(qubit_number=1):
         # node_data[c].append(collected_data[c].mean())
         print(f"5 Node ->{c}: {node_data[c]}")
 
-def run_multi_node_purification_example(max_node,qubit_number=1):
+
+def run_multi_node_purification_example(max_node, qubit_number=1):
     os.makedirs("./transportation_results", exist_ok=True)
     final_data = {}
     for node_count in range(3, max_node + 1):
@@ -700,6 +709,7 @@ def run_multi_node_purification_example(max_node,qubit_number=1):
     # final_data = {k: np.mean(list(val)) for k, val in final_data.items()}
     with open(f"./transportation_results/max_{max_node}_nodes_purification.json", "w") as f:
         json.dump(final_data, f)
+
 
 def run_multi_node_purification_example_distance(max_distance, qubit_number=1):
     os.makedirs("./transportation_results", exist_ok=True)
@@ -768,7 +778,8 @@ def run_multi_node_purification_example_distance(max_distance, qubit_number=1):
     with open(f"./transportation_results/max_{max_distance}_km_5_nodes_purification.json", "w") as f:
         json.dump(final_data, f)
 
-def run_multi_node_verification_example(max_node,qubit_number=1):
+
+def run_multi_node_verification_example(max_node, qubit_number=1):
     os.makedirs("./transportation_results", exist_ok=True)
     final_data = {}
     for node_count in range(3, max_node + 1):
@@ -838,7 +849,8 @@ def run_multi_node_verification_example(max_node,qubit_number=1):
     with open(f"./transportation_results/max_{max_node}_nodes_verification.json", "w") as f:
         json.dump(final_data, f)
 
-def run_multi_node_verification_example_one_run(max_node,qubit_number=1):
+
+def run_multi_node_verification_example_one_run(max_node, qubit_number=1):
     os.makedirs("./transportation_results", exist_ok=True)
     final_data = {}
     if os.path.exists(f"./transportation_results/max_{max_node}_nodes_verification.json"):
@@ -910,9 +922,10 @@ def run_multi_node_verification_example_one_run(max_node,qubit_number=1):
         # data = {k: np.mean(v) for k, v in node_data.items()}
         # print(f"{node_count}: {data}\n{len(list(node_data.values())[0])}")
         # final_data[node_count] = data
-    # final_data = {k: np.mean(list(val)) for k, val in final_data.items()}
+        # final_data = {k: np.mean(list(val)) for k, val in final_data.items()}
         with open(f"./transportation_results/max_{max_node}_nodes_verification.json", "w") as f:
             json.dump(final_data, f)
+
 
 def run_evaluation_5_node(qubit_number=5):
     nodes_list = [f"Node_{i}" for i in range(5)]
@@ -950,41 +963,89 @@ def run_evaluation_5_node(qubit_number=5):
     with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification.json", "w") as f:
         json.dump(node_data, f)
 
+
+# def run_evaluation_4_node_verify(qubit_number=1):
+#     nodes_list = [f"Node_{i}" for i in range(4)]
+#     network = setup_network(nodes_list, "hop-by-hop-transportation",
+#                             memory_capacity=10, memory_depolar_rate=63109,
+#                             node_distance=1, source_delay=1)
+#     # create a protocol to entangle two nodes
+#     sample_nodes = [node for node in network.nodes.values()]
+#     transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1000, memory_depolar_rate=63109,
+#                                                               node_distance=1,
+#                                                               max_entangle_pairs=9, target_fidelity=0.98,
+#                                                               skip_noise=True, qubit_to_transport=qubit_number,
+#                                                               m_size=3, batch_size=4)
+#     # Run the simulation
+#     transport_example.start()
+#     ns.sim_run()
+#     # Collect the data
+#     collected_data = dc.dataframe
+#     node_data = {}
+#     collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
+#     for c in collected_data.columns:
+#         if c == "teleport_fids":
+#             s = []
+#             for t in collected_data[c]:
+#                 s += t
+#             node_data[c] = np.mean(s)
+#         else:
+#             node_data[c] = collected_data[c].mean()
+#         # if c not in node_data:
+#         #     node_data[c] = []
+#         # node_data[c].append(collected_data[c].mean())
+#         if len(collected_data[c]) < 1000:
+#             print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+#         print(f"5 Node ->{c}: {collected_data[c]}")
+#     with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification.json", "w") as f:
+#         json.dump(node_data, f)
+
 def run_evaluation_4_node_verify(qubit_number=1):
-    nodes_list = [f"Node_{i}" for i in range(4)]
-    network = setup_network(nodes_list, "hop-by-hop-transportation",
-                            memory_capacity=10, memory_depolar_rate=63109,
-                            node_distance=1, source_delay=1)
-    # create a protocol to entangle two nodes
-    sample_nodes = [node for node in network.nodes.values()]
-    transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1000, memory_depolar_rate=63109,
-                                                              node_distance=1,
-                                                              max_entangle_pairs=9, target_fidelity=0.98,
-                                                              skip_noise=True, qubit_to_transport=qubit_number,
-                                                              m_size=3, batch_size=4)
-    # Run the simulation
-    transport_example.start()
-    ns.sim_run()
-    # Collect the data
-    collected_data = dc.dataframe
     node_data = {}
-    collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
-    for c in collected_data.columns:
-        if c == "teleport_fids":
-            s = []
-            for t in collected_data[c]:
-                s += t
-            node_data[c] = np.mean(s)
-        else:
-            node_data[c] = collected_data[c].mean()
-        # if c not in node_data:
-        #     node_data[c] = []
-        # node_data[c].append(collected_data[c].mean())
-        if len(collected_data[c]) < 1000:
-            print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-        print(f"5 Node ->{c}: {collected_data[c]}")
-    with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification.json", "w") as f:
+    for i in range(1000):
+        nodes_list = [f"Node_{i}" for i in range(4)]
+        network = setup_network(nodes_list, "hop-by-hop-transportation",
+                                memory_capacity=10, memory_depolar_rate=63109,
+                                node_distance=1, source_delay=1)
+        # create a protocol to entangle two nodes
+        sample_nodes = [node for node in network.nodes.values()]
+        transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1, memory_depolar_rate=63109,
+                                                                  node_distance=1,
+                                                                  max_entangle_pairs=9, target_fidelity=0.98,
+                                                                  skip_noise=True, qubit_to_transport=qubit_number,
+                                                                  m_size=3, batch_size=4)
+        # Run the simulation
+        transport_example.start()
+        ns.sim_run()
+        # Collect the data
+        collected_data = dc.dataframe
+
+        # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
+        for c in collected_data.columns:
+            if c not in node_data:
+                node_data[c] = []
+            if c == "teleport_fids":
+                s = []
+                for t in collected_data[c]:
+                    s += t
+            else:
+                node_data[c].append(collected_data[c])
+            # if c not in node_data:
+            #     node_data[c] = []
+            # node_data[c].append(collected_data[c].mean())
+        ns.sim_stop()
+        ns.set_random_state(rng=np.random.RandomState())
+        print("Reseting network")
+        ns.sim_reset()
+    with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json", w) as f:
         json.dump(node_data, f)
+    final_result = {}
+    for k, v in node_data.items():
+        final_result[k] = np.mean(v)
+        print(f"5 Node ->{k}: {final_result[k]}")
+    with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification.json", "w") as f:
+        json.dump(final_result, f)
+
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:
