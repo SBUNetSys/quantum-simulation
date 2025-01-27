@@ -1526,9 +1526,7 @@ def run_evaluation_4_node_verify_new(qubit_number=1):
         transport_example.start()
         ns.sim_run()
         # Collect the data
-        collected_data = dc.dataframe
-        node_data = {}
-        # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
+        collected_data = dc.dataframe        # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
         for c in collected_data.columns:
             if c not in node_data:
                 node_data[c] = []
