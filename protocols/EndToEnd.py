@@ -172,7 +172,7 @@ class EndToEndProtocol(NodeProtocol):
         # yield self.await_timer(1)  # Simulate some operation time
 
         # Simulate Bell state measurement
-        success_probability = 0.9
+        success_probability = 0.8
         # 90% success rate for Bell state measurement
         if np.random.random() > success_probability:
             result.success = False

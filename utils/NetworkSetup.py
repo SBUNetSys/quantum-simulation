@@ -50,6 +50,11 @@ def setup_network(nodes_list, network_name,
         state_sampler = StateSampler([ns.b00], [1])
         node.add_subcomponent(QSource(name=f"QSource_{node.name}", state_sampler=state_sampler,
                                       num_ports=1, status=SourceStatus.EXTERNAL))
+        node.add_subcomponent(QuantumProcessor(name=nodes[index].name + "_transport_qmemory",
+                                               num_positions=memory_capacity,
+                                               fallback_to_nonphysical=True,
+                                               memory_noise_models=
+                                               [DepolarNoiseModel(3883)] * memory_capacity))
         if index - 1 >= 0:
             node.add_subcomponent(QuantumProcessor(name=nodes[index - 1].name + "_qmemory",
                                                    num_positions=memory_capacity,
@@ -95,11 +100,12 @@ def setup_network(nodes_list, network_name,
 
             # Add the classical channel between the nodes
             for j in range(index + 1, len(nodes)):
+                diff = j - index
                 conn_cchannel = DirectConnection(
                     f"CChannelConn_{nodes[index].name}_{nodes[j].name}",
-                    ClassicalChannel(f"CChannel_{nodes[index].name}->{nodes[j].name}", length=node_distance,
-                                     models={"delay_model": FibreDelayModel(c=200e3)}),
-                    ClassicalChannel(f"CChannel_{nodes[j].name}->{nodes[index].name}", length=node_distance,
-                                     models={"delay_model": FibreDelayModel(c=200e3)}))
+                    ClassicalChannel(f"CChannel_{nodes[index].name}->{nodes[j].name}", length=node_distance * diff,
+                                     models={"delay_model": FibreDelayModel(c=2090)}),
+                    ClassicalChannel(f"CChannel_{nodes[j].name}->{nodes[index].name}", length=node_distance * diff,
+                                     models={"delay_model": FibreDelayModel(c=2090)}))
                 network.add_connection(node, nodes[j], connection=conn_cchannel)
     return network

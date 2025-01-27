@@ -43,6 +43,7 @@ class MessageType(Enum):
     TRANSPORT_READY = auto()
     TRANSPORT_APPLY_CORRECTION = auto()
     TRANSPORT_APPLY_CORRECTION_SUCCESS = auto()
+    TRANSPORT_SUCCESS = auto()
     # termination signals
     ENTANGLEMENT_HANDLER_FINISHED = auto()
     PURIFICATION_FINISHED = auto()

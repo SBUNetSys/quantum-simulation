@@ -547,7 +547,6 @@ class Verification(NodeProtocol):
         return False
 
     def reset(self):
-        gc.collect()
         self.entangled_pairs = {}
         self.current_verification_batches = {}
         self.pending_verification_batches = {}
@@ -556,11 +555,9 @@ class Verification(NodeProtocol):
         self.verification_counter = 0
         self.successful_verification_counter = 0
         self.successful_verification_probability = []
-        gc.collect()
         super().reset()
 
     def stop(self):
-        gc.collect()
         super().stop()
 
 

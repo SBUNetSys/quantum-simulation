@@ -75,7 +75,10 @@ class EntanglementHandler(NodeProtocol):
         # store the depolar rate and node distance
         self.depolar_rate = memory_depolar_rate
         self.node_distance = node_distance
-        self.timeout_time = 3 *(self.node_distance / 200e3)*1e9
+        # time out for qubit lost
+        self.timeout_time = 1.5 * (((self.node_distance / 200e3)*1e9) + ((self.node_distance/2090)*1e9))
+        # keep last gen signal
+        self.last_gen_time = None
         # store the qubit input protocol
         self.qubit_input_protocol = qubit_input_protocol
         # re-entangle ready signal from GenEntanglement protocol
@@ -161,6 +164,7 @@ class EntanglementHandler(NodeProtocol):
             yield self.await_timer(1)
             # send the entangled signal to lower layer, which is the source node
             self.send_signal(MessageType.ENTANGLED, None)
+            self.last_gen_time = sim_time()
 
         else:
             # store the qubit in the temporary qubits
@@ -181,8 +185,9 @@ class EntanglementHandler(NodeProtocol):
         mem_poses = message.re_entangle_mem_poses
         # remove the qubits from the entangled qubits
         for mem_pos in mem_poses:
-            del self.entangled_qubits[mem_pos]
-            self.entangled_pairs_count -= 1
+            if mem_pos in self.entangled_qubits:
+                del self.entangled_qubits[mem_pos]
+                self.entangled_pairs_count -= 1
 
         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal, entangle_node: {entangle_node},"
                          f" mem_pos: {mem_poses}", color="yellow")
@@ -214,7 +219,9 @@ class EntanglementHandler(NodeProtocol):
     def process_re_entangle_ready_remote_message_queue(self, caller="upper"):
         # we dont do anything if we have pending qubit to confirm. This is to avoid conflict with qubit timeout and
         # re-entangle causing qport overwhelm
-        if len(self.temp_qubits) > 0 or len(self.re_entangle_remote_message_queue) == 0:
+        if len(self.temp_qubits) > 0 or len(self.re_entangle_remote_message_queue) == 0 or self.last_gen_time is None:
+            return
+        if self.last_gen_time and ns.sim_time() - self.last_gen_time < 5000:
             return
         data = self.re_entangle_remote_message_queue
         self.re_entangle_remote_message_queue = []
@@ -228,6 +235,7 @@ class EntanglementHandler(NodeProtocol):
                                                         re_entangle_mem_poses=re_poses, re_entangle_type=caller)
         self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
                         r_data)
+        self.last_gen_time = ns.sim_time()
     def check_temp_entanglement(self):
         """
         this function check all temp qubit established time
@@ -293,6 +301,7 @@ class EntanglementHandler(NodeProtocol):
                             self.re_entangle_ready_signals)
         self.entanglement_watcher.start()
         start_time = sim_time()
+        last_gen_time = None
         while True:
             # wait for entanglement
             self.processed_re_entangled = False
@@ -344,6 +353,7 @@ class EntanglementHandler(NodeProtocol):
                                                                      self.node.name,
                                                                      mem_pos)
                                                              ))
+                        self.last_gen_time = sim_time()
                         # send the entangle pair to the upper layer
                         self.send_signal(Signals.SUCCESS,
                                          SignalMessages.EntangleSuccessSignalMessage(
@@ -351,6 +361,7 @@ class EntanglementHandler(NodeProtocol):
                                              entangle_node,
                                              mem_pos,
                                              initial_fidelity))
+
             elif expr.second_term.value:
                 # case we have entanglement signal
                 for event in expr.second_term.triggered_events:
@@ -461,6 +472,7 @@ class EntanglementHandler(NodeProtocol):
         # reset the shutdown flag
         self.shutdown = False
         self.entanglement_watcher.stop()
+        self.last_gen_time = None
         super().reset()
 
     def stop(self):
