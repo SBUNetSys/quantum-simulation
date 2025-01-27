@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 import numpy as np
 import pydynaa as pd
@@ -11,7 +12,7 @@ import netsquid.qubits.operators as ops
 from netsquid.protocols.nodeprotocols import LocalProtocol
 from netsquid.protocols.protocol import Signals
 
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network
 from utils import Logging, GenSwappingTree
 from utils.Gates import controlled_unitary, measure_operator
