@@ -1596,8 +1596,11 @@ def run_evaluation_4_node_verify_throughput(qubit_number=1000):
                 if fid > 0.99:
                     node_data["teleport_success_count"] += 1
                 node_data["total_count"] += 1
-        node_data["average_fidelity"] = np.mean(all_fid)
-        node_data["average_fidelity"] = all_fid
+        if len(all_fid)> 0:
+            node_data["average_fidelity"] = float(np.mean(all_fid))
+        else:
+            node_data["average_fidelity"] = 0.0
+        node_data["all_fidelity"] = all_fid
         final_data_raw[i] = node_data
         print(f"Finished {i}/1000\n{node_data}")
         total_count.append(node_data["total_count"])
