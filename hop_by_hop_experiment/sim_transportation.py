@@ -1199,7 +1199,7 @@ def run_evaluation_5_node_throughput(qubit_number=1000):
                 node_data["total_count"] += 1
         node_data["average_fidelity"] = np.mean(all_fid)
         final_data_raw[i] = node_data
-        print(node_data)
+        print(f"Finished {i}/1000\n{node_data}")
         total_count.append(node_data["total_count"])
         average_fids.append(node_data["average_fidelity"])
         success_count.append(node_data["teleport_success_count"])
@@ -1207,15 +1207,15 @@ def run_evaluation_5_node_throughput(qubit_number=1000):
         transport_example.stop()
         ns.set_random_state(rng=np.random.RandomState())
         ns.sim_reset()
-    final_data["total_count"] = np.mean(total_count)
-    final_data["average_fidelity"] = np.mean(average_fids)
-    final_data["teleport_success_count"] = np.mean(success_count)
+        final_data["total_count"] = np.mean(total_count)
+        final_data["average_fidelity"] = np.mean(average_fids)
+        final_data["teleport_success_count"] = np.mean(success_count)
 
-    with open(f"./transportation_results/5nodes_throughput_raw.json", "w") as f:
-        json.dump(final_data_raw, f)
+        with open(f"./transportation_results/5nodes_throughput_raw.json", "w") as f:
+            json.dump(final_data_raw, f)
 
-    with open(f"./transportation_results/5nodes_throughput.json", "w") as f:
-        json.dump(final_data, f)
+        with open(f"./transportation_results/5nodes_throughput.json", "w") as f:
+            json.dump(final_data, f)
 
     print(f"Final Data: {final_data}")
 
@@ -1260,7 +1260,7 @@ def run_evaluation_4_node_verify_new(qubit_number=1):
     CU_matrix = controlled_unitary(4)
     CU_gate = ops.Operator("CU_Gate", CU_matrix)
     CCU_gate = CU_gate.conj
-    for i in range(2):
+    for i in range(1000):
         print(f"Run {i}/1000")
         nodes_list = [f"Node_{i}" for i in range(4)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
@@ -1297,14 +1297,14 @@ def run_evaluation_4_node_verify_new(qubit_number=1):
         ns.set_random_state(rng=np.random.RandomState())
         print("Resetting network")
         ns.sim_reset()
-    with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json", 'w') as f:
-        json.dump(node_data, f)
-    final_result = {}
-    for k, v in node_data.items():
-        final_result[k] = np.mean(v)
-        print(f"5 Node ->{k}: {final_result[k]}")
-    with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification.json", "w") as f:
-        json.dump(final_result, f)
+        with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json", 'w') as f:
+            json.dump(node_data, f)
+        final_result = {}
+        for k, v in node_data.items():
+            final_result[k] = np.mean(v)
+            print(f"5 Node ->{k}: {final_result[k]}")
+        with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification.json", "w") as f:
+            json.dump(final_result, f)
 
 
 if __name__ == '__main__':
@@ -1313,14 +1313,23 @@ if __name__ == '__main__':
     np.random.seed(seed)
     print(f'seed {seed}')
     if len(sys.argv) == 2:
-        run_multi_node_verification_example_one_run(int(sys.argv[1]))
+        opt = int(sys.argv[1])
+        if opt == 0:
+            run_evaluation_5_node_throughput(1000)
+        if opt == 1:
+            run_evaluation_4_node_verify_new(1)
     else:
-        # run_test_example_with_purification()
-        # run_evaluation_5_node(1)
-        run_evaluation_4_node_verify_new(1)
-        # run_evaluation_5_node_throughput(1000)
-        # run_test_example_with_verification()
-        # run_multi_node_purification_example(11)
-        # run_multi_node_verification_example_one_run(3)
-        # run_multi_node_verification_example(5)
-        # run_multi_node_purification_example_distance(11)
+        print(" arg 0 = purification_throughput, 1 = verification")
+
+    # if len(sys.argv) == 2:
+    #     run_multi_node_verification_example_one_run(int(sys.argv[1]))
+    # else:
+    #     # run_test_example_with_purification()
+    #     # run_evaluation_5_node(1)
+    #     run_evaluation_4_node_verify_new(1)
+    #     # run_evaluation_5_node_throughput(1000)
+    #     # run_test_example_with_verification()
+    #     # run_multi_node_purification_example(11)
+    #     # run_multi_node_verification_example_one_run(3)
+    #     # run_multi_node_verification_example(5)
+    #     # run_multi_node_purification_example_distance(11)

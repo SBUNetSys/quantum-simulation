@@ -979,7 +979,7 @@ def run_5_node_e2e_purification_throughput(qubit_number=1000):
                 node_data["total_count"] += 1
         node_data["average_fidelity"] = np.mean(all_fid)
         final_data_raw[i] = node_data
-        print(node_data)
+        print(f"Finished {i}/1000\n{node_data}")
         total_count.append(node_data["total_count"])
         average_fids.append(node_data["average_fidelity"])
         success_count.append(node_data["teleport_success_count"])
@@ -988,15 +988,15 @@ def run_5_node_e2e_purification_throughput(qubit_number=1000):
         ns.set_random_state(rng=np.random.RandomState())
         ns.sim_reset()
 
-    final_data["total_count"] = np.mean(total_count)
-    final_data["average_fidelity"] = np.mean(average_fids)
-    final_data["teleport_success_count"] = np.mean(success_count)
+        final_data["total_count"] = np.mean(total_count)
+        final_data["average_fidelity"] = np.mean(average_fids)
+        final_data["teleport_success_count"] = np.mean(success_count)
 
-    with open(f"./transportation_results/e2e_5nodes_throughput_raw.json", "w") as f:
-        json.dump(final_data_raw, f)
+        with open(f"./transportation_results/e2e_5nodes_throughput_raw.json", "w") as f:
+            json.dump(final_data_raw, f)
 
-    with open(f"./transportation_results/e2e_5nodes_throughput.json", "w") as f:
-        json.dump(final_data, f)
+        with open(f"./transportation_results/e2e_5nodes_throughput.json", "w") as f:
+            json.dump(final_data, f)
 
     print(f"Final Data: {final_data}")
 
