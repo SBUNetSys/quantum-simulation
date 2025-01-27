@@ -470,6 +470,7 @@ class TransportWithVerificationThroughput(LocalProtocol):
                                         MessageType.TRANSPORT_SUCCESS)
                 results = self.subprotocols[f"transport_{self.all_nodes[-1].name}"].get_signal_result(
                     MessageType.TRANSPORT_SUCCESS, self)
+                print(results)
                 self.send_signal(Signals.SUCCESS, results)
 
 
