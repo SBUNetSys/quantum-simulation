@@ -1318,8 +1318,8 @@ if __name__ == '__main__':
     else:
         # run_test_example_with_purification()
         # run_evaluation_5_node(1)
-        # run_evaluation_4_node_verify(1)
-        run_evaluation_5_node_throughput(1000)
+        run_evaluation_4_node_verify_new(1)
+        # run_evaluation_5_node_throughput(1000)
         # run_test_example_with_verification()
         # run_multi_node_purification_example(11)
         # run_multi_node_verification_example_one_run(3)
