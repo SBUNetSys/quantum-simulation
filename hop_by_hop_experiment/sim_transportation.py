@@ -922,7 +922,7 @@ def example_sim_run_with_verification_throughput(nodes, num_runs, memory_depolar
     :return:
     """
     # Create the protocol
-    transport_example = TransportWithVerificationExample(network_nodes=nodes,
+    transport_example = TransportWithVerificationThroughput(network_nodes=nodes,
                                                          num_runs=num_runs,
                                                          max_entangle_pairs=max_entangle_pairs,
                                                          memory_depolar_rate=memory_depolar_rate,
