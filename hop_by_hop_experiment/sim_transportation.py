@@ -467,9 +467,9 @@ class TransportWithVerificationThroughput(LocalProtocol):
         for index in range(self.num_runs):
             while True:
                 yield self.await_signal(self.subprotocols[f"transport_{self.all_nodes[-1].name}"],
-                                        MessageType.TRANSPORT_FINISHED)
+                                        MessageType.TRANSPORT_SUCCESS)
                 results = self.subprotocols[f"transport_{self.all_nodes[-1].name}"].get_signal_result(
-                    MessageType.TRANSPORT_FINISHED, self)
+                    MessageType.TRANSPORT_SUCCESS, self)
                 self.send_signal(Signals.SUCCESS, results)
 
 
