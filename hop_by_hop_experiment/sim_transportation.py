@@ -470,7 +470,7 @@ class TransportWithVerificationThroughput(LocalProtocol):
                                         MessageType.TRANSPORT_SUCCESS)
                 results = self.subprotocols[f"transport_{self.all_nodes[-1].name}"].get_signal_result(
                     MessageType.TRANSPORT_SUCCESS, self)
-                print(results)
+                # print(results)
                 self.send_signal(Signals.SUCCESS, results)
 
 
@@ -1597,6 +1597,7 @@ def run_evaluation_4_node_verify_throughput(qubit_number=1000):
                     node_data["teleport_success_count"] += 1
                 node_data["total_count"] += 1
         node_data["average_fidelity"] = np.mean(all_fid)
+        node_data["average_fidelity"] = all_fid
         final_data_raw[i] = node_data
         print(f"Finished {i}/1000\n{node_data}")
         total_count.append(node_data["total_count"])
