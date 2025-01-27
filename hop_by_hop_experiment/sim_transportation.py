@@ -1285,13 +1285,11 @@ def run_evaluation_4_node_verify_new(qubit_number=1):
         for c in collected_data.columns:
             if c not in node_data:
                 node_data[c] = []
-            node_data[c].append(collected_data[c].mean())
-            # if c == "teleport_fids":
-            #     s = []
-            #     for t in collected_data[c]:
-            #         s += t
-            # else:
-            #     node_data[c].append(collected_data[c])
+            if c == "teleport_fids":
+                for t in collected_data[c]:
+                    node_data[c].append(t)
+            else:
+                node_data[c].append(collected_data[c].mean())
             # if c not in node_data:
             #     node_data[c] = []
             # node_data[c].append(collected_data[c].mean())
