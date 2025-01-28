@@ -1473,7 +1473,7 @@ def run_evaluation_5_node_node(qubit_number=1, max_node=10):
     if os.path.exists(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json"):
         with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json", "r") as f:
             final_data_raw = json.load(f)
-    for d in range(1, max_node + 1):
+    for d in range(3, max_node):
         print(f"Run node: {d} / {max_node} node")
         if str(d) in final_data_raw:
             print(f"Skipping {d} / {max_node} node, loaded from file")
