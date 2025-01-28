@@ -1316,7 +1316,7 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
                     json.dump(final_data, f)
                 run_count += 1
             except Exception as e:
-                print(e)
+                print(f"error: {e.with_traceback()}")
                 transport_example.stop()
                 ns.set_random_state(rng=np.random.RandomState())
                 ns.sim_reset()
