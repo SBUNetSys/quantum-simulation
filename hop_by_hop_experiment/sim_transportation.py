@@ -1588,7 +1588,7 @@ def run_evaluation_5_node_throughput_distance(qubit_number=1000, max_dis=10):
             for dis, data in final_data_raw.items():
                 if len(data) < 1000:
                     start_dis = dis
-                    for key, val in final_data_raw.items():
+                    for key, val in data.items():
                         print(f"Loading {key}")
                         total_count.append(val['total_count'])
                         success_count.append(val['teleport_success_count'])
@@ -1676,7 +1676,7 @@ def run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10):
             for node, data in final_data_raw.items():
                 if len(data) < 1000:
                     start_node = node
-                    for key, val in final_data_raw.items():
+                    for key, val in data.items():
                         print(f"Loading {key}, {val}")
                         total_count.append(val['total_count'])
                         success_count.append(val['teleport_success_count'])
