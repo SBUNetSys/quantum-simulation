@@ -1421,7 +1421,7 @@ def run_evaluation_5_node_distance(qubit_number=1, max_dis=10):
             final_data_raw = json.load(f)
     for d in range(1, max_dis+1):
         print(f"Run Distance: {d} / {max_dis} km")
-        if d in final_data_raw:
+        if str(d) in final_data_raw:
             print(f"Skipping {d} / {max_dis} km, loaded from file")
         nodes_list = [f"Node_{i}" for i in range(5)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
@@ -1474,7 +1474,7 @@ def run_evaluation_5_node_node(qubit_number=1, max_node=10):
             final_data_raw = json.load(f)
     for d in range(1, max_node + 1):
         print(f"Run node: {d} / {max_node} node")
-        if d in final_data_raw:
+        if str(d) in final_data_raw:
             print(f"Skipping {d} / {max_node} node, loaded from file")
         nodes_list = [f"Node_{i}" for i in range(d)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
