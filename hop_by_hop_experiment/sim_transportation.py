@@ -1623,8 +1623,8 @@ def run_evaluation_5_node_throughput_distance(qubit_number=1000, max_dis=10):
         start = 0
     for d in range(start_dis, max_dis+1):
         if str(d) not in final_data_raw:
-            final_data_raw[d] = {}
-            final_data[d] = {}
+            final_data_raw[str(d)] = {}
+        final_data[str(d)] = {}
         if start != 0:
             run_count = start
             start = 0
@@ -1665,7 +1665,7 @@ def run_evaluation_5_node_throughput_distance(qubit_number=1000, max_dis=10):
                             node_data["teleport_success_count"] += 1
                         node_data["total_count"] += 1
                 node_data["average_fidelity"] = np.mean(all_fid)
-                final_data_raw[d][run_count] = node_data
+                final_data_raw[str(d)][run_count] = node_data
                 print(f"Finished {run_count}/1000\n{node_data}")
                 total_count.append(node_data["total_count"])
                 average_fids.append(node_data["average_fidelity"])
@@ -1674,9 +1674,9 @@ def run_evaluation_5_node_throughput_distance(qubit_number=1000, max_dis=10):
                 transport_example.stop()
                 ns.set_random_state(rng=np.random.RandomState())
                 ns.sim_reset()
-                final_data[d]["total_count"] = np.mean(total_count)
-                final_data[d]["average_fidelity"] = np.mean(average_fids)
-                final_data[d]["teleport_success_count"] = np.mean(success_count)
+                final_data[str(d)]["total_count"] = np.mean(total_count)
+                final_data[str(d)]["average_fidelity"] = np.mean(average_fids)
+                final_data[str(d)]["teleport_success_count"] = np.mean(success_count)
 
                 with open(f"./transportation_results/5nodes_throughput_raw_{max_dis}_km.json", "w") as f:
                     json.dump(final_data_raw, f)
@@ -1723,8 +1723,8 @@ def run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10):
         start_run = 0
     for d in range(start_node, max_node):
         if str(d) not in final_data_raw:
-            final_data_raw[d] = {}
-            final_data[d] = {}
+            final_data_raw[str(d)] = {}
+        final_data[str(d)] = {}
         if start!=0:
             run_count = start
         else:
@@ -1767,7 +1767,7 @@ def run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10):
                             node_data["teleport_success_count"] += 1
                         node_data["total_count"] += 1
                 node_data["average_fidelity"] = np.mean(all_fid)
-                final_data_raw[d][run_count] = node_data
+                final_data_raw[str(d)][run_count] = node_data
                 print(f"Finished {run_count}/1000\n{node_data}")
                 total_count.append(node_data["total_count"])
                 average_fids.append(node_data["average_fidelity"])
@@ -1776,9 +1776,9 @@ def run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10):
                 transport_example.stop()
                 ns.set_random_state(rng=np.random.RandomState())
                 ns.sim_reset()
-                final_data[d]["total_count"] = np.mean(total_count)
-                final_data[d]["average_fidelity"] = np.mean(average_fids)
-                final_data[d]["teleport_success_count"] = np.mean(success_count)
+                final_data[str(d)]["total_count"] = np.mean(total_count)
+                final_data[str(d)]["average_fidelity"] = np.mean(average_fids)
+                final_data[str(d)]["teleport_success_count"] = np.mean(success_count)
 
                 with open(f"./transportation_results/5nodes_throughput_raw_{max_node}_node.json", "w") as f:
                     json.dump(final_data_raw, f)
