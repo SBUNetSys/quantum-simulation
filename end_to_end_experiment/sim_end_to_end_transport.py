@@ -952,13 +952,13 @@ def run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10):
         nodes_list = [f"Node_{i}" for i in range(5)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
                                 memory_capacity=10, memory_depolar_rate=631090,
-                                node_distance=1, source_delay=1)
+                                node_distance=d, source_delay=1)
         # create a protocol to entangle two nodes
         sample_nodes = [node for node in network.nodes.values()]
         transport_example, dc = example_sim_run_with_purification(sample_nodes,
                                                                   num_runs=1000,
                                                                   memory_depolar_rate=631090,
-                                                                  node_distance=1,
+                                                                  node_distance=d,
                                                                   max_entangle_pairs=9,
                                                                   target_fidelity=0.98,
                                                                   qubits_to_transport=qubit_number)
@@ -995,8 +995,18 @@ def run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10):
 def run_5_node_e2e_purification_node(qubit_number=1, max_node=10):
     final_data = {}
     final_data_raw = {}
+    if os.path.exists(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json"):
+        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json",
+                  "r") as f:
+            final_data_raw = json.load(f)
+    if os.path.exists(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_node}_node.json"):
+        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_node}_node.json", "r") as f:
+            final_data = json.load(f)
     for node in range(3, max_node):
         print(f"Running {node} / {max_node} Node")
+        if str(node) in final_data_raw:
+            print(f"Node {node} already exists, skipping")
+            continue
         final_data[node] = {}
         final_data_raw[node] = {}
         nodes_list = [f"Node_{i}" for i in range(node)]

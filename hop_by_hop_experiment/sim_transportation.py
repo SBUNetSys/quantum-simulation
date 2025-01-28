@@ -508,7 +508,7 @@ class TransportWithPurificationExample(LocalProtocol):
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleTransportation")
         # create logger
         self.logger = Logging.Logger(self.name, logging_enabled=False)
-        null_logger = Logging.Logger("null", logging_enabled=False)
+        null_logger = Logging.Logger("null", logging_enabled=True)
         self.skip_noise = skip_noise
 
         # initialize the protocol for each node
@@ -1378,11 +1378,11 @@ def run_evaluation_5_node(qubit_number=5):
     nodes_list = [f"Node_{i}" for i in range(5)]
     network = setup_network(nodes_list, "hop-by-hop-transportation",
                             memory_capacity=10, memory_depolar_rate=63109,
-                            node_distance=1, source_delay=1)
+                            node_distance=2, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1000, memory_depolar_rate=63109,
-                                                              node_distance=1,
+                                                              node_distance=2,
                                                               max_entangle_pairs=9, target_fidelity=0.98,
                                                               skip_noise=True, qubit_to_transport=qubit_number,
                                                               )
@@ -1933,6 +1933,8 @@ if __name__ == '__main__':
     # seed = 524
     np.random.seed(seed)
     print(f'seed {seed}')
+    run_evaluation_5_node(1)
+    exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 0:
