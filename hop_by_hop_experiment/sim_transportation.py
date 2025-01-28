@@ -1954,7 +1954,7 @@ if __name__ == '__main__':
             run_evaluation_4_node_verify_new(qubit_number=1, node_count=4)
             run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=4)
         if opt == 7:
-            run_evaluation_5_node_distance(qubit_number=1, max_dis=10)
+            # run_evaluation_5_node_distance(qubit_number=1, max_dis=10)
             run_evaluation_5_node_node(qubit_number=1, max_node=10)
     else:
         print("arg 0 = purification_throughput, 1 = verification")
