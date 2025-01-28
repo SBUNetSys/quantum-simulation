@@ -1254,7 +1254,7 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
     for node in range(start_node, max_node):
         if str(node) not in final_data_raw:
             final_data_raw[str(node)] = {}
-        final_data[node] = {}
+        final_data[str(node)] = {}
         if start != 0:
             run_count = start
             start = 0
