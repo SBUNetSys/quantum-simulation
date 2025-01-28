@@ -1131,8 +1131,8 @@ def run_5_node_e2e_purification_throughput_distance(qubit_number=1000, max_dis=1
             # print(f"Loading throughput data from {start}...")
             for dis, data in final_data_raw.items():
                 if len(data) < 1000:
-                    start_dis = dis
-                    for key, val in final_data_raw.items():
+                    start_dis = int(dis)
+                    for key, val in data.items():
                         print(f"Loading {key}")
                         total_count.append(val['total_count'])
                         success_count.append(val['teleport_success_count'])
@@ -1188,9 +1188,7 @@ def run_5_node_e2e_purification_throughput_distance(qubit_number=1000, max_dis=1
 
             transport_example.stop()
             ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_stop()
             ns.sim_reset()
-            gc.collect()
             final_data[d]["total_count"] = np.mean(total_count)
             final_data[d]["average_fidelity"] = np.mean(average_fids)
             final_data[d]["teleport_success_count"] = np.mean(success_count)
@@ -1217,7 +1215,7 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
             for node, data in final_data_raw.items():
                 if len(data) < 1000:
                     start_node = int(node)
-                    for key, val in final_data_raw.items():
+                    for key, val in data.items():
                         print(f"Loading {key}")
                         total_count.append(val['total_count'])
                         success_count.append(val['teleport_success_count'])
@@ -1273,9 +1271,7 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
 
             transport_example.stop()
             ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_stop()
             ns.sim_reset()
-            gc.collect()
             final_data[node]["total_count"] = np.mean(total_count)
             final_data[node]["average_fidelity"] = np.mean(average_fids)
             final_data[node]["teleport_success_count"] = np.mean(success_count)
