@@ -1911,7 +1911,6 @@ if __name__ == '__main__':
     # seed = 524
     np.random.seed(seed)
     print(f'seed {seed}')
-    run_evaluation_4_node_verify_new(qubit_number=1, node_count=3)
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 0:
