@@ -1406,6 +1406,96 @@ def run_evaluation_5_node(qubit_number=5):
     with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification.json", "w") as f:
         json.dump(node_data, f)
 
+def run_evaluation_5_node_distance(qubit_number=1, max_dis=10):
+    final_data = {}
+    final_data_raw = {}
+    for d in range(1, max_dis+1):
+        print(f"Run Distance: {d} / {max_dis} km")
+        nodes_list = [f"Node_{i}" for i in range(5)]
+        network = setup_network(nodes_list, "hop-by-hop-transportation",
+                                memory_capacity=10, memory_depolar_rate=63109,
+                                node_distance=d, source_delay=1)
+        # create a protocol to entangle two nodes
+        sample_nodes = [node for node in network.nodes.values()]
+        transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1000, memory_depolar_rate=63109,
+                                                                  node_distance=d,
+                                                                  max_entangle_pairs=9, target_fidelity=0.98,
+                                                                  skip_noise=True, qubit_to_transport=qubit_number,
+                                                                  )
+        # Run the simulation
+        transport_example.start()
+        ns.sim_run()
+        # Collect the data
+        collected_data = dc.dataframe
+        node_data = {}
+        final_data_raw[d] = collected_data.to_dict()
+        for c in collected_data.columns:
+            if c == "teleport_fids":
+                s = []
+                for t in collected_data[c]:
+                    s += t
+                node_data[c] = np.mean(s)
+            else:
+                node_data[c] = collected_data[c].mean()
+            # if c not in node_data:
+            #     node_data[c] = []
+            # node_data[c].append(collected_data[c].mean())
+            if len(collected_data[c]) < 1000:
+                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+            # print(f"5 Node ->{c}: {collected_data[c]}")
+        print(f"{d}km result {node_data}")
+        final_data[d] = node_data
+
+        with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_{max_dis}km.json", "w") as f:
+            json.dump(final_data, f)
+        with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_raw_{max_dis}km.json", "w") as f:
+            json.dump(final_data_raw, f)
+
+def run_evaluation_5_node_node(qubit_number=1, max_node=10):
+    final_data = {}
+    final_data_raw = {}
+    for d in range(1, max_node + 1):
+        print(f"Run node: {d} / {max_node} node")
+        nodes_list = [f"Node_{i}" for i in range(d)]
+        network = setup_network(nodes_list, "hop-by-hop-transportation",
+                                memory_capacity=10, memory_depolar_rate=63109,
+                                node_distance=1, source_delay=1)
+        # create a protocol to entangle two nodes
+        sample_nodes = [node for node in network.nodes.values()]
+        transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1000, memory_depolar_rate=63109,
+                                                                  node_distance=1,
+                                                                  max_entangle_pairs=9, target_fidelity=0.98,
+                                                                  skip_noise=True, qubit_to_transport=qubit_number,
+                                                                  )
+        # Run the simulation
+        transport_example.start()
+        ns.sim_run()
+        # Collect the data
+        collected_data = dc.dataframe
+        node_data = {}
+        final_data_raw[d] = collected_data.to_dict()
+        for c in collected_data.columns:
+            if c == "teleport_fids":
+                s = []
+                for t in collected_data[c]:
+                    s += t
+                node_data[c] = np.mean(s)
+            else:
+                node_data[c] = collected_data[c].mean()
+            # if c not in node_data:
+            #     node_data[c] = []
+            # node_data[c].append(collected_data[c].mean())
+            if len(collected_data[c]) < 1000:
+                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+            # print(f"5 Node ->{c}: {collected_data[c]}")
+        print(f"{d} node result {node_data}")
+        final_data[d] = node_data
+
+        with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_{max_node}_node.json", "w") as f:
+            json.dump(final_data, f)
+        with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json", "w") as f:
+            json.dump(final_data_raw, f)
+
 def run_evaluation_5_node_throughput(qubit_number=1000):
     final_data_raw = {}
     final_data = {}
@@ -1512,6 +1602,7 @@ def run_evaluation_5_node_throughput_distance(qubit_number=1000, max_dis=10):
         final_data_raw[d] = {}
         final_data[d] = {}
         for i in range(start, 1000):
+            print(f"Starting dis {d} km and run {i}")
             nodes_list = [f"Node_{j}" for j in range(5)]
             network = setup_network(nodes_list, "hop-by-hop-transportation",
                                     memory_capacity=1500, memory_depolar_rate=63109,
@@ -1599,6 +1690,7 @@ def run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10):
         final_data_raw[d] = {}
         final_data[d] = {}
         for i in range(start_run, 1000):
+            print(f"Starting {d} node and run {i}")
             nodes_list = [f"Node_{j}" for j in range(d)]
             network = setup_network(nodes_list, "hop-by-hop-transportation",
                                     memory_capacity=1500, memory_depolar_rate=63109,
@@ -1723,13 +1815,13 @@ def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3):
         # Collect the data
         collected_data = dc.dataframe        # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
         for c in collected_data.columns:
-            if c not in node_data:
-                node_data[c] = []
             if c == "teleport_fids":
+                s = []
                 for t in collected_data[c]:
-                    node_data[c].append(t)
+                    s += t
+                node_data[c] = np.mean(s)
             else:
-                node_data[c].append(collected_data[c].mean())
+                node_data[c] = collected_data[c].mean()
             # if c not in node_data:
             #     node_data[c] = []
             # node_data[c].append(collected_data[c].mean())
@@ -1819,6 +1911,7 @@ if __name__ == '__main__':
     # seed = 524
     np.random.seed(seed)
     print(f'seed {seed}')
+    run_evaluation_4_node_verify_new(qubit_number=1, node_count=3)
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 0:
@@ -1837,6 +1930,9 @@ if __name__ == '__main__':
         if opt == 6:
             run_evaluation_4_node_verify_new(qubit_number=1, node_count=4)
             run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=4)
+        if opt == 7:
+            run_evaluation_5_node_distance(qubit_number=1, max_dis=10)
+            run_evaluation_5_node_node(qubit_number=1, max_node=10)
     else:
         print("arg 0 = purification_throughput, 1 = verification")
 
@@ -1844,7 +1940,7 @@ if __name__ == '__main__':
     #     run_multi_node_verification_example_one_run(int(sys.argv[1]))
     # else:
     #     # run_test_example_with_purification()
-    #     # run_evaluation_5_node(1)
+        # run_evaluation_5_node(1)
     #     run_evaluation_4_node_verify_new(1)
     #     # run_evaluation_5_node_throughput(1000)
     #     # run_test_example_with_verification()
