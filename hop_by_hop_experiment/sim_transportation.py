@@ -1989,7 +1989,7 @@ def run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=3, bat
     success_count = []
     total_count = []
     average_fids = []
-    CU_matrix = controlled_unitary(4)
+    CU_matrix = controlled_unitary(batch_size)
     CU_gate = ops.Operator("CU_Gate", CU_matrix)
     CCU_gate = CU_gate.conj
     for i in range(1000):
