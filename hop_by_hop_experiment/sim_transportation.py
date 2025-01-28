@@ -508,7 +508,7 @@ class TransportWithPurificationExample(LocalProtocol):
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleTransportation")
         # create logger
         self.logger = Logging.Logger(self.name, logging_enabled=False)
-        null_logger = Logging.Logger("null", logging_enabled=True)
+        null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
 
         # initialize the protocol for each node
