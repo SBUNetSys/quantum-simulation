@@ -1381,7 +1381,7 @@ if __name__ == '__main__':
     # run_5_node_e2e_purification(1)
     # run_5_node_e2e_purification_throughput(1000)
     if len(sys.argv) == 2:
-        opt = sys.argv[1]
+        opt = int(sys.argv[1])
         if opt == 1:
             run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10)
             run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
