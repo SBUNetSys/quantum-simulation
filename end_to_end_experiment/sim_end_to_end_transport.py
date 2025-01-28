@@ -1253,7 +1253,7 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
         start = 0
     for node in range(start_node, max_node):
         if str(node) not in final_data_raw:
-            final_data_raw[node] = {}
+            final_data_raw[str(node)] = {}
         final_data[node] = {}
         if start != 0:
             run_count = start
@@ -1296,7 +1296,7 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
                             node_data["teleport_success_count"] += 1
                         node_data["total_count"] += 1
                 node_data["average_fidelity"] = np.mean(all_fid)
-                final_data_raw[node][run_count] = node_data
+                final_data_raw[str(node)][run_count] = node_data
                 print(f"Finished {run_count}/1000\n{node_data}")
                 total_count.append(node_data["total_count"])
                 average_fids.append(node_data["average_fidelity"])
@@ -1305,9 +1305,9 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
                 transport_example.stop()
                 ns.set_random_state(rng=np.random.RandomState())
                 ns.sim_reset()
-                final_data[node]["total_count"] = np.mean(total_count)
-                final_data[node]["average_fidelity"] = np.mean(average_fids)
-                final_data[node]["teleport_success_count"] = np.mean(success_count)
+                final_data[str(node)]["total_count"] = np.mean(total_count)
+                final_data[str(node)]["average_fidelity"] = np.mean(average_fids)
+                final_data[str(node)]["teleport_success_count"] = np.mean(success_count)
 
                 with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_node}_node.json", "w") as f:
                     json.dump(final_data_raw, f)
@@ -1316,7 +1316,7 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
                     json.dump(final_data, f)
                 run_count += 1
             except Exception as e:
-                print(f"error: {e.with_traceback()}")
+                print(f"error: {e}")
                 transport_example.stop()
                 ns.set_random_state(rng=np.random.RandomState())
                 ns.sim_reset()
