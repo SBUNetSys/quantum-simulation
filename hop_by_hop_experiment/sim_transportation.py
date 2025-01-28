@@ -1824,7 +1824,7 @@ def run_evaluation_5_node_throughput_node_target(qubit_number=1000, target_node=
 
     if str(target_node) not in final_data_raw:
         final_data_raw[str(target_node)] = {}
-    final_data[target_node] = {}
+    final_data[str(target_node)] = {}
     if start!=0:
         run_count = start
     else:
