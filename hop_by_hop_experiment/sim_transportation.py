@@ -2,6 +2,7 @@ import gc
 import json
 import os
 from collections import defaultdict
+from weakref import finalize
 
 import numpy as np
 import pydynaa as pd
@@ -1813,15 +1814,19 @@ def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3):
         transport_example.start()
         ns.sim_run()
         # Collect the data
-        collected_data = dc.dataframe        # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
+        collected_data = dc.dataframe
+        # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
+        # raw_data = collected_data.to_dict()
         for c in collected_data.columns:
+            if c not in node_data:
+                node_data[c] = []
             if c == "teleport_fids":
                 s = []
                 for t in collected_data[c]:
                     s += t
-                node_data[c] = np.mean(s)
+                node_data[c].append(np.mean(s))
             else:
-                node_data[c] = collected_data[c].mean()
+                node_data[c].append(collected_data[c].mean())
             # if c not in node_data:
             #     node_data[c] = []
             # node_data[c].append(collected_data[c].mean())
