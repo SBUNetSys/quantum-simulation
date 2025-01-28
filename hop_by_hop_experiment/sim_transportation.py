@@ -1933,8 +1933,8 @@ if __name__ == '__main__':
     # seed = 524
     np.random.seed(seed)
     print(f'seed {seed}')
-    run_evaluation_5_node(1)
-    exit()
+    # run_evaluation_5_node(1)
+    # exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 0:
