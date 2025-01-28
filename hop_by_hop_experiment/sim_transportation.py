@@ -2085,9 +2085,9 @@ if __name__ == '__main__':
         if opt == 9:
             run_evaluation_5_node_throughput_node_target(qubit_number=1000, target_node=4)
         if opt == 10:
-            run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=3, batch_size=100)
+            run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=3, batch_size=50)
         if opt == 11:
-            run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=4, batch_size=100)
+            run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=4, batch_size=50)
     else:
         print("arg 0 = purification_throughput, 1 = verification")
 
