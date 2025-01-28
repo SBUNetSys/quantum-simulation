@@ -682,6 +682,7 @@ class TransportWithPurificationExample(LocalProtocol):
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": i})
             p_done = False
+            p_start = sim_time()
             while not p_done:
                 yield self.await_timer(1000)
                 all_done = True
@@ -691,6 +692,8 @@ class TransportWithPurificationExample(LocalProtocol):
                             all_done = False
                 if all_done:
                     p_done = True
+                if sim_time() - p_start > 100000:
+                    break
             for subprotocol in self.subprotocols.values():
                 subprotocol.reset()
             # for subprotocol_name, subprotocol in self.subprotocols.items():
@@ -1410,8 +1413,16 @@ def run_evaluation_5_node(qubit_number=5):
 def run_evaluation_5_node_distance(qubit_number=1, max_dis=10):
     final_data = {}
     final_data_raw = {}
+    if os.path.exists(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_{max_dis}km.json"):
+        with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_{max_dis}km.json", 'r') as f:
+            final_data = json.load(f)
+    if os.path.exists(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_raw_{max_dis}km.json"):
+        with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_raw_{max_dis}km.json", 'r') as f:
+            final_data_raw = json.load(f)
     for d in range(1, max_dis+1):
         print(f"Run Distance: {d} / {max_dis} km")
+        if d in final_data_raw:
+            print(f"Skipping {d} / {max_dis} km, loaded from file")
         nodes_list = [f"Node_{i}" for i in range(5)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
                                 memory_capacity=10, memory_depolar_rate=63109,
@@ -1455,8 +1466,16 @@ def run_evaluation_5_node_distance(qubit_number=1, max_dis=10):
 def run_evaluation_5_node_node(qubit_number=1, max_node=10):
     final_data = {}
     final_data_raw = {}
+    if os.path.exists(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_{max_node}_node.json"):
+        with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_{max_node}_node.json", "r") as f:
+            final_data = json.load(f)
+    if os.path.exists(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json"):
+        with open(f"./transportation_results/5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json", "r") as f:
+            final_data_raw = json.load(f)
     for d in range(1, max_node + 1):
         print(f"Run node: {d} / {max_node} node")
+        if d in final_data_raw:
+            print(f"Skipping {d} / {max_node} node, loaded from file")
         nodes_list = [f"Node_{i}" for i in range(d)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
                                 memory_capacity=10, memory_depolar_rate=63109,
