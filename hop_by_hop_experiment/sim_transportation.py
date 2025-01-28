@@ -1644,9 +1644,7 @@ def run_evaluation_5_node_throughput_distance(qubit_number=1000, max_dis=10):
 
             transport_example.stop()
             ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_stop()
             ns.sim_reset()
-            gc.collect()
             final_data[d]["total_count"] = np.mean(total_count)
             final_data[d]["average_fidelity"] = np.mean(average_fids)
             final_data[d]["teleport_success_count"] = np.mean(success_count)
@@ -1735,9 +1733,7 @@ def run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10):
 
             transport_example.stop()
             ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_stop()
             ns.sim_reset()
-            gc.collect()
             final_data[d]["total_count"] = np.mean(total_count)
             final_data[d]["average_fidelity"] = np.mean(average_fids)
             final_data[d]["teleport_success_count"] = np.mean(success_count)

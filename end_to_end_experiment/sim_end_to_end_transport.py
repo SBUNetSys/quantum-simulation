@@ -226,6 +226,7 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                                                                    entangle_node=subprotocol.entangled_node
                                                                ))
             p_done = False
+            p_start = sim_time()
             while not p_done:
                 yield self.await_timer(1000)
                 all_done = True
@@ -236,6 +237,8 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                             # print(f"Subprotocol {subprotocol.name} still running.")
                 if all_done:
                     p_done = True
+                if sim_time() - p_start > 100000:
+                    break
             for subprotocol in self.subprotocols.values():
                 subprotocol.reset()
 
@@ -1036,9 +1039,7 @@ def run_5_node_e2e_purification_node(qubit_number=1, max_node=10):
         with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_node}_node.json", "w") as f:
             json.dump(final_data, f)
         ns.set_random_state(rng=np.random.RandomState())
-        ns.sim_stop()
         ns.sim_reset()
-        gc.collect()
 
 def run_5_node_e2e_purification_throughput(qubit_number=1000):
     final_data_raw = {}
@@ -1384,10 +1385,11 @@ if __name__ == '__main__':
         opt = int(sys.argv[1])
         if opt == 1:
             run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10)
-            run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
         if opt == 2:
             run_5_node_e2e_purification_throughput_distance(qubit_number=1000, max_dis=10)
             run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10)
+        if opt == 3:
+            run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
     else:
         print("Usage: python sim_end_to_end_transport.py opt")
     # run_4_node_e2e_verification(1)
