@@ -1684,11 +1684,13 @@ def run_evaluation_5_node_throughput_distance(qubit_number=1000, max_dis=10):
                 with open(f"./transportation_results/5nodes_throughput_{max_dis}_km.json", "w") as f:
                     json.dump(final_data, f)
                 run_count += 1
+                gc.collect()
             except Exception as e:
                 print(e)
                 transport_example.stop()
                 ns.set_random_state(rng=np.random.RandomState())
                 ns.sim_reset()
+                gc.collect()
         # reset
         success_count = []
         total_count = []
@@ -1797,6 +1799,103 @@ def run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10):
         average_fids = []
     print(f"Final Data: {final_data}")
 
+def run_evaluation_5_node_throughput_node_target(qubit_number=1000, target_node=4):
+    final_data_raw = {}
+    final_data = {}
+    success_count = []
+    total_count = []
+    average_fids = []
+    start = 0
+    if os.path.exists(f"./transportation_results/5nodes_throughput_raw_{target_node}_node.json"):
+        with open(f"./transportation_results/5nodes_throughput_raw_{target_node}_node.json", "r") as f:
+            final_data_raw = json.load(f)
+            # start = list(final_data_raw.keys())[-1]
+            # print(f"Loading throughput data from {start}...")
+            for node, data in final_data_raw.items():
+                if len(data) < 1000:
+                    start_node = int(node)
+                    for key, val in data.items():
+                        print(f"Loading {key}, {val}")
+                        total_count.append(val['total_count'])
+                        success_count.append(val['teleport_success_count'])
+                        average_fids.append(val['average_fidelity'])
+                    start_run = int(key) + 1
+                    print(f"Starting preload dis {node} node and run {start_run}")
+
+    if str(target_node) not in final_data_raw:
+        final_data_raw[str(target_node)] = {}
+    final_data[target_node] = {}
+    if start!=0:
+        run_count = start
+    else:
+        run_count = 0
+    while run_count < 1000:
+        try:
+            print(f"Starting {target_node} node and run {run_count}")
+            nodes_list = [f"Node_{j}" for j in range(target_node)]
+            network = setup_network(nodes_list, "hop-by-hop-transportation",
+                                    memory_capacity=1500, memory_depolar_rate=63109,
+                                    node_distance=1, source_delay=1)
+            # create a protocol to entangle two nodes
+            sample_nodes = [node for node in network.nodes.values()]
+            transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes, num_runs=1,
+                                                                                 memory_depolar_rate=63109,
+                                                                                 node_distance=1,
+                                                                                 max_entangle_pairs=1500,
+                                                                                 target_fidelity=0.98,
+                                                                                 skip_noise=True,
+                                                                                 qubit_to_transport=qubit_number,
+                                                                                 )
+            # Run the simulation
+            transport_example.start()
+            ns.sim_run(duration=1e9)
+            # Collect the data
+            collected_data = dc.dataframe
+            # print(collected_data)
+            final_row = collected_data.tail(1)
+            node_data = {
+                "total_count": 0,
+                "teleport_success_count": 0,
+                "average_fidelity": 0,
+            }
+            all_fid = []
+            for c in final_row.columns:
+                data = final_row[c].iloc[0]
+                for fid in data.values():
+                    all_fid.append(fid)
+                    if fid > 0.99:
+                        node_data["teleport_success_count"] += 1
+                    node_data["total_count"] += 1
+            node_data["average_fidelity"] = np.mean(all_fid)
+            final_data_raw[str(target_node)][run_count] = node_data
+            print(f"Finished {run_count}/1000\n{node_data}")
+            total_count.append(node_data["total_count"])
+            average_fids.append(node_data["average_fidelity"])
+            success_count.append(node_data["teleport_success_count"])
+
+            transport_example.stop()
+            ns.set_random_state(rng=np.random.RandomState())
+            ns.sim_reset()
+            final_data[str(target_node)]["total_count"] = np.mean(total_count)
+            final_data[str(target_node)]["average_fidelity"] = np.mean(average_fids)
+            final_data[str(target_node)]["teleport_success_count"] = np.mean(success_count)
+
+            with open(f"./transportation_results/5nodes_throughput_raw_{target_node}_node.json", "w") as f:
+                json.dump(final_data_raw, f)
+
+            with open(f"./transportation_results/5nodes_throughput_{target_node}_node.json", "w") as f:
+                json.dump(final_data, f)
+            run_count += 1
+        except Exception as e:
+            print(e)
+            transport_example.stop()
+            ns.set_random_state(rng=np.random.RandomState())
+            ns.sim_reset()
+        # reset
+        success_count = []
+        total_count = []
+        average_fids = []
+    print(f"Final Data: {final_data}")
 
 # def run_evaluation_4_node_verify(qubit_number=1):
 #     nodes_list = [f"Node_{i}" for i in range(4)]
@@ -1983,6 +2082,10 @@ if __name__ == '__main__':
         if opt == 7:
             # run_evaluation_5_node_distance(qubit_number=1, max_dis=10)
             run_evaluation_5_node_node(qubit_number=1, max_node=10)
+        if opt == 8:
+            run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10)
+        if opt == 9:
+            run_evaluation_5_node_throughput_node_target(qubit_number=1000, target_node=4)
     else:
         print("arg 0 = purification_throughput, 1 = verification")
 
