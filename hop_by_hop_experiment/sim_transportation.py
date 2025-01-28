@@ -1677,7 +1677,7 @@ def run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10):
                 if len(data) < 1000:
                     start_node = node
                     for key, val in final_data_raw.items():
-                        print(f"Loading {key}")
+                        print(f"Loading {key}, {val}")
                         total_count.append(val['total_count'])
                         success_count.append(val['teleport_success_count'])
                         average_fids.append(val['average_fidelity'])
