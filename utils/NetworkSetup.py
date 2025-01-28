@@ -14,7 +14,7 @@ from netsquid.qubits.state_sampler import StateSampler
 def calculate_channel_depolar_rate(length_km, loss_db_per_km=0.2, c=200e3):
     # c is speed of light in fiber (m/s)
     loss_rate = 1 - 10 ** (-loss_db_per_km * length_km / 10)
-    transit_time = (length_km / c) * 1e9  # in nano seconds
+    transit_time = length_km / c  # in second
     depolar_rate = -np.log(1 - loss_rate) / transit_time
     return 8641
 

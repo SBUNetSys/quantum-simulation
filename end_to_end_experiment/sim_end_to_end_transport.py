@@ -1,3 +1,4 @@
+import gc
 import json
 import os
 import sys
@@ -938,6 +939,106 @@ def run_5_node_e2e_purification(qubit_number=1):
         print(f"5 Node ->{c}: {collected_data[c]}")
     with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification.json", "w") as f:
         json.dump(node_data, f)
+def run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10):
+    final_data = {}
+    final_data_raw = {}
+    for d in range(1, max_dis+1):
+        print(f"Running {d} / {max_dis} km")
+        final_data[d] = {}
+        final_data_raw[d] = {}
+        nodes_list = [f"Node_{i}" for i in range(5)]
+        network = setup_network(nodes_list, "hop-by-hop-transportation",
+                                memory_capacity=10, memory_depolar_rate=631090,
+                                node_distance=1, source_delay=1)
+        # create a protocol to entangle two nodes
+        sample_nodes = [node for node in network.nodes.values()]
+        transport_example, dc = example_sim_run_with_purification(sample_nodes,
+                                                                  num_runs=1000,
+                                                                  memory_depolar_rate=631090,
+                                                                  node_distance=1,
+                                                                  max_entangle_pairs=9,
+                                                                  target_fidelity=0.98,
+                                                                  qubits_to_transport=qubit_number)
+        # Run the simulation
+        transport_example.start()
+        ns.sim_run()
+        # Collect the data
+        collected_data = dc.dataframe
+        node_data = {}
+        final_data_raw[d] = collected_data.to_dict()
+        for c in collected_data.columns:
+            if c == "teleport_fids":
+                s = []
+                for t in collected_data[c]:
+                    s += t
+                node_data[c] = np.mean(s)
+            else:
+                node_data[c] = collected_data[c].mean()
+            # if c not in node_data:
+            #     node_data[c] = []
+            # node_data[c].append(collected_data[c].mean())
+            if len(collected_data[c]) < 1000:
+                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+        final_data[d] = node_data
+        print(f"Run {d} km, res {node_data}")
+        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw_{max_dis}km.json", "w") as f:
+            json.dump(final_data_raw, f)
+        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_dis}km.json", "w") as f:
+            json.dump(final_data, f)
+        ns.set_random_state(rng=np.random.RandomState())
+        ns.sim_stop()
+        ns.sim_reset()
+        gc.collect()
+def run_5_node_e2e_purification_node(qubit_number=1, max_node=10):
+    final_data = {}
+    final_data_raw = {}
+    for node in range(3, max_node):
+        print(f"Running {node} / {max_node} Node")
+        final_data[node] = {}
+        final_data_raw[node] = {}
+        nodes_list = [f"Node_{i}" for i in range(node)]
+        network = setup_network(nodes_list, "hop-by-hop-transportation",
+                                memory_capacity=10, memory_depolar_rate=631090,
+                                node_distance=1, source_delay=1)
+        # create a protocol to entangle two nodes
+        sample_nodes = [node for node in network.nodes.values()]
+        transport_example, dc = example_sim_run_with_purification(sample_nodes,
+                                                                  num_runs=1000,
+                                                                  memory_depolar_rate=631090,
+                                                                  node_distance=1,
+                                                                  max_entangle_pairs=9,
+                                                                  target_fidelity=0.98,
+                                                                  qubits_to_transport=qubit_number)
+        # Run the simulation
+        transport_example.start()
+        ns.sim_run()
+        # Collect the data
+        collected_data = dc.dataframe
+        node_data = {}
+        final_data_raw[node] = collected_data.to_dict()
+        for c in collected_data.columns:
+            if c == "teleport_fids":
+                s = []
+                for t in collected_data[c]:
+                    s += t
+                node_data[c] = np.mean(s)
+            else:
+                node_data[c] = collected_data[c].mean()
+            # if c not in node_data:
+            #     node_data[c] = []
+            # node_data[c].append(collected_data[c].mean())
+            if len(collected_data[c]) < 1000:
+                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+        final_data[node] = node_data
+        print(f"Run {node} node, res {node_data}")
+        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json", "w") as f:
+            json.dump(final_data_raw, f)
+        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_node}_node.json", "w") as f:
+            json.dump(final_data, f)
+        ns.set_random_state(rng=np.random.RandomState())
+        ns.sim_stop()
+        ns.sim_reset()
+        gc.collect()
 
 def run_5_node_e2e_purification_throughput(qubit_number=1000):
     final_data_raw = {}
@@ -945,7 +1046,21 @@ def run_5_node_e2e_purification_throughput(qubit_number=1000):
     success_count = []
     total_count = []
     average_fids = []
-    for i in range(1000):
+    if os.path.exists("./transportation_results/e2e_5nodes_throughput_raw.json"):
+        with open(f"./transportation_results/e2e_5nodes_throughput_raw.json", "r") as f:
+            final_data_raw = json.load(f)
+            # start = list(final_data_raw.keys())[-1]
+            # print(f"Loading throughput data from {start}...")
+            for key, val in final_data_raw.items():
+                print(f"Loading {key}")
+                total_count.append(val['total_count'])
+                success_count.append(val['teleport_success_count'])
+                average_fids.append(val['average_fidelity'])
+            start = int(key)+1
+            print(f"Starting preload index {start}")
+    else:
+        start = 0
+    for i in range(start, 1000):
         nodes_list = [f"Node_{i}" for i in range(5)]
         network = setup_network(nodes_list, "e2e-transportation",
                                 memory_capacity=1500, memory_depolar_rate=631090,
@@ -987,8 +1102,9 @@ def run_5_node_e2e_purification_throughput(qubit_number=1000):
 
         transport_example.stop()
         ns.set_random_state(rng=np.random.RandomState())
+        ns.sim_stop()
         ns.sim_reset()
-
+        gc.collect()
         final_data["total_count"] = np.mean(total_count)
         final_data["average_fidelity"] = np.mean(average_fids)
         final_data["teleport_success_count"] = np.mean(success_count)
@@ -1001,6 +1117,175 @@ def run_5_node_e2e_purification_throughput(qubit_number=1000):
 
     print(f"Final Data: {final_data}")
 
+def run_5_node_e2e_purification_throughput_distance(qubit_number=1000, max_dis=10):
+    final_data_raw = {}
+    final_data = {}
+    success_count = []
+    total_count = []
+    average_fids = []
+    if os.path.exists(f"./transportation_results/e2e_5nodes_throughput_raw_{max_dis}_km.json"):
+        with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_dis}_km.json", "r") as f:
+            final_data_raw = json.load(f)
+            # start = list(final_data_raw.keys())[-1]
+            # print(f"Loading throughput data from {start}...")
+            for dis, data in final_data_raw.items():
+                if len(data) < 1000:
+                    start_dis = dis
+                    for key, val in final_data_raw.items():
+                        print(f"Loading {key}")
+                        total_count.append(val['total_count'])
+                        success_count.append(val['teleport_success_count'])
+                        average_fids.append(val['average_fidelity'])
+                    start = int(key) + 1
+                    print(f"Starting preload dis {dis} km and run {start}")
+    else:
+        start_dis = 1
+        start = 0
+    for d in range(start_dis, max_dis+1):
+        final_data_raw[d] = {}
+        final_data[d] = {}
+        for i in range(start, 1000):
+            print(f"Starting preload dis {d} km and run {i}")
+            nodes_list = [f"Node_{j}" for j in range(5)]
+            network = setup_network(nodes_list, "e2e-transportation",
+                                    memory_capacity=1500, memory_depolar_rate=631090,
+                                    node_distance=d, source_delay=1)
+            # create a protocol to entangle two nodes
+            sample_nodes = [node for node in network.nodes.values()]
+            transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
+                                                                      num_runs=d,
+                                                                      memory_depolar_rate=631090,
+                                                                      node_distance=1,
+                                                                      max_entangle_pairs=1500,
+                                                                      target_fidelity=0.98,
+                                                                      qubits_to_transport=qubit_number)
+            # Run the simulation
+            transport_example.start()
+            ns.sim_run(duration=1e9)
+            # Collect the data
+            collected_data = dc.dataframe
+            final_row = collected_data.tail(1)
+            node_data = {
+                "total_count": 0,
+                "teleport_success_count": 0,
+                "average_fidelity": 0,
+            }
+            all_fid = []
+            for c in final_row.columns:
+                data = final_row[c].iloc[0]
+                for fid in data.values():
+                    all_fid.append(fid)
+                    if fid > 0.99:
+                        node_data["teleport_success_count"] += 1
+                    node_data["total_count"] += 1
+            node_data["average_fidelity"] = np.mean(all_fid)
+            final_data_raw[d][i] = node_data
+            print(f"Finished {i}/1000\n{node_data}")
+            total_count.append(node_data["total_count"])
+            average_fids.append(node_data["average_fidelity"])
+            success_count.append(node_data["teleport_success_count"])
+
+            transport_example.stop()
+            ns.set_random_state(rng=np.random.RandomState())
+            ns.sim_stop()
+            ns.sim_reset()
+            gc.collect()
+            final_data[d]["total_count"] = np.mean(total_count)
+            final_data[d]["average_fidelity"] = np.mean(average_fids)
+            final_data[d]["teleport_success_count"] = np.mean(success_count)
+
+            with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_dis}_km.json", "w") as f:
+                json.dump(final_data_raw, f)
+
+            with open(f"./transportation_results/e2e_5nodes_throughput_{max_dis}_km.json", "w") as f:
+                json.dump(final_data, f)
+
+    print(f"Final Data: {final_data}")
+
+def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
+    final_data_raw = {}
+    final_data = {}
+    success_count = []
+    total_count = []
+    average_fids = []
+    if os.path.exists(f"./transportation_results/e2e_5nodes_throughput_raw_{max_node}_node.json"):
+        with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_node}_node.json", "r") as f:
+            final_data_raw = json.load(f)
+            # start = list(final_data_raw.keys())[-1]
+            # print(f"Loading throughput data from {start}...")
+            for node, data in final_data_raw.items():
+                if len(data) < 1000:
+                    start_node = int(node)
+                    for key, val in final_data_raw.items():
+                        print(f"Loading {key}")
+                        total_count.append(val['total_count'])
+                        success_count.append(val['teleport_success_count'])
+                        average_fids.append(val['average_fidelity'])
+                    start = int(key) + 1
+                    print(f"Starting preload dis {node} node and run {start}")
+    else:
+        start_node = 3
+        start = 0
+    for node in range(start_node, max_node):
+        final_data_raw[node] = {}
+        final_data[node] = {}
+        for i in range(start, 1000):
+            print(f"Starting {node} node and run {i}")
+            nodes_list = [f"Node_{j}" for j in range(node)]
+            network = setup_network(nodes_list, "e2e-transportation",
+                                    memory_capacity=1500, memory_depolar_rate=631090,
+                                    node_distance=1, source_delay=1)
+            # create a protocol to entangle two nodes
+            sample_nodes = [node for node in network.nodes.values()]
+            transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
+                                                                                 num_runs=1,
+                                                                                 memory_depolar_rate=631090,
+                                                                                 node_distance=1,
+                                                                                 max_entangle_pairs=1500,
+                                                                                 target_fidelity=0.98,
+                                                                                 qubits_to_transport=qubit_number)
+            # Run the simulation
+            transport_example.start()
+            ns.sim_run(duration=1e9)
+            # Collect the data
+            collected_data = dc.dataframe
+            final_row = collected_data.tail(1)
+            node_data = {
+                "total_count": 0,
+                "teleport_success_count": 0,
+                "average_fidelity": 0,
+            }
+            all_fid = []
+            for c in final_row.columns:
+                data = final_row[c].iloc[0]
+                for fid in data.values():
+                    all_fid.append(fid)
+                    if fid > 0.99:
+                        node_data["teleport_success_count"] += 1
+                    node_data["total_count"] += 1
+            node_data["average_fidelity"] = np.mean(all_fid)
+            final_data_raw[node][i] = node_data
+            print(f"Finished {i}/1000\n{node_data}")
+            total_count.append(node_data["total_count"])
+            average_fids.append(node_data["average_fidelity"])
+            success_count.append(node_data["teleport_success_count"])
+
+            transport_example.stop()
+            ns.set_random_state(rng=np.random.RandomState())
+            ns.sim_stop()
+            ns.sim_reset()
+            gc.collect()
+            final_data[node]["total_count"] = np.mean(total_count)
+            final_data[node]["average_fidelity"] = np.mean(average_fids)
+            final_data[node]["teleport_success_count"] = np.mean(success_count)
+
+            with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_node}_node.json", "w") as f:
+                json.dump(final_data_raw, f)
+
+            with open(f"./transportation_results/e2e_5nodes_throughput_{max_node}_node.json", "w") as f:
+                json.dump(final_data, f)
+
+    print(f"Final Data: {final_data}")
 
 def run_4_node_e2e_verification(qubit_number=1):
     nodes_list = [f"Node_{i}" for i in range(4)]
@@ -1094,7 +1379,17 @@ if __name__ == '__main__':
     # print(f'seed {seed}')
     # run_test_example_with_purification()
     # run_5_node_e2e_purification(1)
-    run_5_node_e2e_purification_throughput(1000)
+    # run_5_node_e2e_purification_throughput(1000)
+    if len(sys.argv) == 2:
+        opt = sys.argv[1]
+        if opt == 1:
+            run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10)
+            run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
+        if opt == 2:
+            run_5_node_e2e_purification_throughput_distance(qubit_number=1000, max_dis=10)
+            run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10)
+    else:
+        print("Usage: python sim_end_to_end_transport.py opt")
     # run_4_node_e2e_verification(1)
     # run_5_node_e2e_purification_new(1)
     # run_test_example_with_verification()
