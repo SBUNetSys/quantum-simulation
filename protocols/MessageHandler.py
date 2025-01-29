@@ -50,7 +50,9 @@ class MessageType(Enum):
     VERIFICATION_FINISHED = auto()
     SWAP_FINISHED = auto()
     TRANSPORT_FINISHED = auto()
-
+    # security signals
+    SECURITY_TRANSPORT_START = auto()
+    SECURITY_TRANSPORT_QUBIT = auto()
 
 class MessageHandler(NodeProtocol):
     """

@@ -145,6 +145,7 @@ class EndToEndProtocol(NodeProtocol):
         self.is_top_layer = is_top_layer
         self.add_signal(MessageType.SWAP_FINISHED)
         self.start_time = sim_time()
+        self.is_source = False
 
     def add_new_signal(self, signal):
         self.add_signal(signal)
@@ -244,7 +245,8 @@ class EndToEndProtocol(NodeProtocol):
                 entangle_node=message.target_node,
                 memo_pos=message.memo_pos,
                 actual_entangle_node=self.get_qmemory_from_stack(message.target_node),
-                target_memo_pos=message.target_mem_pos
+                target_memo_pos=message.target_mem_pos,
+                is_source=self.is_source,
             ))
         # send the success signal to the intermediate node so it can send the success signal to the left node
         self.cc_message_handler.send_message(MessageType.SWAP_APPLY_CORRECTION_SUCCESS,
@@ -498,6 +500,7 @@ class EndToEndProtocol(NodeProtocol):
                 memo_pos=message.memo_pos,
                 actual_entangle_node=self.get_qmemory_from_stack(message.target_node),
                 target_memo_pos=message.target_memo_pos,
+                is_source=self.is_source
             ))
         self.logger.info(f"Swap {self.name} -> Swap success update on left node\n"
                          f"Source Node: {message.source_node}\n"
@@ -737,6 +740,8 @@ class EndToEndProtocol(NodeProtocol):
                     result = ready_signal.result
                     mem_pos = result.mem_pos
                     entangle_node = result.entangle_node
+                    if result.is_source:
+                        self.is_source = True
                     self.logger.info(f"Swap {self.name} -> Entangle signal from {entangle_node}, mem_pos: {mem_pos}",
                                      color="blue")
                     # Here the fid is replaced by target memo_pos. When entangle from lower,

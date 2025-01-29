@@ -272,10 +272,11 @@ class SwapEntangledSuccess(EntangleSignalMessage):
     :param target_memo_pos: target memory position with current entanglement
     """
 
-    def __init__(self, source_node, entangle_node, actual_entangle_node, memo_pos, target_memo_pos):
+    def __init__(self, source_node, entangle_node, actual_entangle_node, memo_pos, target_memo_pos, is_source):
         super().__init__(source_node, entangle_node, memo_pos)
         self.actual_entangle_node = actual_entangle_node
         self.target_memo_pos = target_memo_pos
+        self.is_source = is_source
 
 
 class TransportRequestMessage:
@@ -332,3 +333,13 @@ class TransportApplySuccessMessage:
     def __init__(self, operation_key):
         self.operation_key = operation_key
         self.timestamp = ns.sim_time()
+
+class SecuritySuccessSignalMessage(EntangleSignalMessage):
+    """
+    Security success signal message for send to upper layer. It is a subclass of EntangleSignalMessage
+
+    """
+
+    def __init__(self, source_node,entangle_node, is_source, security_mem_poses: list):
+        super().__init__(source_node,entangle_node, security_mem_poses)
+        self.is_source = is_source

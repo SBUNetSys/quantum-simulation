@@ -2052,10 +2052,10 @@ def run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=3, bat
             json.dump(final_data, f)
 
 if __name__ == '__main__':
-    seed = np.random.randint(0, 10000)
+    # seed = np.random.randint(0, 10000)
     # seed = 524
-    np.random.seed(seed)
-    print(f'seed {seed}')
+    # np.random.seed(seed)
+    # print(f'seed {seed}')
     # run_evaluation_5_node(1)
     # run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=3, batch_size=100)
     # exit()

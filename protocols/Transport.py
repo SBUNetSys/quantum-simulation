@@ -59,7 +59,8 @@ class Transportation(NodeProtocol):
                  cc_message_handler,
                  transmitting_qubit_size,
                  logger,
-                 is_top_layer=False):
+                 is_top_layer=False,
+                 is_after_security=False):
         super().__init__(node=node, name=name)
         # identify role of the node
         self.is_source_node = False
@@ -71,7 +72,12 @@ class Transportation(NodeProtocol):
         # store next hop node name
         self.entangled_node = entangled_node
         # qubit input signal from lower layers, can be purification or verification
-        await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
+        if is_after_security:
+            # if we have security we need to await different signal
+            await_signals = [self.await_signal(protocol, MessageType.SECURITY_TRANSPORT_QUBIT)
+                             for protocol in qubit_ready_protocols]
+        else:
+            await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
         # have expression to wait for ANY qubit input signal
         self.qubit_input_signal = reduce(operator.or_, await_signals)
         # classical message handler
