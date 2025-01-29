@@ -2064,9 +2064,10 @@ if __name__ == '__main__':
         if opt == 0:
             run_evaluation_5_node_throughput(1000)
         if opt == 1:
-            run_evaluation_4_node_verify_new(1)
+            run_evaluation_4_node_verify_new(qubit_number=1,node_count=3)
         if opt == 2:
-            run_evaluation_4_node_verify_throughput(1000)
+            # run_evaluation_4_node_verify_throughput(1000)
+            run_evaluation_4_node_verify_new(qubit_number=1, node_count=4)
         if opt == 3:
             run_evaluation_5_node_throughput_distance(qubit_number=1000,max_dis=10)
         if opt == 4:
