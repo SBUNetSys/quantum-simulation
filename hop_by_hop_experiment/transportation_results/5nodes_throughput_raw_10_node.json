@@ -903,7 +903,7 @@
       "average_fidelity": 0.4846625766871164
     },
     "182": {
-      "total_count": 166,
+hop_by_hop_experiment/transportation_results/5nodes_throughput_raw_10_node.json      "total_count": 166,
       "teleport_success_count": 79,
       "average_fidelity": 0.47590361445783125
     },
@@ -3423,7 +3423,7 @@
       "average_fidelity": 0.5609756097560975
     },
     "686": {
-      "total_count": 156,
+      "total_count": 156,hop_by_hop_experiment/transportation_results/5nodes_throughput_raw_10_node.json
       "teleport_success_count": 77,
       "average_fidelity": 0.4935897435897435
     }
