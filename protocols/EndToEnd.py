@@ -758,8 +758,14 @@ class EndToEndProtocol(NodeProtocol):
                         # add additional stack as we are the source node
                         if result.is_source:
                             self.swapping_stack[(result.source_node, result.entangle_node)].append(entangle_node)
-                    if entangle_node in self.re_entangle_paris and mem_pos in self.re_entangle_paris[entangle_node]:
-                        self.re_entangle_paris[entangle_node].pop(mem_pos)
+                    if type(mem_pos) == list:
+                        for pos in mem_pos:
+                            if entangle_node in self.re_entangle_paris and pos in self.re_entangle_paris[
+                                entangle_node]:
+                                self.re_entangle_paris[entangle_node].pop(pos)
+                    else:
+                        if entangle_node in self.re_entangle_paris and mem_pos in self.re_entangle_paris[entangle_node]:
+                            self.re_entangle_paris[entangle_node].pop(mem_pos)
                     # check if the qubits are ready to swap
                     self.check_swap_condition()
 
