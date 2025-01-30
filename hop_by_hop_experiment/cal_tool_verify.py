@@ -153,4 +153,24 @@ if __name__ == '__main__':
     print(f"4 Nodes 1km Throughput > 0.7: {np.mean(g_7_counts)}")
     print(f"4 Nodes 1km Throughput > 0.9: {np.mean(g_9_counts)}")
     print(f"4 Nodes 1km Global > 0.7: {g_7_global_count / total_count}")
-    print(f"4 Nodes 1km Global > 0.9: {g_9_global_count / total_count}")
+    print(f"4 Nodes 1km Global > 0.9: {g_9_global_count / total_count}\n")
+
+
+    with open("./transportation_results/4nodes_1_qubit_verification_0.5km_raw.json", "r") as file:
+        data = json.load(file)
+    fid_data = data["teleport_fids"]
+    d_data = data["duration"]
+    all_fid = []
+    g_7_count = 0
+    g_9_count = 0
+    for fid in fid_data:
+        if fid > 0.7:
+            g_7_count += 1
+        if fid > 0.9:
+            g_9_count += 1
+        all_fid.append(fid)
+
+    print(f"4 Nodes 0.5km > 0.7: {g_7_count / len(fid_data)}")
+    print(f"4 Nodes 0.5km > 0.9: {g_9_count / len(fid_data)}")
+    print(f"4 Nodes 0.5km Duration: {np.mean(d_data)}")
+    print(f"4 Nodes 0.5km average fid: {np.mean(all_fid)}")
