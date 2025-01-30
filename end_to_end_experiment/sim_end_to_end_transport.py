@@ -727,7 +727,7 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
 
         # Initialize the controlled unitary matrix and measurement operators
         # CU_matrix = controlled_unitary(batch_size)
-        # measurement_m0, measurement_m1 = measure_operator()
+        measurement_m0, measurement_m1 = measure_operator()
         # CU_gate = ops.Operator("CU_Gate", CU_matrix)
         # CCU_gate = CU_gate.conj
         CU_gate = CU_gate
