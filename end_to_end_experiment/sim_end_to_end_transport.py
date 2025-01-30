@@ -1329,7 +1329,7 @@ def run_4_node_e2e_verification(qubit_number=1, node_count=3):
         try:
             nodes_list = [f"Node_{i}" for i in range(node_count)]
             network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                    memory_capacity=10, memory_depolar_rate=63109,
+                                    memory_capacity=1000, memory_depolar_rate=63109,
                                     node_distance=1, source_delay=1)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
@@ -1337,7 +1337,7 @@ def run_4_node_e2e_verification(qubit_number=1, node_count=3):
                                                                       num_runs=1,
                                                                       memory_depolar_rate=63109,
                                                                       node_distance=1,
-                                                                      max_entangle_pairs=10,
+                                                                      max_entangle_pairs=1000,
                                                                       target_fidelity=0.98,
                                                                       qubit_to_transport=qubit_number,
                                                                       m_size=3,
@@ -1438,6 +1438,8 @@ if __name__ == '__main__':
     # run_5_node_e2e_purification(1)
     # run_5_node_e2e_purification_throughput(1000)
     # run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
+    # exit()
+    # run_4_node_e2e_verification(qubit_number=1, node_count=4)
     # exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])

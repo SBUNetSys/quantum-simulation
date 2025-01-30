@@ -315,10 +315,10 @@ class TransportWithVerificationThroughput(LocalProtocol):
         self.skip_noise = skip_noise
 
         # Initialize the controlled unitary matrix and measurement operators
-        # CU_matrix = controlled_unitary(batch_size)
+        CU_matrix = controlled_unitary(batch_size)
         measurement_m0, measurement_m1 = measure_operator()
-        # CU_gate = ops.Operator("CU_Gate", CU_matrix)
-        # CCU_gate = CU_gate.conj
+        CU_gate = ops.Operator("CU_Gate", CU_matrix)
+        CCU_gate = CU_gate.conj
 
         # initialize the protocol for each node
         for index, node in enumerate(network_nodes):
@@ -1939,13 +1939,13 @@ def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3):
         print(f"Run {i}/1000")
         nodes_list = [f"Node_{j}" for j in range(node_count)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                memory_capacity=10, memory_depolar_rate=63109,
+                                memory_capacity=1000, memory_depolar_rate=63109,
                                 node_distance=1, source_delay=1)
         # create a protocol to entangle two nodes
         sample_nodes = [node for node in network.nodes.values()]
         transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1, memory_depolar_rate=63109,
                                                                   node_distance=1,
-                                                                  max_entangle_pairs=10, target_fidelity=0.98,
+                                                                  max_entangle_pairs=1000, target_fidelity=0.98,
                                                                   skip_noise=True, qubit_to_transport=qubit_number,
                                                                   m_size=3, batch_size=4,
                                                                   CU_gate=CU_gate,
@@ -2059,7 +2059,8 @@ if __name__ == '__main__':
     # run_evaluation_5_node(1)
     # run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=3, batch_size=100)
     # exit()
-
+    # run_evaluation_4_node_verify_new(qubit_number=1, node_count=4)
+    # exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 0:
