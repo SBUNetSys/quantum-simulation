@@ -1801,6 +1801,7 @@ def run_4_node_e2e_verification(qubit_number=1, node_count=3, distance=1.0):
     CCU_gate = CU_gate.conj
     while run_count < 1000:
         try:
+            print(f"Start {run_count}/1000")
             nodes_list = [f"Node_{i}" for i in range(node_count)]
             network = setup_network(nodes_list, "hop-by-hop-transportation",
                                     memory_capacity=1000, memory_depolar_rate=63109,
