@@ -1785,7 +1785,7 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
     print(f"Final Data: {final_data}")
 
 
-def run_4_node_e2e_verification(qubit_number=1, node_count=3):
+def run_4_node_e2e_verification(qubit_number=1, node_count=3, distance=1.0):
     run_count = 0
     node_data = {}
     while run_count < 1000:
@@ -1793,13 +1793,13 @@ def run_4_node_e2e_verification(qubit_number=1, node_count=3):
             nodes_list = [f"Node_{i}" for i in range(node_count)]
             network = setup_network(nodes_list, "hop-by-hop-transportation",
                                     memory_capacity=1000, memory_depolar_rate=63109,
-                                    node_distance=1, source_delay=1)
+                                    node_distance=distance, source_delay=1)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
             transport_example, dc = example_sim_run_with_verification(sample_nodes,
                                                                       num_runs=1,
                                                                       memory_depolar_rate=63109,
-                                                                      node_distance=1,
+                                                                      node_distance=distance,
                                                                       max_entangle_pairs=1000,
                                                                       target_fidelity=0.98,
                                                                       qubit_to_transport=qubit_number,
@@ -1828,14 +1828,14 @@ def run_4_node_e2e_verification(qubit_number=1, node_count=3):
                 # if len(collected_data[c]) < 1000:
                 #     print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
                 # print(f"5 Node ->{c}: {node_data[c]}")
-            with open(f"./transportation_results/e2e_{node_count}nodes_{qubit_number}_qubit_verification_raw.json",
+            with open(f"./transportation_results/e2e_{node_count}nodes_{qubit_number}_qubit_verification_{distance}km_raw.json",
                       "w") as f:
                 json.dump(node_data, f)
             final_data = {}
             for k, v in node_data.items():
                 final_data[k] = np.mean(v)
                 print(f"{node_count}Node -> {k}: {final_data[k]}")
-            with open(f"./transportation_results/e2e_{node_count}nodes_{qubit_number}_qubit_verification.json",
+            with open(f"./transportation_results/e2e_{node_count}nodes_{qubit_number}_qubit_verification_{distance}km.json",
                       'w') as f:
                 json.dump(final_data, f)
             print(f"Finished {run_count}/1000")
@@ -1929,6 +1929,8 @@ if __name__ == '__main__':
             run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=1)
         elif opt == 9:
             run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=0.5)
+        elif opt == 10:
+            run_4_node_e2e_verification(qubit_number=1, node_count=4, distance=0.5)
     else:
         print("Usage: python sim_end_to_end_transport.py opt")
     # run_4_node_e2e_verification(1)
