@@ -1701,6 +1701,7 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
         run_count = 0
     if str(node_count) not in final_data_raw:
         final_data_raw[str(node_count)] = {}
+    final_data[str(node_count)] = {}
     while run_count < 1000:
         try:
             print(f"Starting {node_count} node and run {run_count}/1000")
@@ -1741,6 +1742,10 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
                     if fid > 0.99:
                         node_data["teleport_success_count"] += 1
                     node_data["total_count"] += 1
+            # if len(all_fid) > 0:
+            #     node_data["average_fidelity"] = np.mean(all_fid)
+            # else:
+            #     node_data["average_fidelity"] = 0.0
             node_data["average_fidelity"] = np.mean(all_fid)
             node_data["all_fids"] = np.mean(all_fid)
             final_data_raw[str(node_count)][str(run_count)] = node_data
