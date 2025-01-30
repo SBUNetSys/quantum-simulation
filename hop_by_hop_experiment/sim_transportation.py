@@ -2089,10 +2089,10 @@ if __name__ == '__main__':
             run_evaluation_5_node_throughput_node(qubit_number=1000, max_node=10)
         elif opt == 5:
             # run_evaluation_4_node_verify_new(qubit_number=1,node_count=3)
-            run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=3)
+            run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=3)
         elif opt == 6:
             # run_evaluation_4_node_verify_new(qubit_number=1, node_count=4)
-            run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=4)
+            run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=4)
         elif opt == 7:
             # run_evaluation_5_node_distance(qubit_number=1, max_dis=10)
             run_evaluation_5_node_node(qubit_number=1, max_node=10)
