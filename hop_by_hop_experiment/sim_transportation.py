@@ -1974,6 +1974,8 @@ def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3):
         ns.set_random_state(rng=np.random.RandomState())
         print("Resetting network")
         ns.sim_reset()
+        transport_example = None
+        gc.collect()
         with open(f"./transportation_results/{node_count}nodes_{qubit_number}_qubit_verification_raw.json", 'w') as f:
             json.dump(node_data, f)
         final_result = {}
