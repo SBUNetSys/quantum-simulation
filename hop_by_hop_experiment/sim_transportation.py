@@ -2059,12 +2059,13 @@ if __name__ == '__main__':
     # run_evaluation_5_node(1)
     # run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=3, batch_size=100)
     # exit()
-    # run_evaluation_4_node_verify_new(qubit_number=1, node_count=4)
+    # run_evaluation_4_node_verify_new(qubit_number=1, node_count=5)
     # exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 0:
-            run_evaluation_5_node_throughput(1000)
+            # run_evaluation_5_node_throughput(1000)
+            run_evaluation_4_node_verify_new(qubit_number=1,node_count=5)
         if opt == 1:
             run_evaluation_4_node_verify_new(qubit_number=1,node_count=3)
         if opt == 2:
