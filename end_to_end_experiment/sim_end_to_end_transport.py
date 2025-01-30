@@ -434,7 +434,9 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                  m_size=3,
                  batch_size=10,
                  qubits_to_transport=1,
-                 skip_noise=False):
+                 skip_noise=False,
+                 CU_gate=None,
+                 CCU_gate=None,):
         if len(network_nodes) < 1:
             raise ValueError("This protocol requires at least nodes.")
         swapping_nodes, _, _ = GenSwappingTree.generate_swapping_tree(node_path)
@@ -454,10 +456,12 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
         self.skip_noise = skip_noise
 
         # Initialize the controlled unitary matrix and measurement operators
-        CU_matrix = controlled_unitary(batch_size)
+        # CU_matrix = controlled_unitary(batch_size)
         measurement_m0, measurement_m1 = measure_operator()
-        CU_gate = ops.Operator("CU_Gate", CU_matrix)
-        CCU_gate = CU_gate.conj
+        # CU_gate = ops.Operator("CU_Gate", CU_matrix)
+        # CCU_gate = CU_gate.conj
+        CU_gate = CU_gate
+        CCU_gate = CCU_gate
 
         # initialize the protocol for each node
         for index, node in enumerate(network_nodes):
@@ -1035,7 +1039,9 @@ def example_sim_run_with_purification_throughput(nodes,
 def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
                                       node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size,
                                       qubit_to_transport,
-                                      skip_noise=True):
+                                      skip_noise=True,
+                                      CU_gate=None,
+                                      CCU_gate=None,):
     """
     Run the example verification protocol
     :param nodes: list of nodes
@@ -1061,7 +1067,9 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
                                                                  m_size=m_size,
                                                                  batch_size=batch_size,
                                                                  skip_noise=skip_noise,
-                                                                 qubits_to_transport=qubit_to_transport)
+                                                                 qubits_to_transport=qubit_to_transport,
+                                                                 CU_gate=CU_gate,
+                                                                 CCU_gate=CCU_gate)
 
     # Run the protocol
     def record_run(evexpr):
@@ -1788,6 +1796,9 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
 def run_4_node_e2e_verification(qubit_number=1, node_count=3, distance=1.0):
     run_count = 0
     node_data = {}
+    CU_matrix = controlled_unitary(4)
+    CU_gate = ops.Operator("CU_Gate", CU_matrix)
+    CCU_gate = CU_gate.conj
     while run_count < 1000:
         try:
             nodes_list = [f"Node_{i}" for i in range(node_count)]
@@ -1805,6 +1816,8 @@ def run_4_node_e2e_verification(qubit_number=1, node_count=3, distance=1.0):
                                                                       qubit_to_transport=qubit_number,
                                                                       m_size=3,
                                                                       batch_size=4,
+                                                                      CU_gate=CCU_gate,
+                                                                      CCU_gate=CCU_gate,
                                                                       )
             # Run the simulation
             transport_example.start()
