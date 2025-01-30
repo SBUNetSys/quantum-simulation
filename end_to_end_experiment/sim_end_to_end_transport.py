@@ -1668,7 +1668,7 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
     print(f"Final Data: {final_data}")
 
 
-def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1):
+def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.0):
     final_data_raw = {}
     final_data = {}
     success_count = []
@@ -1915,6 +1915,8 @@ if __name__ == '__main__':
             run_e2e_verification_throughput(qubit_number=1500, node_count=3, distance=1)
         elif opt == 8:
             run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=1)
+        elif opt == 8:
+            run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=0.5)
     else:
         print("Usage: python sim_end_to_end_transport.py opt")
     # run_4_node_e2e_verification(1)
