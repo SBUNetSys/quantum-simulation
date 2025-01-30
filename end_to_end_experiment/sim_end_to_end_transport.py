@@ -1699,6 +1699,8 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
         start = 0
     else:
         run_count = 0
+    if str(node_count) not in final_data_raw:
+        final_data_raw[str(node_count)] = {}
     while run_count < 1000:
         try:
             print(f"Starting {node_count} node and run {run_count}/1000")
