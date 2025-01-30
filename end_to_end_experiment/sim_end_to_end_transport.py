@@ -2,6 +2,7 @@ import gc
 import json
 import os
 import sys
+import traceback
 
 import numpy as np
 import pydynaa as pd
@@ -1747,7 +1748,7 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
             # else:
             #     node_data["average_fidelity"] = 0.0
             node_data["average_fidelity"] = np.mean(all_fid)
-            node_data["all_fids"] = np.mean(all_fid)
+            node_data["all_fids"] = all_fid
             final_data_raw[str(node_count)][str(run_count)] = node_data
             print(f"Finished {run_count}/1000\n{node_data}")
             total_count.append(node_data["total_count"])
@@ -1771,6 +1772,7 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
             run_count += 1
         except Exception as e:
             print(f"error: {e}")
+            traceback.print_exc()
             transport_example.stop()
             transport_example = None
             gc.collect()
@@ -1903,6 +1905,8 @@ if __name__ == '__main__':
     # exit()
     # run_4_node_e2e_verification(qubit_number=1, node_count=4)
     # exit()
+    run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=1)
+    exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 1:
