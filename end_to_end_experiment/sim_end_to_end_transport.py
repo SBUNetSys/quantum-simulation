@@ -727,12 +727,12 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
         self.skip_noise = skip_noise
 
         # Initialize the controlled unitary matrix and measurement operators
-        # CU_matrix = controlled_unitary(batch_size)
+        CU_matrix = controlled_unitary(batch_size)
         measurement_m0, measurement_m1 = measure_operator()
-        # CU_gate = ops.Operator("CU_Gate", CU_matrix)
-        # CCU_gate = CU_gate.conj
-        CU_gate = CU_gate
-        CCU_gate = CCU_gate
+        CU_gate = ops.Operator("CU_Gate", CU_matrix)
+        CCU_gate = CU_gate.conj
+        # CU_gate = CU_gate
+        # CCU_gate = CCU_gate
 
         # initialize the protocol for each node
         for index, node in enumerate(network_nodes):
@@ -1676,9 +1676,12 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
     total_count = []
     average_fids = []
     start = 0
-    CU_matrix = controlled_unitary(4)
-    CU_gate = ops.Operator("CU_Gate", CU_matrix)
-    CCU_gate = CU_gate.conj
+    # CU_matrix = controlled_unitary(4)
+    # CU_gate = ops.Operator("CU_Gate", CU_matrix)
+    # CCU_gate = CU_gate.conj
+    CU_matrix = None
+    CU_gate = None
+    CCU_gate = None
     if os.path.exists(f"./transportation_results/e2e_{node_count}nodes_throughput_{distance}km_raw.json"):
         with open(f"./transportation_results/e2e_{node_count}nodes_throughput_{distance}km_raw.json", "r") as f:
             final_data_raw = json.load(f)
