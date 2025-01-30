@@ -72,6 +72,7 @@ if __name__ == '__main__':
             g_9_counts.append(g_9_count)
         all_count.append(value_data["total_count"])
 
+    print(f"e2e 4 Nodes 1km Throughput Count: {np.mean(all_count)}")
     print(f"e2e 4 Nodes 1km Throughput > 0.7: {np.mean(g_7_counts)}")
     print(f"e2e 4 Nodes 1km Throughput > 0.9: {np.mean(g_9_counts)}")
     print(f"e2e 4 Nodes 1km Global > 0.7: {g_7_global_count / total_count}")
