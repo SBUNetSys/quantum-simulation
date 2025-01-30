@@ -1930,7 +1930,7 @@ def run_evaluation_5_node_throughput_node_target(qubit_number=1000, target_node=
 #     with open(f"./transportation_results/4nodes_{qubit_number}_qubit_verification.json", "w") as f:
 #         json.dump(node_data, f)
 
-def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3):
+def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3, distance=1.0):
     node_data = {}
     CU_matrix = controlled_unitary(4)
     CU_gate = ops.Operator("CU_Gate", CU_matrix)
@@ -1940,11 +1940,11 @@ def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3):
         nodes_list = [f"Node_{j}" for j in range(node_count)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
                                 memory_capacity=1000, memory_depolar_rate=63109,
-                                node_distance=1, source_delay=1)
+                                node_distance=distance, source_delay=1)
         # create a protocol to entangle two nodes
         sample_nodes = [node for node in network.nodes.values()]
         transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1, memory_depolar_rate=63109,
-                                                                  node_distance=1,
+                                                                  node_distance=distance,
                                                                   max_entangle_pairs=1000, target_fidelity=0.98,
                                                                   skip_noise=True, qubit_to_transport=qubit_number,
                                                                   m_size=3, batch_size=4,
@@ -1976,13 +1976,13 @@ def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3):
         ns.sim_reset()
         transport_example = None
         gc.collect()
-        with open(f"./transportation_results/{node_count}nodes_{qubit_number}_qubit_verification_raw.json", 'w') as f:
+        with open(f"./transportation_results/{node_count}nodes_{qubit_number}_qubit_verification_{distance}km_raw.json", 'w') as f:
             json.dump(node_data, f)
         final_result = {}
         for k, v in node_data.items():
             final_result[k] = np.mean(v)
             print(f"5 Node ->{k}: {final_result[k]}")
-        with open(f"./transportation_results/{node_count}nodes_{qubit_number}_qubit_verification.json", "w") as f:
+        with open(f"./transportation_results/{node_count}nodes_{qubit_number}_qubit_verification_{distance}km.json", "w") as f:
             json.dump(final_result, f)
 
 def run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=3, batch_size=4, distance=1.0):
@@ -2104,6 +2104,8 @@ if __name__ == '__main__':
             run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=3, batch_size=4, distance=0.5)
         elif opt == 11:
             run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=4, batch_size=4, distance=0.5)
+        elif opt == 12:
+            run_evaluation_4_node_verify_new(qubit_number=1, node_count=4, distance=0.5)
     else:
         print("arg 0 = purification_throughput, 1 = verification")
 
