@@ -141,7 +141,7 @@ if __name__ == '__main__':
     g_9_global_count = 0
     total_count = 0
     all_count = []
-    for value_data in data["4"].values():
+    for value_data in data["3"].values():
         g_7_count = 0
         g_9_count = 0
         fid_data = value_data["all_fids"]
