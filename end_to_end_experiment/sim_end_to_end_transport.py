@@ -1452,7 +1452,7 @@ if __name__ == '__main__':
             run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10)
         if opt == 5:
             run_4_node_e2e_verification(qubit_number=1, node_count=3)
-        if opt == 5:
+        if opt == 6:
             run_4_node_e2e_verification(qubit_number=1, node_count=4)
 
     else:
