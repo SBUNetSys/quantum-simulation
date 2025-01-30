@@ -1709,13 +1709,13 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
             nodes_list = [f"Node_{j}" for j in range(node_count)]
             network = setup_network(nodes_list, "e2e-transportation",
                                     memory_capacity=1500, memory_depolar_rate=631090,
-                                    node_distance=1, source_delay=1)
+                                    node_distance=distance, source_delay=1)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
             transport_example, dc = example_sim_run_with_verification_throughput(sample_nodes,
                                                                                  num_runs=1,
                                                                                  memory_depolar_rate=631090,
-                                                                                 node_distance=1,
+                                                                                 node_distance=distance,
                                                                                  max_entangle_pairs=1500,
                                                                                  target_fidelity=0.98,
                                                                                  qubit_to_transport=qubit_number,
