@@ -1945,7 +1945,7 @@ def run_evaluation_4_node_verify_new(qubit_number=1, node_count=3):
         sample_nodes = [node for node in network.nodes.values()]
         transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=1, memory_depolar_rate=63109,
                                                                   node_distance=1,
-                                                                  max_entangle_pairs=9, target_fidelity=0.98,
+                                                                  max_entangle_pairs=10, target_fidelity=0.98,
                                                                   skip_noise=True, qubit_to_transport=qubit_number,
                                                                   m_size=3, batch_size=4,
                                                                   CU_gate=CU_gate,
@@ -2059,6 +2059,7 @@ if __name__ == '__main__':
     # run_evaluation_5_node(1)
     # run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=3, batch_size=100)
     # exit()
+
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 0:

@@ -488,7 +488,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                                                  memory_depolar_rate=memory_depolar_rate,
                                                  node_distance=node_distance,
                                                  is_top_layer=False,
-                                                 logger=self.logger
+                                                 logger=null_logger
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
@@ -515,7 +515,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                                                CCU_Gate=CCU_gate,
                                                measurement_m0=measurement_m0,
                                                measurement_m1=measurement_m1,
-                                               logger=self.logger,
+                                               logger=null_logger,
                                                is_top_layer=False,
                                                max_entangled_pairs=self.max_entangle_pairs,
                                                )
@@ -544,7 +544,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                                                  memory_depolar_rate=memory_depolar_rate,
                                                  node_distance=node_distance,
                                                  is_top_layer=False,
-                                                 logger=self.logger
+                                                 logger=null_logger
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
@@ -572,7 +572,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                                                CCU_Gate=CCU_gate,
                                                measurement_m0=measurement_m0,
                                                measurement_m1=measurement_m1,
-                                               logger=self.logger,
+                                               logger=null_logger,
                                                is_top_layer=False,
                                                max_entangled_pairs=self.max_entangle_pairs,
                                                )
@@ -622,10 +622,8 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
         self.start_subprotocols()
         # for subprotoco, val in self.subprotocols.items():
         #     print(f"Subprotocol: {subprotoco}")
-
+        start_time = sim_time()
         for index in range(self.num_runs):
-            start_time = sim_time()
-
             yield self.await_signal(self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"],
                                     MessageType.TRANSPORT_FINISHED)
             end_time = sim_time()
@@ -651,17 +649,18 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                 result_dic['teleport_fids'].append(fid)
             # final success rate
             result_dic["teleport_success_rate"] = result_dic["teleport_success_count"] / result_dic["total_count"]
-            for subprotocol_name, subprotocol in self.subprotocols.items():
-                if "purify" in subprotocol_name:
-                    subprotocol.cc_message_handler.send_signal(MessageType.VERIFICATION_FINISHED,
-                                                               ProtocolFinishedSignalMessage(
-                                                                   from_protocol=subprotocol,
-                                                                   from_node=subprotocol.node.name,
-                                                                   entangle_node=subprotocol.entangled_node
-                                                               ))
+            # for subprotocol_name, subprotocol in self.subprotocols.items():
+            #     if "purify" in subprotocol_name:
+            #         subprotocol.cc_message_handler.send_signal(MessageType.VERIFICATION_FINISHED,
+            #                                                    ProtocolFinishedSignalMessage(
+            #                                                        from_protocol=subprotocol,
+            #                                                        from_node=subprotocol.node.name,
+            #                                                        entangle_node=subprotocol.entangled_node
+            #                                                    ))
 
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": index})
+            break
             # print(f"Start Stop Purification of run index {index}")
             p_done = False
             while not p_done:
@@ -1371,6 +1370,7 @@ def run_4_node_e2e_verification(qubit_number=1):
             final_data = {}
             for k, v in node_data.items():
                 final_data[k] = np.mean(v)
+                print(f"{k}: {v}")
             with open(f"./transportation_results/e2e_4nodes_{qubit_number}_qubit_verification.json", 'w') as f:
                 json.dump(final_data, f)
             print(f"Finished {run_count}/1000")
