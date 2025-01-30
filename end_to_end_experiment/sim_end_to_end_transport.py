@@ -1905,8 +1905,6 @@ if __name__ == '__main__':
     # exit()
     # run_4_node_e2e_verification(qubit_number=1, node_count=4)
     # exit()
-    run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=1)
-    exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 1:
