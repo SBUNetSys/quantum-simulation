@@ -1322,12 +1322,12 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
 
     print(f"Final Data: {final_data}")
 
-def run_4_node_e2e_verification(qubit_number=1):
+def run_4_node_e2e_verification(qubit_number=1, node_count=3):
     run_count = 0
     node_data = {}
     while run_count < 1000:
         try:
-            nodes_list = [f"Node_{i}" for i in range(4)]
+            nodes_list = [f"Node_{i}" for i in range(node_count)]
             network = setup_network(nodes_list, "hop-by-hop-transportation",
                                     memory_capacity=10, memory_depolar_rate=63109,
                                     node_distance=1, source_delay=1)
@@ -1365,13 +1365,13 @@ def run_4_node_e2e_verification(qubit_number=1):
                 # if len(collected_data[c]) < 1000:
                 #     print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
                 # print(f"5 Node ->{c}: {node_data[c]}")
-            with open(f"./transportation_results/e2e_4nodes_{qubit_number}_qubit_verification_raw.json", "w") as f:
+            with open(f"./transportation_results/e2e_{node_count}nodes_{qubit_number}_qubit_verification_raw.json", "w") as f:
                 json.dump(node_data, f)
             final_data = {}
             for k, v in node_data.items():
                 final_data[k] = np.mean(v)
-                print(f"{k}: {v}")
-            with open(f"./transportation_results/e2e_4nodes_{qubit_number}_qubit_verification.json", 'w') as f:
+                print(f"{node_count}Node -> {k}: {final_data[k]}")
+            with open(f"./transportation_results/e2e_{node_count}nodes_{qubit_number}_qubit_verification.json", 'w') as f:
                 json.dump(final_data, f)
             print(f"Finished {run_count}/1000")
 
@@ -1439,8 +1439,6 @@ if __name__ == '__main__':
     # run_5_node_e2e_purification_throughput(1000)
     # run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
     # exit()
-    run_4_node_e2e_verification(1)
-    exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 1:
@@ -1452,6 +1450,11 @@ if __name__ == '__main__':
             run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
         if opt == 4:
             run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10)
+        if opt == 5:
+            run_4_node_e2e_verification(qubit_number=1, node_count=3)
+        if opt == 5:
+            run_4_node_e2e_verification(qubit_number=1, node_count=4)
+
     else:
         print("Usage: python sim_end_to_end_transport.py opt")
     # run_4_node_e2e_verification(1)
