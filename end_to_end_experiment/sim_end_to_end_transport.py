@@ -1915,7 +1915,7 @@ if __name__ == '__main__':
             run_e2e_verification_throughput(qubit_number=1500, node_count=3, distance=1)
         elif opt == 8:
             run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=1)
-        elif opt == 8:
+        elif opt == 9:
             run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=0.5)
     else:
         print("Usage: python sim_end_to_end_transport.py opt")
