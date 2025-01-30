@@ -1997,7 +1997,7 @@ def run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=3, bat
     run_count = 0
     while run_count < 1000:
         try:
-            print(f"Run {i}/1000")
+            print(f"Run {run_count}/1000")
             nodes_list = [f"Node_{j}" for j in range(node_count)]
             network = setup_network(nodes_list, "hop-by-hop-verify-transportation",
                                     memory_capacity=1500, memory_depolar_rate=63109,
@@ -2035,8 +2035,8 @@ def run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=3, bat
             else:
                 node_data["average_fidelity"] = 0.0
             node_data["all_fidelity"] = all_fid
-            final_data_raw[i] = node_data
-            print(f"Finished {i}/1000\n{node_data}")
+            final_data_raw[run_count] = node_data
+            print(f"Finished {run_count}/1000\n{node_data}")
             total_count.append(node_data["total_count"])
             average_fids.append(node_data["average_fidelity"])
             success_count.append(node_data["teleport_success_count"])
