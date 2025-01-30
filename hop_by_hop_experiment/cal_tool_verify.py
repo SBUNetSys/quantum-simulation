@@ -25,11 +25,10 @@ if __name__ == '__main__':
     d_data = data["duration"]
     g_7_count = 0
     g_9_count = 0
-
     for fid in fid_data:
-        if fid[0] > 0.7:
+        if fid > 0.7:
             g_7_count += 1
-        if fid[0] > 0.9:
+        if fid > 0.9:
             g_9_count += 1
 
     print(f"4 Nodes > 0.7: {g_7_count / len(fid_data)}")
