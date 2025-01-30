@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
 
     # 0.5 km
-    with open("./transportation_results/4nodes_verification_throughput_batch_4_0.5.json", "r") as file:
+    with open("./transportation_results/4nodes_verification_throughput_raw_batch_4_0.5.json", "r") as file:
         data = json.load(file)
     g_7_counts = []
     g_9_counts = []
