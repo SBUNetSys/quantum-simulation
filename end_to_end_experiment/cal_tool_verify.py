@@ -58,7 +58,7 @@ if __name__ == '__main__':
     for value_data in data.values():
         g_7_count = 0
         g_9_count = 0
-        fid_data = value_data["all_fidelity"]
+        fid_data = value_data["all_fids"]
         for fid in fid_data:
             if fid > 0.7:
                 g_7_count += 1
