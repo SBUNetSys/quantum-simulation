@@ -1,6 +1,7 @@
 import gc
 import json
 import os
+import traceback
 from collections import defaultdict
 from weakref import finalize
 
@@ -424,35 +425,88 @@ def example_sim_run_with_security(nodes, num_runs, memory_depolar_rate,
     return transport_example, dc
 
 
-def run_example(qubit_number=1):
+def run_example(qubit_number=1, node_count=3, distance=1.0):
     CU_matrix = controlled_unitary(4)
     CU_gate = ops.Operator("CU_Gate", CU_matrix)
     CCU_gate = CU_gate.conj
-    nodes_list = [f"Node_{i}" for i in range(3)]
-    network = setup_network(nodes_list, "hop-by-hop-transportation",
-                            memory_capacity=20, memory_depolar_rate=63109,
-                            node_distance=1, source_delay=1)
-    # create a protocol to entangle two nodes
-    sample_nodes = [node for node in network.nodes.values()]
-    security_example, dc = example_sim_run_with_security(sample_nodes, num_runs=1,
-                                                         memory_depolar_rate=63109,
-                                                         node_distance=1,
-                                                         max_entangle_pairs=20,
-                                                         target_fidelity=0.98,
-                                                         m_size=3,
-                                                         batch_size=4,
-                                                         skip_noise=True,
-                                                         qubit_to_transport=qubit_number,
-                                                         CU_gate=CU_gate,
-                                                         CCU_gate=CCU_gate, )
-    # Run the simulation
-    security_example.start()
-    ns.sim_run()
-    # Collect the data
-    results = dc.dataframe
-    print(results.columns)
-    print(results)
+    os.makedirs("security_results", exist_ok=True)
+    node_data = {}
+    run_count = 0
+    if os.path.exists(f"./security_results/{node_count}nodes_{distance}km_security_raw.json"):
+        with open(f"./security_results/{node_count}nodes_{distance}km_security_raw.json") as f:
+            node_data = json.load(f)
+            run_count = len(node_data["teleport_success_count"])
+    while run_count < 1000:
+        try:
+            nodes_list = [f"Node_{i}" for i in range(3)]
+            network = setup_network(nodes_list, "hop-by-hop-transportation",
+                                    memory_capacity=2000, memory_depolar_rate=63109,
+                                    node_distance=distance, source_delay=1)
+            # create a protocol to entangle two nodes
+            sample_nodes = [node for node in network.nodes.values()]
+            security_example, dc = example_sim_run_with_security(sample_nodes, num_runs=1,
+                                                                 memory_depolar_rate=63109,
+                                                                 node_distance=distance,
+                                                                 max_entangle_pairs=2000,
+                                                                 target_fidelity=0.98,
+                                                                 m_size=3,
+                                                                 batch_size=4,
+                                                                 skip_noise=True,
+                                                                 qubit_to_transport=qubit_number,
+                                                                 CU_gate=CU_gate,
+                                                                 CCU_gate=CCU_gate, )
+
+            # Run the simulation
+            security_example.start()
+            ns.sim_run()
+            # Collect the data
+            collected_data = dc.dataframe
+            for c in collected_data.columns:
+                if c not in node_data:
+                    node_data[c] = []
+                if c == "teleport_fids":
+                    s = []
+                    for t in collected_data[c]:
+                        s += t
+                    node_data[c].append(np.mean(s))
+                else:
+                    node_data[c].append(collected_data[c].mean())
+                    # if c not in node_data:
+                #     node_data[c] = []
+                # node_data[c].append(collected_data[c].mean())
+            with open(f"./security_results/{node_count}nodes_{distance}km_security_raw.json",
+                      'w') as f:
+                json.dump(node_data, f)
+            final_result = {}
+            for k, v in node_data.items():
+                final_result[k] = np.mean(v)
+                print(f"{node_count} Node ->{k}: {final_result[k]}")
+            with open(f"./security_results/{node_count}nodes_{distance}km_security.json",
+                      "w") as f:
+                json.dump(final_result, f)
+            security_example.stop()
+            ns.set_random_state(rng=np.random.RandomState())
+            print("Resetting network")
+            ns.sim_reset()
+            security_example = None
+            gc.collect()
+            run_count += 1
+        except Exception as e:
+            print(e)
+            traceback.print_exc()
+            security_example.stop()
+            security_example = None
+            ns.set_random_state(rng=np.random.RandomState())
+            print("Resetting network")
+            ns.sim_reset()
 
 
 if __name__ == '__main__':
-    run_example(1)
+    if len(sys.argv) == 2:
+        opt = int(sys.argv[1])
+        if opt == 1:
+            run_example(qubit_number=1, node_count=3, distance=0.5)
+        elif opt == 2:
+            run_example(qubit_number=1, node_count=3, distance=1.0)
+    else:
+        print("Usage: python sim_security.py opt")
