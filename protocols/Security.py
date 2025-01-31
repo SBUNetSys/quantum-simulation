@@ -111,12 +111,16 @@ class Security(NodeProtocol):
             elif expr.second_term.value:
                 for event in expr.second_term.triggered_events:
                     source_protocol = event.source
-                    ready_signal = source_protocol.get_signal_by_event(
-                        event=event, receiver=self)
-                    result = ready_signal.result
-                    if (isinstance(result, VerificationSuccessSignalMessage) and
-                            result.timestamp < self.start_time):
-                        continue
+                    if self.is_source_node:
+                        ready_signal = source_protocol.get_signal_by_event(
+                            event=event, receiver=self)
+                        result = ready_signal.result
+                        if (isinstance(result, VerificationSuccessSignalMessage) and
+                                result.timestamp < self.start_time):
+                            continue
+                    else:
+                        ready_signal = source_protocol.get_signal_by_event(
+                            event=event, receiver=self.transport_signal_protocol)
                     if ready_signal.label == MessageType.SECURITY_TRANSPORT_START:
                         # case of non start node
                         self.start_transport = True
