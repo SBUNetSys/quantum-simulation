@@ -438,6 +438,7 @@ def run_example(qubit_number=1, node_count=3, distance=1.0):
             run_count = len(node_data["teleport_success_count"])
     while run_count < 1000:
         try:
+            print(f"Run #{run_count}/1000")
             nodes_list = [f"Node_{i}" for i in range(3)]
             network = setup_network(nodes_list, "hop-by-hop-transportation",
                                     memory_capacity=2000, memory_depolar_rate=63109,
