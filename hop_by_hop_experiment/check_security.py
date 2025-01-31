@@ -18,8 +18,8 @@ if __name__ == '__main__':
             else:
                 exit(-1)
         elif opt == 2:
-            if os.path.exists("./security_results/3nodes_1km_security_raw.json"):
-                with open("./security_results/3nodes_1km_security_raw.json") as f:
+            if os.path.exists("./security_results/3nodes_1.0km_security_raw.json"):
+                with open("./security_results/3nodes_1.0km_security_raw.json") as f:
                     data = json.load(f)
                     if len(data["teleport_success_count"]) != 1000:
                         exit(-1)
