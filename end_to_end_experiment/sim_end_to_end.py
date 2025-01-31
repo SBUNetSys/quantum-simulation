@@ -760,8 +760,8 @@ def run_e2e_delay(max_delay_time=2000):
 
 if __name__ == '__main__':
     # seed = np.random.randint(0, 10000)
-    seed = 524
-    np.random.seed(seed)
+    # seed = 524
+    # np.random.seed(seed)
     # print(f'seed {seed}')
 
     # node_list = ["node_A", "node_B", "node_C", "node_D", "node_E", "node_F"]
