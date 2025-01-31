@@ -114,7 +114,8 @@ class Security(NodeProtocol):
                     ready_signal = source_protocol.get_signal_by_event(
                         event=event, receiver=self)
                     result = ready_signal.result
-                    if result.data.timestamp < self.start_time:
+                    if (isinstance(result, VerificationSuccessSignalMessage) and
+                            result.timestamp < self.start_time):
                         continue
                     if ready_signal.label == MessageType.SECURITY_TRANSPORT_START:
                         # case of non start node
