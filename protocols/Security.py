@@ -95,10 +95,10 @@ class Security(NodeProtocol):
                     entangle_node = result.entangle_node
                     if result.is_source:
                         self.is_source = True
-                    self.logger.info(f"Security {self.name} -> Successful signal\n"
+                    self.logger.info(f"Security {self.name} -> Successful entangle signal\n"
                                 f"Node: {self.node.name}\n"
                                 f"Entangle node: {entangle_node}\n"
-                                f"Mem: {mem_pos}\n", color="green")
+                                f"Mem: {mem_pos}\n", color="blue")
                     if entangle_node not in self.entangled_qubits:
                         self.entangled_qubits[entangle_node] = []
                     if type(mem_pos) == list:
@@ -132,8 +132,14 @@ class Security(NodeProtocol):
         :return:
         """
         for entangled_node in self.entangled_qubits.keys():
+            if len(self.entangled_qubits[entangled_node]) == 0:
+                continue
             qubit_pos = self.entangled_qubits[entangled_node]
             self.entangled_qubits[entangled_node] = []
+            # self.logger.info(f"Security {self.name} -> Sending signal to upper layer\n"
+            #                  f"Node: {self.node.name}\n"
+            #                  f"Entangle node: {entangled_node}\n"
+            #                  f"Mems: {qubit_pos}\n", color="green")
             message = SecuritySuccessSignalMessage(self.node.name, entangled_node, self.is_source, qubit_pos)
             if not self.start_transport:
                 # this should be caught by end to end
@@ -146,6 +152,8 @@ class Security(NodeProtocol):
         """
         process verification signal after security layer
         """
+        self.logger.info(f"Security {self.name} -> Successful verification signal\n"
+                         f"Node: {self.node.name}\n", color="green")
         self.verified_count += len(message.mem_pos)
         if self.verified_count == self.verify_need_count:
             # finished the verification process

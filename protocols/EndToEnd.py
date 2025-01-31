@@ -104,7 +104,8 @@ class EndToEndProtocol(NodeProtocol):
                  final_entanglement,
                  max_pairs,
                  logger,
-                 is_top_layer=False):
+                 is_top_layer=False,
+                 delay_time=0):
 
         super().__init__(node=node, name=name)
         # check if we are a swapping node or not.
@@ -145,6 +146,7 @@ class EndToEndProtocol(NodeProtocol):
         self.is_top_layer = is_top_layer
         self.add_signal(MessageType.SWAP_FINISHED)
         self.start_time = sim_time()
+        self.delay_time = delay_time
         self.is_source = False
 
     def add_new_signal(self, signal):
@@ -175,6 +177,7 @@ class EndToEndProtocol(NodeProtocol):
         # Simulate Bell state measurement
         success_probability = 0.8
         # 90% success rate for Bell state measurement
+        np.random.seed(0)
         if np.random.random() > success_probability:
             result.success = False
             return
@@ -494,6 +497,12 @@ class EndToEndProtocol(NodeProtocol):
         # update the stack
         self.swapping_stack[(message.source_node, message.target_node)].append(message.intermediate_node)
         if self.node.name == self.final_entanglement[0] and message.target_node == self.final_entanglement[1]:
+            self.logger.info(f"Swap {self.name} -> Swap success send signal to upper layer\n"
+                             f"Source Node: {message.source_node}\n"
+                             f"Target Node: {message.target_node}\n"
+                             f"Intermediate Node: {message.intermediate_node}\n"
+                             f"Memo Pos: {message.memo_pos}\n"
+                             f"Entangled Pairs {self.entangled_qubits}\n", color="yellow")
             self.send_signal(Signals.SUCCESS, SwapEntangledSuccess(
                 source_node=self.node.name,
                 entangle_node=message.target_node,
@@ -833,11 +842,14 @@ class EndToEndProtocol(NodeProtocol):
                     if len(self.entangled_qubits[self.final_entanglement[1]]) == self.max_pairs:
                         self.logger.info(f"Swap {self.name} -> Final entanglement finished\n"
                                          f"Source Node: {self.final_entanglement[0]}\n"
-                                         f"Target Node: {self.final_entanglement[1]}", color="green")
-
+                                         f"Target Node: {self.final_entanglement[1]}\n"
+                                         f"Sim time: {sim_time()}", color="green")
+                        if self.delay_time > 0:
+                            yield self.await_timer(self.delay_time)
                         # we finish the final entanglement
                         self.send_signal(MessageType.SWAP_FINISHED,
                                          {self.final_entanglement[1]: self.entangled_qubits[self.final_entanglement[1]]})
+
                         break
                 if self.node.name == self.final_entanglement[1] and self.final_entanglement[0] in self.entangled_qubits:
                     if len(self.entangled_qubits[self.final_entanglement[0]]) == self.max_pairs:

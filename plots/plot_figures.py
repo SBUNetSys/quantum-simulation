@@ -55,112 +55,110 @@ def plot_grouped_bars(df: pd.DataFrame,
 
 
 if __name__ == '__main__':
-    # E2E Fid vs HBH V Fid
+    # Success Rate
     data = {
         "Node Count": [3, 4],
-        "End to End (Purification)": [0.4749, 0.4959],
-        "Hop By Hop (Verification)": [0.7043, 0.7063],
+        "End to End": [0.4749, 0.4959],
+        "End to End with Verification": [0.547,0.608,],
+        "Multi-Hop": [0.788, 0.91],
     }
     data_frame = pd.DataFrame(data)
     plot_grouped_bars(data_frame, "Node Count",
-                      "Fidelity Comparison",
+                      "Qubit Transportation Success Rate Comparison",
                       "Network Node Count",
-                      "Fidelity",
-                      save_name="./figures/fidelity_comparison_e2e_p_vs_hbh_v.png")
-    # E2E Delay vs HBH V
+                      "Success Rate (Fidelity > 0.7)",
+                      save_name="./figures/success_rate_comparison.png")
+    # Throughput
     data = {
         "Node Count": [3, 4],
-        "End to End (Purification)": [16819.12, 24405.73],  # µs
-        "Hop By Hop (Verification)": [509411.18, 664875.80],  # µs
+        "End to End with Verification": [6.917, 4.415],
+        "Multi-Hop": [8.404, 6.9351],
     }
     data_frame = pd.DataFrame(data)
     plot_grouped_bars(data_frame, "Node Count",
-                      "Transmission Delay Comparison",
+                      "Transmission Throughput Comparison",
                       "Network Node Count",
-                      "Transmission Time (µs)",
-                      save_name="./figures/delay_comparison_e2e_p_vs_hbh_v.png")
+                      "Transmitted Qubits Count",
+                      save_name="./figures/throughput_comparison.png")
 
-    # E2E Th vs HBH V
+    # Transmission Time
     data = {
         "Node Count": [3, 4],
-        "End to End (Purification) Total Count": [131.64, 120.33],
-        "End to End (Purification) Fidelity > 0.7": [65.74, 60.21],
-        "End to End (Purification) Fidelity > 0.9": [65.74, 60.21],
-        "Hop By Hop (Verification) Total Count": [8.404 , 6.9351],
-        "Hop By Hop (Verification) Fidelity > 0.7": [4.82 , 4.25],
-        "Hop By Hop (Verification) Fidelity > 0.9": [0.09 , 0.02],
+        "End to End": [16.82, 24.41],
+        "Multi-Hop with Purification": [11.50, 14.39],
     }
     data_frame = pd.DataFrame(data)
     plot_grouped_bars(data_frame, "Node Count",
-                      "Throughput Comparison",
+                      "Transmission Time Comparison",
                       "Network Node Count",
-                      "Transmitted Qubit Count",
-                      save_name="./figures/throughput_comparison_e2e_p_vs_hbh_v.png")
+                      "Transmission Time (ms)",
+                      save_name="./figures/transmission_time_comparison.png")
 
-    # E2E fid vs HBH
+    # throughput
     data = {
         "Node Count": [3, 4],
-        "End to End (Purification)": [0.4749, 0.4959],
-        "Hop By Hop (Purification)": [0.4869, 0.5039],
+        "End to End with Verification": [0.5544, 0.6129],
+        "Multi-Hop": [0.7676, 0.9262],
     }
     data_frame = pd.DataFrame(data)
     plot_grouped_bars(data_frame, "Node Count",
-                      "Fidelity Comparison",
+                      "Qubit Transportation Success Rate Comparison (0.5Km Distance)",
                       "Network Node Count",
-                      "Fidelity",
-                      save_name="./figures/fidelity_comparison_e2e_p_vs_hbh_p.png")
-    # E2E Delay vs HBH
-    data = {
-        "Node Count": [3, 4],
-        "End to End (Purification)": [16819.12, 24405.73],  # µs
-        "Hop By Hop (Purification)": [11497.23, 14390.67],  # µs
-    }
-    data_frame = pd.DataFrame(data)
-    plot_grouped_bars(data_frame, "Node Count",
-                      "Transmission Delay Comparison",
-                      "Network Node Count",
-                      "Transmission Time (µs)",
-                      save_name="./figures/delay_comparison_e2e_p_vs_hbh_p.png")
+                      "Success Rate (Fidelity > 0.7)",
+                      save_name="./figures/success_rate_comparison_0.5km.png")
 
-    # E2E Th vs HBH
-    data = {
-        "Node Count": [3, 4],
-        "End to End (Purification) Total Count": [131.64, 120.33],
-        "End to End (Purification) Fidelity > 0.7": [65.74, 60.21],
-        "End to End (Purification) Fidelity > 0.9": [65.74, 60.21],
-        "Hop By Hop (Purification) Total Count": [165.25, 162.16],
-        "Hop By Hop (Purification) Fidelity > 0.7": [82.85,81.43],
-        "Hop By Hop (Purification) Fidelity > 0.9": [82.85,81.43],
-    }
-    data_frame = pd.DataFrame(data)
-    plot_grouped_bars(data_frame, "Node Count",
-                      "Throughput Comparison",
-                      "Network Node Count",
-                      "Transmitted Qubit Count",
-                      save_name="./figures/throughput_comparison_e2e_p_vs_hbh_p.png")
-
-
-    # E2E V fid vs HBH V
-    data = {
-        "Node Count": [3, 4],
-        "End to End (Verification)": [0.6923, 0.6869],
-        "Hop By Hop (Verification)": [0.7043, 0.7063],
-    }
-    data_frame = pd.DataFrame(data)
-    plot_grouped_bars(data_frame, "Node Count",
-                      "Fidelity Comparison",
-                      "Network Node Count",
-                      "Fidelity",
-                      save_name="./figures/fidelity_comparison_e2e_v_vs_hbh_v.png")
-    # E2E V  Delay vs HBH V
-    data = {
-        "Node Count": [3, 4],
-        "End to End (Verification)": [524998.81, 689674.57],  # µs
-        "Hop By Hop (Verification)": [509411.18, 664875.80],  # µs
-    }
-    data_frame = pd.DataFrame(data)
-    plot_grouped_bars(data_frame, "Node Count",
-                      "Transmission Delay Comparison",
-                      "Network Node Count",
-                      "Transmission Time (µs)",
-                      save_name="./figures/delay_comparison_e2e_v_vs_hbh_v.png")
+    # # E2E Delay vs HBH
+    # data = {
+    #     "Node Count": [3, 4],
+    #     "End to End (Purification)": [16819.12, 24405.73],  # µs
+    #     "Hop By Hop (Purification)": [11497.23, 14390.67],  # µs
+    # }
+    # data_frame = pd.DataFrame(data)
+    # plot_grouped_bars(data_frame, "Node Count",
+    #                   "Transmission Delay Comparison",
+    #                   "Network Node Count",
+    #                   "Transmission Time (µs)",
+    #                   save_name="./figures/delay_comparison_e2e_p_vs_hbh_p.png")
+    #
+    # # E2E Th vs HBH
+    # data = {
+    #     "Node Count": [3, 4],
+    #     "End to End (Purification) Total Count": [131.64, 120.33],
+    #     "End to End (Purification) Fidelity > 0.7": [65.74, 60.21],
+    #     "End to End (Purification) Fidelity > 0.9": [65.74, 60.21],
+    #     "Hop By Hop (Purification) Total Count": [165.25, 162.16],
+    #     "Hop By Hop (Purification) Fidelity > 0.7": [82.85,81.43],
+    #     "Hop By Hop (Purification) Fidelity > 0.9": [82.85,81.43],
+    # }
+    # data_frame = pd.DataFrame(data)
+    # plot_grouped_bars(data_frame, "Node Count",
+    #                   "Throughput Comparison",
+    #                   "Network Node Count",
+    #                   "Transmitted Qubit Count",
+    #                   save_name="./figures/throughput_comparison_e2e_p_vs_hbh_p.png")
+    #
+    #
+    # # E2E V fid vs HBH V
+    # data = {
+    #     "Node Count": [3, 4],
+    #     "End to End (Verification)": [0.6923, 0.6869],
+    #     "Hop By Hop (Verification)": [0.7043, 0.7063],
+    # }
+    # data_frame = pd.DataFrame(data)
+    # plot_grouped_bars(data_frame, "Node Count",
+    #                   "Fidelity Comparison",
+    #                   "Network Node Count",
+    #                   "Fidelity",
+    #                   save_name="./figures/fidelity_comparison_e2e_v_vs_hbh_v.png")
+    # # E2E V  Delay vs HBH V
+    # data = {
+    #     "Node Count": [3, 4],
+    #     "End to End (Verification)": [524998.81, 689674.57],  # µs
+    #     "Hop By Hop (Verification)": [509411.18, 664875.80],  # µs
+    # }
+    # data_frame = pd.DataFrame(data)
+    # plot_grouped_bars(data_frame, "Node Count",
+    #                   "Transmission Delay Comparison",
+    #                   "Network Node Count",
+    #                   "Transmission Time (µs)",
+    #                   save_name="./figures/delay_comparison_e2e_v_vs_hbh_v.png")

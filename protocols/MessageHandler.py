@@ -48,11 +48,16 @@ class MessageType(Enum):
     ENTANGLEMENT_HANDLER_FINISHED = auto()
     PURIFICATION_FINISHED = auto()
     VERIFICATION_FINISHED = auto()
+    SECURITY_VERIFICATION_FINISHED = auto()
     SWAP_FINISHED = auto()
     TRANSPORT_FINISHED = auto()
     # security signals
     SECURITY_TRANSPORT_START = auto()
     SECURITY_TRANSPORT_QUBIT = auto()
+    SECURITY_VERIFICATION_REQUEST = auto()
+    SECURITY_VERIFICATION_READY = auto()
+    SECURITY_VERIFICATION_START = auto()
+    SECURITY_VERIFICATION_RESULT = auto()
 
 class MessageHandler(NodeProtocol):
     """

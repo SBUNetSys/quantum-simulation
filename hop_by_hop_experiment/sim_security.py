@@ -15,7 +15,6 @@ from netsquid.protocols.protocol import Signals
 from netsquid.qubits import ketstates as ks
 import sys
 
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network
 from utils import Logging, GenSwappingTree
@@ -25,12 +24,14 @@ from protocols.EntanglementHandler import EntanglementHandler
 from protocols.GenEntanglement import GenEntanglement
 from protocols.Purification import Purification
 from protocols.Verification import Verification
+from protocols.SecurityVerification import SecurityVerification
 from protocols.Transport import Transportation
 from protocols.EndToEnd import EndToEndProtocol
 from protocols.Security import Security
 
 import netsquid.qubits.operators as ops
 from utils.SignalMessages import ProtocolFinishedSignalMessage
+
 
 class SecurityWithVerificationExample(LocalProtocol):
     """
@@ -47,9 +48,9 @@ class SecurityWithVerificationExample(LocalProtocol):
                  batch_size=10,
                  qubits_to_transport=1,
                  skip_noise=False,
-                 CU_gate = None,
-                 CCU_gate = None,
-                 node_path = None,):
+                 CU_gate=None,
+                 CCU_gate=None,
+                 node_path=None, ):
         if len(network_nodes) < 1:
             raise ValueError("This protocol requires at least nodes.")
         self.all_nodes = network_nodes
@@ -195,7 +196,6 @@ class SecurityWithVerificationExample(LocalProtocol):
                 self.add_subprotocol(verify_protocol)
                 qubit_input_protocols.append(verify_protocol)
 
-
             entangle_name = ""
             if index + 1 < len(network_nodes):
                 entangle_name = network_nodes[index + 1].name
@@ -234,47 +234,49 @@ class SecurityWithVerificationExample(LocalProtocol):
                                                    cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
                                                    qubit_ready_protocols=[security],
                                                    max_pairs=self.max_entangle_pairs - 1,
-                                                   logger=self.logger,
+                                                   logger=null_logger,
                                                    is_top_layer=False)
             self.add_subprotocol(security_end_to_end)
 
             if index == 0:
-                security_verify_protocol = Verification(node=node,
-                                                        name=f"security_verify_{node.name}->{network_nodes[-1].name}",
-                                                        entangled_node=network_nodes[-1].name,
-                                                        purification_protocol=security_end_to_end,
-                                                        cc_message_handler=self.subprotocols[
-                                                            f"message_handler_{node.name}"],
-                                                        m_size=m_size,
-                                                        batch_size=batch_size,
-                                                        CU_Gate=CU_gate,
-                                                        CCU_Gate=CCU_gate,
-                                                        measurement_m0=measurement_m0,
-                                                        measurement_m1=measurement_m1,
-                                                        logger=self.logger,
-                                                        is_top_layer=False,
-                                                        max_entangled_pairs=self.max_entangle_pairs,
-                                                        )
+                security_verify_protocol = SecurityVerification(node=node,
+                                                                name=f"security_verify_{node.name}->{network_nodes[-1].name}",
+                                                                entangled_node=entangle_name,
+                                                                target_node=network_nodes[-1].name,
+                                                                purification_protocol=security_end_to_end,
+                                                                cc_message_handler=self.subprotocols[
+                                                                    f"message_handler_{node.name}"],
+                                                                m_size=m_size,
+                                                                batch_size=batch_size,
+                                                                CU_Gate=CU_gate,
+                                                                CCU_Gate=CCU_gate,
+                                                                measurement_m0=measurement_m0,
+                                                                measurement_m1=measurement_m1,
+                                                                logger=self.logger,
+                                                                is_top_layer=False,
+                                                                max_entangled_pairs=self.max_entangle_pairs,
+                                                                )
                 security.verification_signal_protocol = security_verify_protocol
-                security.transport_signal_protocol=self
+                security.transport_signal_protocol = self
                 self.add_subprotocol(security_verify_protocol)
             elif index == len(network_nodes) - 1:
-                security_verify_protocol = Verification(node=node,
-                                                        name=f"security_verify_{node.name}->{network_nodes[0].name}",
-                                                        entangled_node=network_nodes[0].name,
-                                                        purification_protocol=security_end_to_end,
-                                                        cc_message_handler=self.subprotocols[
-                                                            f"message_handler_{node.name}"],
-                                                        m_size=m_size,
-                                                        batch_size=batch_size,
-                                                        CU_Gate=CU_gate,
-                                                        CCU_Gate=CCU_gate,
-                                                        measurement_m0=measurement_m0,
-                                                        measurement_m1=measurement_m1,
-                                                        logger=null_logger,
-                                                        is_top_layer=False,
-                                                        max_entangled_pairs=self.max_entangle_pairs,
-                                                        )
+                security_verify_protocol = SecurityVerification(node=node,
+                                                                name=f"security_verify_{node.name}->{network_nodes[0].name}",
+                                                                entangled_node=entangle_name,
+                                                                target_node=network_nodes[0].name,
+                                                                purification_protocol=security_end_to_end,
+                                                                cc_message_handler=self.subprotocols[
+                                                                    f"message_handler_{node.name}"],
+                                                                m_size=m_size,
+                                                                batch_size=batch_size,
+                                                                CU_Gate=CU_gate,
+                                                                CCU_Gate=CCU_gate,
+                                                                measurement_m0=measurement_m0,
+                                                                measurement_m1=measurement_m1,
+                                                                logger=self.logger,
+                                                                is_top_layer=False,
+                                                                max_entangled_pairs=self.max_entangle_pairs,
+                                                                )
                 self.add_subprotocol(security_verify_protocol)
                 security.transport_signal_protocol = self.subprotocols[f"security_{network_nodes[0].name}"]
             else:
@@ -289,7 +291,7 @@ class SecurityWithVerificationExample(LocalProtocol):
                                        destination=network_nodes[-1].name,
                                        cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
                                        transmitting_qubit_size=qubits_to_transport,
-                                       logger=null_logger,
+                                       logger=self.logger,
                                        is_top_layer=True,
                                        is_after_security=True,
                                        )
@@ -373,6 +375,7 @@ class SecurityWithVerificationExample(LocalProtocol):
         for subprotocol in self.subprotocols.values():
             subprotocol.stop()
 
+
 def example_sim_run_with_security(nodes, num_runs, memory_depolar_rate,
                                   node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size,
                                   qubit_to_transport, CU_gate, CCU_gate,
@@ -393,18 +396,18 @@ def example_sim_run_with_security(nodes, num_runs, memory_depolar_rate,
     """
     # Create the protocol
     transport_example = SecurityWithVerificationExample(network_nodes=nodes,
-                                                         num_runs=num_runs,
-                                                         max_entangle_pairs=max_entangle_pairs,
-                                                         memory_depolar_rate=memory_depolar_rate,
-                                                         node_distance=node_distance,
-                                                         target_fidelity=target_fidelity,
-                                                         m_size=m_size,
-                                                         batch_size=batch_size,
-                                                         skip_noise=skip_noise,
-                                                         qubits_to_transport=qubit_to_transport,
-                                                         CU_gate=CU_gate,
-                                                         CCU_gate=CCU_gate,
-                                                         node_path=[node.name for node in nodes])
+                                                        num_runs=num_runs,
+                                                        max_entangle_pairs=max_entangle_pairs,
+                                                        memory_depolar_rate=memory_depolar_rate,
+                                                        node_distance=node_distance,
+                                                        target_fidelity=target_fidelity,
+                                                        m_size=m_size,
+                                                        batch_size=batch_size,
+                                                        skip_noise=skip_noise,
+                                                        qubits_to_transport=qubit_to_transport,
+                                                        CU_gate=CU_gate,
+                                                        CCU_gate=CCU_gate,
+                                                        node_path=[node.name for node in nodes])
 
     # Run the protocol
     def record_run(evexpr):
@@ -425,23 +428,23 @@ def run_example(qubit_number=1):
     CU_matrix = controlled_unitary(4)
     CU_gate = ops.Operator("CU_Gate", CU_matrix)
     CCU_gate = CU_gate.conj
-    nodes_list = [f"Node_{i}" for i in range(4)]
+    nodes_list = [f"Node_{i}" for i in range(3)]
     network = setup_network(nodes_list, "hop-by-hop-transportation",
                             memory_capacity=20, memory_depolar_rate=63109,
                             node_distance=1, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     security_example, dc = example_sim_run_with_security(sample_nodes, num_runs=1,
-                                                          memory_depolar_rate=63109,
-                                                          node_distance=1,
-                                                          max_entangle_pairs=20,
-                                                          target_fidelity=0.98,
-                                                          m_size=3,
-                                                          batch_size=4,
-                                                          skip_noise=True,
-                                                          qubit_to_transport=qubit_number,
-                                                          CU_gate=CU_gate,
-                                                          CCU_gate=CCU_gate, )
+                                                         memory_depolar_rate=63109,
+                                                         node_distance=1,
+                                                         max_entangle_pairs=20,
+                                                         target_fidelity=0.98,
+                                                         m_size=3,
+                                                         batch_size=4,
+                                                         skip_noise=True,
+                                                         qubit_to_transport=qubit_number,
+                                                         CU_gate=CU_gate,
+                                                         CCU_gate=CCU_gate, )
     # Run the simulation
     security_example.start()
     ns.sim_run()
@@ -449,5 +452,7 @@ def run_example(qubit_number=1):
     results = dc.dataframe
     print(results.columns)
     print(results)
+
+
 if __name__ == '__main__':
     run_example(1)

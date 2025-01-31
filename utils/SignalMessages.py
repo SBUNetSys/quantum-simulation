@@ -116,6 +116,7 @@ class ReEntangleSignalMessage:
         self.re_entangle_type = re_entangle_type
         self.timestamp = ns.sim_time()
 
+
 class ProtocolFinishedSignalMessage:
     """
     Signal message for protocol finished
@@ -151,7 +152,6 @@ class VerificationStartSignalMessage(VerificationSignalMessage):
         self.verif_teleport_measurement = verification_teleport_measurement
 
 
-
 class VerificationResultSignalMessage(VerificationSignalMessage):
     """
     Signal message for verification result
@@ -163,15 +163,17 @@ class VerificationResultSignalMessage(VerificationSignalMessage):
         self.verif_result = verification_result
         self.result_probability = result_probability
 
+
 class VerificationSuccessSignalMessage(EntangleSignalMessage):
     """
     Verification success signal message for send to upper layer. It is a subclass of EntangleSignalMessage
 
     """
 
-    def __init__(self, source_node,entangle_node, is_source, verification_batch_poses: list):
-        super().__init__(source_node,entangle_node, verification_batch_poses)
+    def __init__(self, source_node, entangle_node, is_source, verification_batch_poses: list):
+        super().__init__(source_node, entangle_node, verification_batch_poses)
         self.is_source = is_source
+
 
 class SwapRequestResponseMessage:
     """
@@ -248,6 +250,7 @@ class SwapSuccessMessage:
         self.target_memo_pos = target_memo_pos
         self.timestamp = ns.sim_time()
 
+
 class SwapFailedMessage:
     """
     Signal message for swap failure from swap node to the left and right node
@@ -261,6 +264,7 @@ class SwapFailedMessage:
         self.target_node = target_node
         self.memo_pos = memo_pos
         self.timestamp = ns.sim_time()
+
 
 class SwapEntangledSuccess(EntangleSignalMessage):
     """
@@ -295,14 +299,17 @@ class TransportRequestMessage:
         self.operation_key = operation_key
         self.timestamp = ns.sim_time()
 
+
 class TransportResponseMessage:
     """
     Signal message for ready for a teleportation operation
     :param operation_key : the operation key is used to identify the transmission operation
     """
+
     def __init__(self, operation_key):
         self.operation_key = operation_key
         self.timestamp = ns.sim_time()
+
 
 class TransportApplyCorrectionMessage:
     """
@@ -325,14 +332,17 @@ class TransportApplyCorrectionMessage:
         self.m2 = m2
         self.timestamp = ns.sim_time()
 
+
 class TransportApplySuccessMessage:
     """
     Signal message for successfully applied correction on teleportation operation
     :param operation_key : the operation key is used to identify the transmission operation
     """
+
     def __init__(self, operation_key):
         self.operation_key = operation_key
         self.timestamp = ns.sim_time()
+
 
 class SecuritySuccessSignalMessage(EntangleSignalMessage):
     """
@@ -340,6 +350,55 @@ class SecuritySuccessSignalMessage(EntangleSignalMessage):
 
     """
 
-    def __init__(self, source_node,entangle_node, is_source, security_mem_poses: list):
-        super().__init__(source_node,entangle_node, security_mem_poses)
+    def __init__(self, source_node, entangle_node, is_source, security_mem_poses: list):
+        super().__init__(source_node, entangle_node, security_mem_poses)
         self.is_source = is_source
+
+
+class SecurityVerificationSignalMessage:
+    """
+    Base class for security verification signal messages
+    """
+
+    def __init__(self, entangle_node, source_verification_batch_id,
+                 target_verification_batch_id,
+                 source_verification_batch_poses: list,
+                 target_verification_batch_poses: list):
+        self.entangle_node = entangle_node
+        self.source_verification_batch_id = source_verification_batch_id
+        self.target_verification_batch_id = target_verification_batch_id
+        self.source_verification_batch_poses = source_verification_batch_poses
+        self.target_verification_batch_poses = target_verification_batch_poses
+        self.timestamp = ns.sim_time()
+
+
+class SecurityVerificationStartSignalMessage(SecurityVerificationSignalMessage):
+    """
+    Signal message for starting verification
+    """
+
+    def __init__(self, entangle_node, source_verification_batch_id,
+                 source_verification_batch_poses: list,
+                 target_verification_batch_id,
+                 target_verification_batch_poses: list,
+                 verification_teleport_measurement: dict):
+        super().__init__(entangle_node, source_verification_batch_id,
+                         target_verification_batch_id, source_verification_batch_poses,
+                         target_verification_batch_poses)
+        self.verif_teleport_measurement = verification_teleport_measurement
+
+
+class SecurityVerificationResultSignalMessage(SecurityVerificationSignalMessage):
+    """
+    Signal message for verification result
+    """
+
+    def __init__(self, entangle_node, source_verification_batch_id, target_verification_batch_id,
+                 source_verification_batch_poses: list,
+                 target_verification_batch_poses: list,
+                 verification_result: int, result_probability: float):
+        super().__init__(entangle_node, source_verification_batch_id,target_verification_batch_id,
+                         source_verification_batch_poses,
+                         target_verification_batch_poses)
+        self.verif_result = verification_result
+        self.result_probability = result_probability
