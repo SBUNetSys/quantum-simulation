@@ -225,6 +225,7 @@ if __name__ == '__main__':
                 g_6_global_count += 1
             total_count += 1
         if len(fid_data) > 0:
+            g_6_counts.append(g_6_count/len(fid_data))
             g_7_counts.append(g_7_count/len(fid_data))
             g_9_counts.append(g_9_count/len(fid_data))
 
