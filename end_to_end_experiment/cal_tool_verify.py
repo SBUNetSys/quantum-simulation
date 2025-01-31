@@ -108,11 +108,11 @@ if __name__ == '__main__':
             g_7_counts.append(g_7_count)
             g_9_counts.append(g_9_count)
 
-    print(f"4 Node 1Km Throughput Count: {np.mean(all_count)}")
-    print(f"4 Node 1Km Purification Throughput > 0.7: {np.mean(g_7_counts)}")
-    print(f"4 Node 1Km Purification Throughput > 0.9: {np.mean(g_9_counts)}")
-    print(f"4 Node 1Km Purification Global > 0.7: {g_7_global_count / total_count}")
-    print(f"4 Node 1Km Purification Global > 0.9: {g_9_global_count / total_count}\n")
+    print(f"E2E 4 Node 1Km Throughput Count: {np.mean(all_count)}")
+    print(f"E2E 4 Node 1Km Purification Throughput > 0.7: {np.mean(g_7_counts)}")
+    print(f"E2E 4 Node 1Km Purification Throughput > 0.9: {np.mean(g_9_counts)}")
+    print(f"E2E 4 Node 1Km Purification Global > 0.7: {g_7_global_count / total_count}")
+    print(f"E2E 4 Node 1Km Purification Global > 0.9: {g_9_global_count / total_count}\n")
 
     with open("./transportation_results/e2e_4nodes_1_qubit_verification_1.0km_raw.json", 'r') as f:
         data = json.load(f)
