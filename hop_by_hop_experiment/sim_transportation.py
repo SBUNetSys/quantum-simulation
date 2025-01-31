@@ -2232,6 +2232,10 @@ if __name__ == '__main__':
             run_evaluation_4_node_verify_depolar(qubit_number=1, node_count=4, distance=1.0, rate=24583)
         elif opt == 15:
             run_evaluation_4_node_verify_depolar(qubit_number=1, node_count=4, distance=1.0, rate=6492)
+        elif opt == 16:
+            run_evaluation_4_node_verify_depolar(qubit_number=1, node_count=3, distance=1.0, rate=24583)
+        elif opt == 17:
+            run_evaluation_4_node_verify_depolar(qubit_number=1, node_count=3, distance=1.0, rate=6492)
     else:
         print("arg 0 = purification_throughput, 1 = verification")
 
