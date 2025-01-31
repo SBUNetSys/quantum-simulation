@@ -1416,6 +1416,76 @@ def run_5_node_e2e_purification_node(qubit_number=1, max_node=10):
                   "w") as f:
             json.dump(final_data, f)
 
+def run_e2e_purification_target_node(qubit_number=1, target_node=4):
+    final_data_raw = {}
+    run_count = 0
+    if os.path.exists(
+            f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification_raw.json"):
+        with open(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification_raw.json",
+                  "r") as f:
+            final_data_raw = json.load(f)
+            run_count = len(final_data_raw['teleport_fids'])
+    # if os.path.exists(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification.json"):
+    #     with open(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification.json",
+    #               "r") as f:
+    #         final_data = json.load(f)
+
+    while run_count < 1000:
+        try:
+            nodes_list = [f"Node_{j}" for j in range(target_node)]
+            network = setup_network(nodes_list, "hop-by-hop-transportation",
+                                    memory_capacity=10, memory_depolar_rate=63109,
+                                    node_distance=1, source_delay=1)
+            # create a protocol to entangle two nodes
+            sample_nodes = [node for node in network.nodes.values()]
+            transport_example, dc = example_sim_run_with_purification(sample_nodes,
+                                                                      num_runs=1,
+                                                                      memory_depolar_rate=63109,
+                                                                      node_distance=1,
+                                                                      max_entangle_pairs=10,
+                                                                      target_fidelity=0.98,
+                                                                      qubits_to_transport=qubit_number)
+            # Run the simulation
+            transport_example.start()
+            ns.sim_run()
+            # Collect the data
+            collected_data = dc.dataframe
+            # final_data_raw[node] = collected_data.to_dict()
+            for c in collected_data.columns:
+                if c not in final_data_raw:
+                    final_data_raw[c] = []
+                if c == "teleport_fids":
+                    s = []
+                    for t in collected_data[c]:
+                        s += t
+                    final_data_raw[c].append(np.mean(s))
+                else:
+                    final_data_raw[c].append(collected_data[c].mean())
+                # if c not in node_data:
+                #     node_data[c] = []
+                # node_data[c].append(collected_data[c].mean())
+                # if len(collected_data[c]) < 1000:
+                #     print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
+            print(f"Run {target_node} node, {run_count}/1000")
+            transport_example.stop()
+            ns.set_random_state(rng=np.random.RandomState())
+            ns.sim_reset()
+            run_count += 1
+            # final_data[node] = node_data
+            node_data_calculated = {k: np.mean(v) for k, v in final_data_raw.items()}
+            with open(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification_raw.json",
+                      "w") as f:
+                json.dump(final_data_raw, f)
+            with open(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification.json",
+                      "w") as f:
+                json.dump(node_data_calculated, f)
+        except Exception as e:
+            print(e)
+            transport_example.stop()
+            ns.set_random_state(rng=np.random.RandomState())
+            ns.sim_reset()
+
+
 
 def run_5_node_e2e_purification_throughput(qubit_number=1000):
     final_data_raw = {}
@@ -1922,6 +1992,8 @@ if __name__ == '__main__':
     # exit()
     # run_4_node_e2e_verification(qubit_number=1, node_count=4)
     # exit()
+    run_e2e_purification_target_node(target_node=4, qubit_number=1)
+    exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 1:
