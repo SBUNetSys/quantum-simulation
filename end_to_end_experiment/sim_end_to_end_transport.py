@@ -2081,7 +2081,6 @@ if __name__ == '__main__':
     # run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
     # exit()
     # run_4_node_e2e_verification(qubit_number=1, node_count=4)
-    # exit()
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 1:
