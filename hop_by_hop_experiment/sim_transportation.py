@@ -2106,6 +2106,8 @@ if __name__ == '__main__':
             run_evaluation_4_node_verify_throughput(qubit_number=1500, node_count=4, batch_size=4, distance=0.5)
         elif opt == 12:
             run_evaluation_4_node_verify_new(qubit_number=1, node_count=4, distance=0.5)
+        elif opt == 13:
+            run_evaluation_4_node_verify_new(qubit_number=1, node_count=3, distance=0.5)
     else:
         print("arg 0 = purification_throughput, 1 = verification")
 

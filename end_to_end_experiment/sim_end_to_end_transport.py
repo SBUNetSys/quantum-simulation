@@ -1250,13 +1250,13 @@ def run_multi_node_purification_distance(max_distance, qubit_number=1):
 def run_5_node_e2e_purification(qubit_number=1):
     nodes_list = [f"Node_{i}" for i in range(5)]
     network = setup_network(nodes_list, "hop-by-hop-transportation",
-                            memory_capacity=10, memory_depolar_rate=631090,
+                            memory_capacity=10, memory_depolar_rate=63109,
                             node_distance=1, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     transport_example, dc = example_sim_run_with_purification(sample_nodes,
                                                               num_runs=1000,
-                                                              memory_depolar_rate=631090,
+                                                              memory_depolar_rate=63109,
                                                               node_distance=1,
                                                               max_entangle_pairs=9,
                                                               target_fidelity=0.98,
@@ -1295,13 +1295,13 @@ def run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10):
         final_data_raw[d] = {}
         nodes_list = [f"Node_{i}" for i in range(5)]
         network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                memory_capacity=10, memory_depolar_rate=631090,
+                                memory_capacity=10, memory_depolar_rate=63109,
                                 node_distance=d, source_delay=1)
         # create a protocol to entangle two nodes
         sample_nodes = [node for node in network.nodes.values()]
         transport_example, dc = example_sim_run_with_purification(sample_nodes,
                                                                   num_runs=1000,
-                                                                  memory_depolar_rate=631090,
+                                                                  memory_depolar_rate=63109,
                                                                   node_distance=d,
                                                                   max_entangle_pairs=9,
                                                                   target_fidelity=0.98,
@@ -1363,13 +1363,13 @@ def run_5_node_e2e_purification_node(qubit_number=1, max_node=10):
             try:
                 nodes_list = [f"Node_{j}" for j in range(node)]
                 network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                        memory_capacity=10, memory_depolar_rate=631090,
+                                        memory_capacity=10, memory_depolar_rate=63109,
                                         node_distance=1, source_delay=1)
                 # create a protocol to entangle two nodes
                 sample_nodes = [node for node in network.nodes.values()]
                 transport_example, dc = example_sim_run_with_purification(sample_nodes,
                                                                           num_runs=1,
-                                                                          memory_depolar_rate=631090,
+                                                                          memory_depolar_rate=63109,
                                                                           node_distance=1,
                                                                           max_entangle_pairs=9,
                                                                           target_fidelity=0.98,
@@ -1440,13 +1440,13 @@ def run_5_node_e2e_purification_throughput(qubit_number=1000):
     for i in range(start, 1000):
         nodes_list = [f"Node_{i}" for i in range(5)]
         network = setup_network(nodes_list, "e2e-transportation",
-                                memory_capacity=1500, memory_depolar_rate=631090,
+                                memory_capacity=1500, memory_depolar_rate=63109,
                                 node_distance=1, source_delay=1)
         # create a protocol to entangle two nodes
         sample_nodes = [node for node in network.nodes.values()]
         transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
                                                                              num_runs=1,
-                                                                             memory_depolar_rate=631090,
+                                                                             memory_depolar_rate=63109,
                                                                              node_distance=1,
                                                                              max_entangle_pairs=1500,
                                                                              target_fidelity=0.98,
@@ -1526,13 +1526,13 @@ def run_5_node_e2e_purification_throughput_distance(qubit_number=1000, max_dis=1
             print(f"Starting preload dis {d} km and run {i}")
             nodes_list = [f"Node_{j}" for j in range(5)]
             network = setup_network(nodes_list, "e2e-transportation",
-                                    memory_capacity=1500, memory_depolar_rate=631090,
+                                    memory_capacity=1500, memory_depolar_rate=63109,
                                     node_distance=d, source_delay=1)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
             transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
                                                                                  num_runs=d,
-                                                                                 memory_depolar_rate=631090,
+                                                                                 memory_depolar_rate=63109,
                                                                                  node_distance=1,
                                                                                  max_entangle_pairs=1500,
                                                                                  target_fidelity=0.98,
@@ -1618,13 +1618,13 @@ def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
                 print(f"Starting {node} node and run {run_count}/1000")
                 nodes_list = [f"Node_{j}" for j in range(node)]
                 network = setup_network(nodes_list, "e2e-transportation",
-                                        memory_capacity=1500, memory_depolar_rate=631090,
+                                        memory_capacity=1500, memory_depolar_rate=63109,
                                         node_distance=1, source_delay=1)
                 # create a protocol to entangle two nodes
                 sample_nodes = [node for node in network.nodes.values()]
                 transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
                                                                                      num_runs=1,
-                                                                                     memory_depolar_rate=631090,
+                                                                                     memory_depolar_rate=63109,
                                                                                      node_distance=1,
                                                                                      max_entangle_pairs=1500,
                                                                                      target_fidelity=0.98,
@@ -1719,13 +1719,13 @@ def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.
             print(f"Starting {node_count} node and run {run_count}/1000")
             nodes_list = [f"Node_{j}" for j in range(node_count)]
             network = setup_network(nodes_list, "e2e-transportation",
-                                    memory_capacity=1500, memory_depolar_rate=631090,
+                                    memory_capacity=1500, memory_depolar_rate=63109,
                                     node_distance=distance, source_delay=1)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
             transport_example, dc = example_sim_run_with_verification_throughput(sample_nodes,
                                                                                  num_runs=1,
-                                                                                 memory_depolar_rate=631090,
+                                                                                 memory_depolar_rate=63109,
                                                                                  node_distance=distance,
                                                                                  max_entangle_pairs=1500,
                                                                                  target_fidelity=0.98,
@@ -1945,6 +1945,8 @@ if __name__ == '__main__':
             run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=0.5)
         elif opt == 10:
             run_4_node_e2e_verification(qubit_number=1, node_count=4, distance=0.5)
+        elif opt == 11:
+            run_4_node_e2e_verification(qubit_number=1, node_count=3, distance=0.5)
     else:
         print("Usage: python sim_end_to_end_transport.py opt")
     # run_4_node_e2e_verification(1)
