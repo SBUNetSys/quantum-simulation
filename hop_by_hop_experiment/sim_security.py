@@ -65,7 +65,7 @@ class SecurityWithVerificationExample(LocalProtocol):
         self.final_entanglement = (node_path[0], node_path[-1])
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleTransportation")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=True)
+        self.logger = Logging.Logger(self.name, logging_enabled=False)
         null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
 
