@@ -49,7 +49,7 @@ if __name__ == '__main__':
     print(f"3 Node 1Km Purification Throughput > 0.7: {np.mean(g_7_counts)}")
     print(f"3 Node 1Km Purification Throughput > 0.9: {np.mean(g_9_counts)}")
     print(f"3 Node 1Km Purification Global > 0.7: {g_7_global_count / total_count}")
-    print(f"3 Node 1Km Purification Global > 0.9: {g_9_global_count / total_count}")
+    print(f"3 Node 1Km Purification Global > 0.9: {g_9_global_count / total_count}\n")
 
     with open("./transportation_results/3nodes_1_qubit_verification_1.0km_raw.json", 'r') as f:
         data = json.load(f)
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     print(f"4 Node 1Km Purification Throughput > 0.7: {np.mean(g_7_counts)}")
     print(f"4 Node 1Km Purification Throughput > 0.9: {np.mean(g_9_counts)}")
     print(f"4 Node 1Km Purification Global > 0.7: {g_7_global_count / total_count}")
-    print(f"4 Node 1Km Purification Global > 0.9: {g_9_global_count / total_count}")
+    print(f"4 Node 1Km Purification Global > 0.9: {g_9_global_count / total_count}\n")
 
     with open("./transportation_results/4nodes_1_qubit_verification_1.0km_raw.json", 'r') as f:
         data = json.load(f)
