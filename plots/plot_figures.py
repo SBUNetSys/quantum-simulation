@@ -97,8 +97,8 @@ if __name__ == '__main__':
     # throughput
     data = {
         "Node Count": [3, 4],
-        "End to End with Verification": [0.5544, 0.6129],
-        "Multi-Hop": [0.7676, 0.9262],
+        "End to End with Verification": [0.6098, 0.6129],
+        "Multi-Hop": [0.7661, 0.9262],
     }
     data_frame = pd.DataFrame(data)
     plot_grouped_bars(data_frame, "Node Count",
