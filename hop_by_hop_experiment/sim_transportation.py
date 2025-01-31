@@ -2134,8 +2134,9 @@ if __name__ == '__main__':
     # exit()
     # run_evaluation_4_node_verify_new(qubit_number=1, node_count=5)
     # exit()
+    # run_evaluation_target_node(target_node=3, qubit_number=1)
     # run_evaluation_target_node(target_node=4, qubit_number=1)
-    # exit()
+
     if len(sys.argv) == 2:
         opt = int(sys.argv[1])
         if opt == 0:
