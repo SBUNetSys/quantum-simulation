@@ -2110,10 +2110,10 @@ def run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=3, bat
             final_data["average_fidelity"] = np.mean(average_fids)
             final_data["teleport_success_count"] = np.mean(success_count)
 
-            with open(f"./transportation_results/{node_count}nodes_verification_throughput_raw_batch_{batch_size}_{distance}.json", "w") as f:
+            with open(f"./transportation_results/{node_count}nodes_{distance}km_verification_throughput_raw.json", "w") as f:
                 json.dump(final_data_raw, f)
 
-            with open(f"./transportation_results/{node_count}nodes_verification_throughput_batch_{batch_size}_{distance}.json", "w") as f:
+            with open(f"./transportation_results/{node_count}nodes_{distance}km_verification_throughput.json", "w") as f:
                 json.dump(final_data, f)
             run_count += 1
         except Exception as e:
