@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-plt.rcParams['axes.labelsize'] = 16
+plt.rcParams['axes.labelsize'] = 24
 plt.rcParams['axes.titlesize'] = 18
-plt.rcParams['xtick.labelsize'] = 14
-plt.rcParams['ytick.labelsize'] = 14
+plt.rcParams['xtick.labelsize'] = 24
+plt.rcParams['ytick.labelsize'] = 24
 
 
 def plot_decay_function(alpha=63109):
@@ -15,7 +15,7 @@ def plot_decay_function(alpha=63109):
     F = 0.75 * np.exp(-alpha * t / 1e6) + 0.25
 
     # Create the plot
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(12, 9))
     plt.plot(t, F, '-', label='Fidelity', linewidth=3)
 
     # Add grid

@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-plt.rcParams['axes.labelsize'] = 16
+
+plt.rcParams['axes.labelsize'] = 24
 plt.rcParams['axes.titlesize'] = 18
 plt.rcParams['xtick.labelsize'] = 14
 plt.rcParams['ytick.labelsize'] = 14
@@ -11,7 +12,9 @@ def plot_grouped_bars(df: pd.DataFrame,
                       title: str,
                       x_label: str,
                       y_label: str,
-                      save_name: str = None):
+                      save_name: str = None,
+                      loc_str:str ="best",
+                      ncol=3):
     """
     Create a grouped bar plot.
 
@@ -22,9 +25,11 @@ def plot_grouped_bars(df: pd.DataFrame,
         x_label: Label of x-axis
         y_label: Label of y-axis
         save_name: Optional filename to save the plot
+        loc_str: Optional location of legend
+        ncol: optional ncol of legend
     """
     # Create figure with specified DPI
-    fig, ax = plt.subplots(figsize=(12, 6), dpi=300)  # Set DPI here
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=300)  # Set DPI here
 
     # Create grouped bar plot
     df.plot(kind='bar',
@@ -33,16 +38,17 @@ def plot_grouped_bars(df: pd.DataFrame,
 
     # Add value labels on top of bars
     for container in ax.containers:
-        ax.bar_label(container, fmt='%.2f', padding=3)
+        ax.bar_label(container, fmt='%.2f', padding=3, fontsize=14)
 
     # Customize plot
-    plt.title(title)
+    # plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.xticks(rotation=0)
-    plt.legend(title='Method')
-    plt.xticks(fontsize=16)
-    plt.yticks(fontsize=16)
+    # plt.legend()#title='Method'
+    plt.legend(fontsize=16, loc=loc_str, ncol=ncol)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
     # Adjust layout
     plt.tight_layout()
 
@@ -59,7 +65,7 @@ if __name__ == '__main__':
     data = {
         "Node Count": [3, 4],
         "End to End": [0.4749, 0.4959],
-        "End to End with Verification": [0.547,0.608,],
+        "End to End with Verification": [0.547, 0.608, ],
         "Multi-Hop": [0.788, 0.91],
     }
     data_frame = pd.DataFrame(data)
@@ -97,16 +103,40 @@ if __name__ == '__main__':
     # throughput
     data = {
         "Node Count": [3, 4],
-        "End to End with Verification": [0.6098, 0.6129],
-        "Multi-Hop": [0.7661, 0.9262],
+        "End to End with Verification": [0.5544, 0.6129],
+        "Multi-Hop": [0.7676, 0.9262],
     }
     data_frame = pd.DataFrame(data)
     plot_grouped_bars(data_frame, "Node Count",
                       "Qubit Transportation Success Rate Comparison (0.5Km Distance)",
                       "Network Node Count",
                       "Success Rate (Fidelity > 0.7)",
-                      save_name="./figures/success_rate_comparison_0.5km.png")
+                      save_name="./figures/success_rate_comparison_0.5km.png",
+                      ncol=1)
 
+    data = {"Node Count": [3, 4],
+            # "Multi-Hop with 6492Hz": [479.42, 539.14],
+            "Multi-Hop with 24583Hz": [448.17, 624.63],
+            "Multi-Hop with 63109Hz": [509.41, 664.88], }
+    data_frame = pd.DataFrame(data)
+    plot_grouped_bars(data_frame, "Node Count",
+                      "Multi-Hop Transmission Time with Different Depolar Rate",
+                      "Network Node Count",
+                      "Transmission Time (ms)",
+                      save_name="./figures/transmission_time_memory_comparison.png",
+                      ncol=1)
+
+    data = {"Node Count": [3, 4],
+            # "Multi-Hop with 6492Hz": [479.42, 539.14],
+            "Multi-Hop with 24583Hz": [0.79629, 0.92],
+            "Multi-Hop with 63109Hz": [0.788, 0.91], }
+    data_frame = pd.DataFrame(data)
+    plot_grouped_bars(data_frame, "Node Count",
+                      "Multi-Hop Success Rate with Different Depolar Rate",
+                      "Network Node Count",
+                      "Success Rate (Fidelity > 0.7)",
+                      save_name="./figures/success_rate_memory_comparison.png",
+                      ncol=1)
     # # E2E Delay vs HBH
     # data = {
     #     "Node Count": [3, 4],

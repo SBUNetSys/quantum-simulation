@@ -136,7 +136,7 @@ class GenEntanglement(NodeProtocol):
         self.signal_watcher.start()
         self.qubit_generator.start()
 
-        yield self.await_timer(15001)
+        yield self.await_timer(5001)
         # start the main logic
         while True:
             # the logic that we generate qubits and send them to the entangle node
@@ -162,7 +162,7 @@ class GenEntanglement(NodeProtocol):
 
     def handle_entangle(self, init_fidelity):
         # TODO this is a dirty way to get rid of previous round of simulation qubit input
-        # if sim_time() - self.start_time < 15001:
+        # if sim_time() - self.start_time < 5001:
         #     self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
         #                      f"Detected Previous Round Data", color="red")
         #     return
@@ -517,7 +517,7 @@ class QubitGenerationProtocol(NodeProtocol):
             expr = (self.await_signal(self.main_protocol, MessageType.GEN_ENTANGLE_READY) |
                     self.await_signal(self.main_protocol, MessageType.RE_ENTANGLE_READY_SOURCE))
             yield expr
-            if sim_time() - self.main_protocol.start_time < 15001:
+            if sim_time() - self.main_protocol.start_time < 5001:
                 continue
             if expr.first_term:
                 self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
@@ -561,7 +561,7 @@ class QubitSignalWatcher(NodeProtocol):
         while self.is_running:
             # wait for qubit from qport
             yield self.await_port_input(self.qport)
-            if sim_time() - self.gen_protocol.start_time < 15001:
+            if sim_time() - self.gen_protocol.start_time < 5001:
                 self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
                                  f"Detected Previous Round Data", color="red")
                 continue
@@ -590,7 +590,7 @@ class ReEntangleSignalWatcher(NodeProtocol):
                     self.await_signal(self.watch_protocol, signal_label=MessageType.RE_ENTANGLE_QUBIT_LOST))
 
             yield expr
-            if sim_time() - self.main_protocol.start_time < 15001:
+            if sim_time() - self.main_protocol.start_time < 5001:
                 self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
                                  f"Detected Previous Round Data", color="red")
                 continue

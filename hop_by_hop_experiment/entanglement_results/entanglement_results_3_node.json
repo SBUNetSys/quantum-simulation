@@ -1,10 +1,14 @@
 {
-  "2": {
-    "actual_fidelity": 0.9899999999999999,
-    "estimated_fidelity": 0.9925373753118737
-  },
-  "3": {
-    "actual_fidelity": 0.9603999999999997,
-    "estimated_fidelity": 0.9851304413909833
-  }
+    "2": {
+        "actual_fidelity": 0.9678787878787878,
+        "estimated_fidelity": 0.9682862787700481,
+        "average_duration": 10685028.507,
+        "average_teleportation_success": 96.867
+    },
+    "3": {
+        "actual_fidelity": 0.93808012600755,
+        "estimated_fidelity": 0.9375783176543474,
+        "average_duration": 12339937.563,
+        "average_teleportation_success": 96.911
+    }
 }

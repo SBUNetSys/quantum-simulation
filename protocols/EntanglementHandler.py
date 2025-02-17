@@ -63,8 +63,6 @@ class EntanglementHandler(NodeProtocol):
         self.entangled_qubits = {}
         # mapping of temporary qubits to memory positions
         self.temp_qubits = {}  # {mempos: (fid, time)}
-        # keep track of the number of entangled pairs
-        self.entangled_pairs_count = 0
         # entangle_message_queue
         self.entangle_message_queue = []
         # re-entangle message queue
@@ -139,14 +137,13 @@ class EntanglementHandler(NodeProtocol):
             self.entangled_qubits[mem_pos] = fid
             # remove the temporary qubit
             del self.temp_qubits[mem_pos]
-            self.entangled_pairs_count += 1
             self.logger.info(f"ManageEntangle {self.name} -> Entanglement Successful\n"
                              f"\tFrom: {from_node}\n"
                              f"\tMem_pos: {mem_pos}\n"
                              f"\tTemp Qubits: {self.temp_qubits}\n"
-                             f"\tEntangled_pairs_count: {self.entangled_pairs_count}\n"
+                             f"\tEntangled_pairs_count: {len(self.entangled_qubits)}\n"
                              f"\tExpected pairs: {self.max_pairs}"
-                             f"\tProgress: {self.entangled_pairs_count / self.max_pairs}", color="green")
+                             f"\tProgress: {len(self.entangled_qubits) / self.max_pairs}", color="green")
             if self.shutdown:
                 # we don't need to process the message if the protocol is going to shutdown
                 return
@@ -184,11 +181,15 @@ class EntanglementHandler(NodeProtocol):
         entangle_node = message.entangle_node
         mem_poses = message.re_entangle_mem_poses
         # remove the qubits from the entangled qubits
+        removed_poses = []
         for mem_pos in mem_poses:
             if mem_pos in self.entangled_qubits:
                 del self.entangled_qubits[mem_pos]
-                self.entangled_pairs_count -= 1
-
+                removed_poses.append(mem_pos)
+        if len(removed_poses) == 0:
+            self.logger.info(f"ManageEntangle {self.name} -> Re-entangle poses are not entangled\n"
+                             f"\tmem_pos: {mem_poses}\n", color="red")
+            return
         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal, entangle_node: {entangle_node},"
                          f" mem_pos: {mem_poses}", color="yellow")
         self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle",
@@ -343,7 +344,6 @@ class EntanglementHandler(NodeProtocol):
                         # we don't need to estimate the fidelity for the remote node
                         # as we don't know the initial fidelity. Here it will be None
                         self.entangled_qubits[mem_pos] = initial_fidelity
-                        self.entangled_pairs_count += 1
                         # send the entangled signal to the source node
                         self.cc_message_handler.send_message(MessageType.ENTANGLED, entangle_node,
                                                              ClassicalMessage(
@@ -433,7 +433,7 @@ class EntanglementHandler(NodeProtocol):
                             continue
                         self.logger.info(f"ManageEntangle {self.name} -> Entanglement Need Stop\n"
                                          f"\t{self.entangled_qubits}"
-                                         f"\t{self.entangled_pairs_count}", color="orange")
+                                         f"\t{len(self.entangled_qubits)}", color="orange")
                         self.shutdown = True
 
             self.process_message_queue()
@@ -443,14 +443,17 @@ class EntanglementHandler(NodeProtocol):
 
             if self.shutdown:
                 # by default the graceful shutdown will not continue generation of qubits
+                self.send_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED, self.entangled_qubits)
+                break
+                # TODO: old logic, now we just stop and lower layer takes care of the rest
                 # check if we need to stop the simulation, ths case that we happen to have no more qubits to generate
-                if self.entangled_pairs_count >= self.max_pairs and len(self.entangle_message_queue) == 0:
-                    self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="green")
-                    self.send_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED, self.entangled_qubits)
-                    break
+                # if len(self.entangled_qubits) >= self.max_pairs and len(self.entangle_message_queue) == 0:
+                #     self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="green")
+                #     self.send_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED, self.entangled_qubits)
+                #     break
 
             if self.is_top_layer:
-                if self.entangled_pairs_count >= self.max_pairs:
+                if len(self.entangled_qubits) >= self.max_pairs:
                     # send finish signal to the source node
                     self.logger.info(f"ManageEntangle {self.name} -> Entanglement complete", color="green")
                     self.send_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED, self.entangled_qubits)
@@ -462,7 +465,6 @@ class EntanglementHandler(NodeProtocol):
         # mapping of temporary qubits to memory positions
         self.temp_qubits = {}
         # keep track of the number of entangled pairs
-        self.entangled_pairs_count = 0
         # entangle_message_queue
         self.entangle_message_queue = []
         # reset the shutdown flag

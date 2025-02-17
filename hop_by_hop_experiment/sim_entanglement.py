@@ -282,45 +282,82 @@ def plot_lines(xs, ys, title, x_label, y_label, data_legends, xlim=None, save=Tr
 def experiment_with_increasing_nodes(max_node, save_dir):
     # create a network
     nodes_list = [f"Node_{i}" for i in range(max_node)]
-    network = setup_network(nodes_list, "hop-by-hop",
-                            memory_capacity=100, memory_depolar_rate=100,
-                            node_distance=20, source_delay=1e5)
+    network = setup_network(nodes_list, "hop-by-hop-entangle",
+                            memory_capacity=128, memory_depolar_rate=24583,
+                            node_distance=1, source_delay=1e5)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     data = {}
-    for i in range(2, max_node + 1):
-        entangle_protocol, dc = example_sim_run(sample_nodes[:i], num_runs=1000,
-                                                memory_depolar_rate=100,
-                                                node_distance=20,
-                                                max_entangle_pairs=100)
-        entangle_protocol.start()
-        # run the protocol
-        ns.sim_run()
+    from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn
+    with Progress(TextColumn("[progress.description]{task.description}"),
+                  BarColumn(),
+                  TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                  TextColumn("[progress.completed]{task.completed}/{task.total}"),
+                  TimeRemainingColumn(),
+                  transient=True) as progress:
+        task = progress.add_task("[green]Nodes...", total=max_node)
+        for node_count in range(2, max_node + 1):
+            entangle_protocol, dc = example_sim_run(sample_nodes[:node_count], num_runs=1000,
+                                                    memory_depolar_rate=24583,
+                                                    node_distance=1,
+                                                    max_entangle_pairs=100,
+                                                    skip_noise=True
+                                                    )
+            entangle_protocol.start()
+            # run the protocol
+            ns.sim_run()
 
-        # compute average for each column
-        all_node_actual_fidelity = []
-        all_node_estimated_fidelity = []
-        # pandas.set_option('display.precision', 10)
-        print(dc.dataframe)
-        for column in dc.dataframe.columns:
-            # Flatten the lists in the column
-            flattened_values = [item for sublist in dc.dataframe[column] for item in sublist]
-            if "Estimated" in column:
-                all_node_estimated_fidelity.append(sum(flattened_values) / len(flattened_values))
-            else:
-                all_node_actual_fidelity.append(sum(flattened_values) / len(flattened_values))
-        final_fidelity = 1
-        for fidelity in all_node_actual_fidelity:
-            final_fidelity *= fidelity
-        final_estimated_fidelity = 1
-        for fidelity in all_node_estimated_fidelity:
-            final_estimated_fidelity *= fidelity
-        print(f"Final estimated fidelity: {final_estimated_fidelity}")
-        print(f"Final fidelity: {final_fidelity}")
-        data[i] = {"actual_fidelity": final_fidelity, "estimated_fidelity": final_estimated_fidelity}
-        entangle_protocol.stop()
-    with open(os.path.join(save_dir, f"entanglement_results_{max_node}_node.json"), "w") as f:
-        json.dump(data, f)
+            # compute average for each column
+            all_node_actual_fidelity = []
+            all_node_estimated_fidelity = []
+            all_node_duration = []
+            all_node_teleportation_success = []
+            # print(dc.dataframe)
+            for column in dc.dataframe.columns:
+                # Flatten the lists in the column
+                if "Estimated" in column:
+                    flattened_values = [item for sublist in dc.dataframe[column] for item in sublist]
+                    all_node_estimated_fidelity.append(sum(flattened_values) / len(flattened_values))
+                elif "Duration" in column:
+                    all_node_duration.append(sum(dc.dataframe[column]) / len(dc.dataframe[column]))
+                elif "Teleportation" in column:
+                    all_node_teleportation_success.append(sum(dc.dataframe[column]) / len(dc.dataframe[column]))
+                else:
+                    flattened_values = [item for sublist in dc.dataframe[column] for item in sublist]
+                    all_node_actual_fidelity.append(sum(flattened_values) / len(flattened_values))
+            final_fidelity = 1
+            for fidelity in all_node_actual_fidelity:
+                final_fidelity *= fidelity
+            final_estimated_fidelity = 1
+            for fidelity in all_node_estimated_fidelity:
+                final_estimated_fidelity *= fidelity
+            average_duration = sum(all_node_duration) / len(all_node_duration)
+            average_teleportation_success = sum(all_node_teleportation_success) / len(all_node_teleportation_success)
+            print("*" * 50)
+            print(f"Skip noise: {True}")
+            print(f"Current Node Count: {node_count}")
+            print(f"Teleportation success count: {average_teleportation_success}")
+            print(f"Final estimated fidelity: {final_estimated_fidelity}")
+            print(f"Final fidelity: {final_fidelity}")
+            print("Average duration: ", average_duration)
+            data[node_count] = {"actual_fidelity": final_fidelity,
+                                    "estimated_fidelity": final_estimated_fidelity,
+                                    "average_duration": average_duration,
+                                    "average_teleportation_success": average_teleportation_success}
+            entangle_protocol.stop()
+            # check the time condition
+            if ns.possible_time_manipulation_accuracy_issue(0, ns.sim_time()):
+                # case we have time overflow, reset the simulation and run again with different RNG
+                ns.sim_reset()
+                new_rng = np.random.RandomState()
+                if new_rng == ns.get_random_state():
+                    raise ValueError("Random state is not resetting")
+                ns.set_random_state(rng=new_rng)
+            with open(os.path.join(save_dir, f"entanglement_results_{max_node}_node.json"),
+                      "w") as f:
+                json.dump(data, f, indent=4)
+            progress.update(task, advance=1)
+
 
 
 def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
@@ -407,18 +444,18 @@ def experiment_with_increasing_pairs(max_node, save_dir, skip_noise=False):
 def main():
     # experiment_with_increasing_nodes(2, "./entanglement_results")
     # exit(0)
-    if len(sys.argv) < 2:
-        print("Please provide an argument to skip noise")
-        exit(0)
-    if sys.argv[1] == "true":
-        pop_noise = True
-    elif sys.argv[1] == "false":
-        pop_noise = False
-    else:
-        print("Invalid argument. Please use 'true' or 'false'")
-        exit(0)
-    experiment_with_increasing_pairs(2, "./entanglement_results", skip_noise=pop_noise)
-    # experiment_with_increasing_nodes(3, "./entanglement_results")
+    # if len(sys.argv) < 2:
+    #     print("Please provide an argument to skip noise")
+    #     exit(0)
+    # if sys.argv[1] == "true":
+    #     pop_noise = True
+    # elif sys.argv[1] == "false":
+    #     pop_noise = False
+    # else:
+    #     print("Invalid argument. Please use 'true' or 'false'")
+    #     exit(0)
+    # experiment_with_increasing_pairs(2, "./entanglement_results", skip_noise=pop_noise)
+    experiment_with_increasing_nodes(5, "./entanglement_results")
     # with open("entanglement_results_50_node.json", "r") as f:
     #     data = json.load(f)
     # xs = list(int(key) for key in data.keys())
