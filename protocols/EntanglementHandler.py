@@ -294,6 +294,7 @@ class EntanglementHandler(NodeProtocol):
         return final_fidelity
 
     def run(self):
+        self.logger.info(f"ManageEntangle {self.name} -> Started\n")
         entangle_signals = (self.await_signal(self.cc_message_handler, signal_label=MessageType.ENTANGLED) |
                             self.await_signal(self.cc_message_handler, signal_label=MessageType.RE_ENTANGLE) |
                             self.await_signal(self.cc_message_handler,

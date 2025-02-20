@@ -95,7 +95,7 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                                              entangled_node=network_nodes[index - 1].name,
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger
@@ -135,7 +135,7 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[
                                                  f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger
@@ -318,7 +318,7 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
                                              entangled_node=network_nodes[index - 1].name,
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger
@@ -358,7 +358,7 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[
                                                  f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger
@@ -504,7 +504,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                                              entangled_node=network_nodes[index - 1].name,
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger
@@ -561,7 +561,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[
                                                  f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger
@@ -779,7 +779,7 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
                                              entangled_node=network_nodes[index - 1].name,
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger
@@ -836,7 +836,7 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[
                                                  f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger

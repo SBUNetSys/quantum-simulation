@@ -24,7 +24,7 @@ class Purification(NodeProtocol):
                  entangled_node,
                  entanglement_handler,
                  cc_message_handler,
-                 max_entangled_pair=10,
+                 max_purify_pair=10,
                  target_fidelity=0.9,
                  logger=None,
                  is_top_layer=False):
@@ -40,8 +40,8 @@ class Purification(NodeProtocol):
                 The entanglement handler protocol for the node
         :param cc_message_handler: protocols.MessageHandler
                 The classical message handler protocol
-        :param max_entangled_pair: int
-                maximum number of entangled pairs we could have
+        :param max_purify_pair: int
+                maximum number of purified pairs we could have
         :param target_fidelity: float
                 The purification target fidelity rate
         :param logger: utils.Logging.Logger
@@ -59,7 +59,7 @@ class Purification(NodeProtocol):
         self.cc_message_handler = cc_message_handler
         self.entanglement_handler = entanglement_handler
         # keep track of number of entangled pairs, help for termination condition if needed
-        self.max_entangled_pair = max_entangled_pair - 1
+        self.max_purify_pair = max_purify_pair
         # record are we source node or not
         self.is_source_node = False
         # mapping of entangled qubits to memory positions key: memory position, value: fidelity
@@ -70,8 +70,6 @@ class Purification(NodeProtocol):
         self.classical_messages_queue = []
         # currently purifying paris, store the memory position and fidelity
         self.purifying_paris = {}  # (p1, p2) -> (f1, f2)
-        # record the re-entangle pairs
-        self.re_entangle_pairs = {}
         # count of purification process
         # record how many purification pairs we have done in order to have all the pairs meet the target fidelity
         self.purification_count = 0
@@ -88,8 +86,6 @@ class Purification(NodeProtocol):
         self.is_top_layer = is_top_layer
         # adding necessary signals
         self.add_signal(MessageType.PURIFICATION_FINISHED)
-        self.add_signal(MessageType.PURIFICATION_NEED_SHUTDOWN)
-        self.finished = False
 
     def handle_entangle_signal(self, message):
         """
@@ -99,9 +95,6 @@ class Purification(NodeProtocol):
         """
         # store the entangled pairs
         entangled_node = message.entangle_node
-        # remove the pair from the re-entangle pairs
-        if message.mem_pos in self.re_entangle_pairs:
-            del self.re_entangle_pairs[message.mem_pos]
         # if we have the entangled pair satisfied the target fidelity, we will store it in the satisfied pairs
         if message.fidelity is not None:
             self.is_source_node = True
@@ -289,7 +282,7 @@ class Purification(NodeProtocol):
             self.logger.error(f"Purify {self.name} -> "
                               f"Node {self.node.name} does not have the qubits in the memory for {message.__dict__}\n"
                               f"Source:{self.is_source_node}"
-                              ,color="red")
+                              , color="red")
             self.print_status()
             self.classical_messages_queue.append(message)
             return
@@ -323,20 +316,15 @@ class Purification(NodeProtocol):
                 A List of memory positions to re-entangle
         :return:
         """
-        actual_poses = []
         for mem_pos in mem_poses:
             # remove the pair from the entangled pairs
             if mem_pos in self.entangled_pairs:
                 del self.entangled_pairs[mem_pos]
             if mem_pos in self.satisfied_pairs:
                 del self.satisfied_pairs[mem_pos]
-            # add the pair to the re-entangle pairs
-            if mem_pos not in self.re_entangle_pairs:
-                self.re_entangle_pairs[mem_pos] = None
-                actual_poses.append(mem_pos)
         # re-entangle the memory position
         self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE, SignalMessages.ReEntangleSignalMessage(
-            entangle_node=entangle_node, re_entangle_mem_poses=actual_poses))
+            entangle_node=entangle_node, re_entangle_mem_poses=mem_poses))
 
     def run(self):
         entangle_signal = self.await_signal(self.entanglement_handler, signal_label=Signals.SUCCESS)
@@ -344,8 +332,6 @@ class Purification(NodeProtocol):
                              self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_RESULT) |
                              self.await_signal(self.cc_message_handler,
                                                signal_label=MessageType.PURIFICATION_TARGET_MET) |
-                             self.await_signal(self.cc_message_handler,
-                                               signal_label=MessageType.PURIFICATION_NEED_SHUTDOWN) |
                              self.await_signal(self.cc_message_handler,
                                                signal_label=MessageType.VERIFICATION_FINISHED) |
                              self.await_signal(self.cc_message_handler,
@@ -360,7 +346,7 @@ class Purification(NodeProtocol):
                     source_protocol = event.source
                     try:
                         ready_signal = source_protocol.get_signal_by_event(
-                        event=event, receiver=self)
+                            event=event, receiver=self)
                     except Exception as e:
                         self.logger.info(f"Purify {self.name} -> "
                                          f"Node {self.node.name} failed to get signal: {e}",
@@ -443,14 +429,6 @@ class Purification(NodeProtocol):
                                          f"\tMem pos: {result.re_entangle_mem_poses}",
                                          color="green")
                         self.re_entangle(result.entangle_node, result.re_entangle_mem_poses)
-                    elif ready_signal.label == MessageType.PURIFICATION_NEED_SHUTDOWN:
-                        # handle the protocol shutdown signals. This is used for when purification is the top layer,
-                        # only the source nodes will tell the remote node that it is ok to shut down to avoid any
-                        # message not being processed
-                        self.logger.info(f"Purify {self.name} -> "
-                                         f"Node {self.node.name} received protocol finished signal",
-                                         color="green")
-                        self.finished = True
                     elif ready_signal.label == MessageType.VERIFICATION_FINISHED:
                         # case we know the upper layer is done. We need gracefully shutting down
                         # and also tell lower layer to shut down
@@ -481,77 +459,33 @@ class Purification(NodeProtocol):
             # TODO: what case we can say we are done? Current end condition is when we have no entangled pairs == 0
             # however, we still have one pair that is not purified which is being sent to re-entangle,
             # but odd number of pairs will always have one pair that is not purified
-            if self.is_top_layer:
-                if self.is_source_node and self.check_end_condition():
-                    self.finished = True
-                    self.logger.info(f"Purify {self.name} -> Node {self.name} Finished purification process",
-                                     color="green")
-                    self.print_status(color="green")
-
-                    self.cc_message_handler.send_message(MessageType.PURIFICATION_NEED_SHUTDOWN,
-                                                         self.entangled_node,
-                                                         ClassicalMessage(
-                                                             self.node.name,
-                                                             self.entangled_node,
-                                                             SignalMessages.PurifyFinishedSignalMessage(
-                                                                 entangle_node=self.node.name)
-                                                         ))
-                    # also broadcast the stop signal to other protocols
-                    self.cc_message_handler.send_signal(MessageType.PURIFICATION_FINISHED,
-                                                        SignalMessages.ProtocolFinishedSignalMessage(
-                                                            from_protocol=self,
-                                                            from_node=self.node.name,
-                                                            entangle_node=self.entangled_node
-                                                        )
-                                                        )
-                    # send signal to local protocol
-                    self.send_signal(MessageType.PURIFICATION_FINISHED, {"satisfied_pairs": self.satisfied_pairs,
-                                                                         "purification_count": self.purification_count,
-                                                                         "purification_success_count":
-                                                                             self.purification_success_count,
-                                                                         "finish_time": sim_time()})
-                    break
-                elif not self.is_source_node and self.finished:
-                    self.logger.info(f"Purify {self.name} -> Node {self.name} Finished purification process",
-                                     color="green")
-                    self.print_status(color="green")
-                    # also broadcast the stop signal to other protocols
-                    self.cc_message_handler.send_signal(MessageType.PURIFICATION_FINISHED,
-                                                        SignalMessages.ProtocolFinishedSignalMessage(
-                                                            from_protocol=self,
-                                                            from_node=self.node.name,
-                                                            entangle_node=self.entangled_node
-                                                        )
-                                                        )
-
-                    self.send_signal(MessageType.PURIFICATION_FINISHED, {"satisfied_pairs": self.satisfied_pairs,
-                                                                         "purification_count": self.purification_count,
-                                                                         "purification_success_count":
-                                                                             self.purification_success_count,
-                                                                         "finish_time": sim_time()})
-                    break
-
-            # handle graceful shutdown, we need to make sure all the cc messages are processed and
-            # all the re-entangle pairs are done
-            if self.shutdown and len(self.classical_messages_queue) == 0:
-                self.logger.info(f"Purify {self.name} -> Node {self.name} Graceful shutting down",
+            if self.is_top_layer and self.check_end_condition():
+                self.logger.info(f"Purify {self.name} -> Node {self.name} Finished purification process",
                                  color="green")
                 self.print_status(color="green")
-                # broadcast the stop signal to other protocols
-                self.cc_message_handler.send_signal(MessageType.PURIFICATION_FINISHED,
-                                                    SignalMessages.ProtocolFinishedSignalMessage(
-                                                        from_protocol=self,
-                                                        from_node=self.node.name,
-                                                        entangle_node=self.entangled_node
-                                                    ))
+
+                # self.cc_message_handler.send_message(MessageType.PURIFICATION_NEED_SHUTDOWN,
+                #                                      self.entangled_node,
+                #                                      ClassicalMessage(
+                #                                          self.node.name,
+                #                                          self.entangled_node,
+                #                                          SignalMessages.PurifyFinishedSignalMessage(
+                #                                              entangle_node=self.node.name)
+                #                                      ))
+                # also broadcast the stop signal to other protocols
+                # self.cc_message_handler.send_signal(MessageType.PURIFICATION_FINISHED,
+                #                                     SignalMessages.ProtocolFinishedSignalMessage(
+                #                                         from_protocol=self,
+                #                                         from_node=self.node.name,
+                #                                         entangle_node=self.entangled_node
+                #                                     )
+                #                                     )
                 # send signal to local protocol
-                self.send_signal(MessageType.PURIFICATION_FINISHED,
-                                 SignalMessages.ProtocolFinishedSignalMessage(
-                                     from_protocol=self,
-                                     from_node=self.node.name,
-                                     entangle_node=self.entangled_node
-                                 )
-                                 )
+                self.send_signal(MessageType.PURIFICATION_FINISHED, {"satisfied_pairs": self.satisfied_pairs,
+                                                                     "purification_count": self.purification_count,
+                                                                     "purification_success_count":
+                                                                         self.purification_success_count,
+                                                                     "finish_time": sim_time()})
                 break
 
     def print_status(self, color="cyan"):
@@ -562,32 +496,18 @@ class Purification(NodeProtocol):
                          f"{self.paris_to_string(self.satisfied_pairs)}\n"
                          f"\tPurifying Pairs:\n"
                          f"{self.paris_to_string(self.purifying_paris)}\n"
-                         f"\tRe-Entangle Pairs:\n"
-                         f"{self.paris_to_string(self.re_entangle_pairs)}", color=color)
+                         , color=color)
 
     def check_end_condition(self):
         """
         Check if the purification protocol has finished
+        The end condition as follows:
+        1. We have reached target purified pairs
+
         :return: bool
                 True if the protocol has finished, False otherwise
         """
-        # check if we have enough entangled pairs to start purification
-        # we consider the protocol is finished when we cannot purify any more pairs
-        # No more re-entangle pairs AND following conditions are met:
-        # We have less than 2 pairs, we cannot start purification OR
-        # We have more than 2 paris, but they all have different fidelity, we cannot purify
-        #
-        if len(self.re_entangle_pairs) + len(self.entangled_pairs) + len(
-                self.satisfied_pairs) != self.max_entangled_pair:
-            return False
-        no_re_entangle_pairs = len(self.re_entangle_pairs) == 0
-        if not no_re_entangle_pairs:
-            return False
-        no_entangled_pairs = len(self.entangled_pairs) < 2
-        if no_entangled_pairs:
-            return True
-        # case of more than 2 pairs but all have different fidelity
-        return len(self.entangled_pairs.values()) == len(set(self.entangled_pairs.values()))
+        return len(self.satisfied_pairs) == self.max_purify_pair
 
     @staticmethod
     def paris_to_string(pairs):
@@ -727,14 +647,11 @@ class Purification(NodeProtocol):
         self.classical_messages_queue = []
         # currently purifying paris, store the memory position and fidelity
         self.purifying_paris = {}  # (p1, p2) -> (f1, f2)
-        # record the re-entangle pairs
-        self.re_entangle_pairs = {}
         # count of purification process
         # record how many purification pairs we have done in order to have all the pairs meet the target fidelity
         self.purification_count = 0
         self.purification_success_count = 0
         # reset the shutdown flag and finished flag
-        self.finished = False
         self.shutdown = False
 
     def reset(self):

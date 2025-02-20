@@ -102,7 +102,7 @@ class VerifyExample(LocalProtocol):
                                              entangled_node=network_nodes[index - 1].name,
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger
@@ -158,7 +158,7 @@ class VerifyExample(LocalProtocol):
                                              entanglement_handler=eh_handler,
                                              cc_message_handler=self.subprotocols[
                                                  f"message_handler_{node.name}"],
-                                             max_entangled_pair=self.max_entangle_pairs,
+                                             max_purify_pair=self.max_entangle_pairs,
                                              target_fidelity=target_fidelity,
                                              is_top_layer=False,
                                              logger=null_logger

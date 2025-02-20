@@ -1,0 +1,62 @@
+{
+    "500": {
+        "actual_fidelity": 0.9819999999999999,
+        "estimated_fidelity": 0.9839718721292161,
+        "average_duration": 37011.934,
+        "average_teleportation_success": 0.987
+    },
+    "1000": {
+        "actual_fidelity": 0.9699999999999999,
+        "estimated_fidelity": 0.9682862787691179,
+        "average_duration": 99681.894,
+        "average_teleportation_success": 0.98
+    },
+    "1500": {
+        "actual_fidelity": 0.9559999999999998,
+        "estimated_fidelity": 0.9529358996704804,
+        "average_duration": 230371.838,
+        "average_teleportation_success": 0.971
+    },
+    "2000": {
+        "actual_fidelity": 0.9419999999999998,
+        "estimated_fidelity": 0.9379135710239551,
+        "average_duration": 375656.805,
+        "average_teleportation_success": 0.96
+    },
+    "2500": {
+        "actual_fidelity": 0.9169999999999999,
+        "estimated_fidelity": 0.9232122821166827,
+        "average_duration": 732406.726,
+        "average_teleportation_success": 0.951
+    },
+    "3000": {
+        "actual_fidelity": 0.9149999999999999,
+        "estimated_fidelity": 0.9088251720607697,
+        "average_duration": 920081.709,
+        "average_teleportation_success": 0.938
+    },
+    "3500": {
+        "actual_fidelity": 0.8939999999999999,
+        "estimated_fidelity": 0.894745526591011,
+        "average_duration": 1368421.648,
+        "average_teleportation_success": 0.935
+    },
+    "4000": {
+        "actual_fidelity": 0.8769999999999999,
+        "estimated_fidelity": 0.8809667749319219,
+        "average_duration": 1721186.639,
+        "average_teleportation_success": 0.905
+    },
+    "4500": {
+        "actual_fidelity": 0.8739999999999999,
+        "estimated_fidelity": 0.8674824867307763,
+        "average_duration": 2583641.569,
+        "average_teleportation_success": 0.916
+    },
+    "5000": {
+        "actual_fidelity": 0.8559999999999999,
+        "estimated_fidelity": 0.8542863690570363,
+        "average_duration": 2991671.555,
+        "average_teleportation_success": 0.91
+    }
+}
