@@ -234,8 +234,8 @@ class VerifyExample(LocalProtocol):
                     # print(f"Qubit names: {q_a_name}, {q_b_name}")
                     if q_a_name != q_b_name:
                         raise ValueError(f"Qubit names are not the same at {mem_pos}: {q_a_name}, {q_b_name}")
-                    # if q_a.qstate != q_b.qstate:
-                    #     raise ValueError(f"Qubit states are not the same: {q_a.qstate}, {q_b.qstate}")
+                    if qubit_a.qstate != qubit_b.qstate:
+                        raise ValueError(f"Qubit states are not the same: {qubit_a.qstate}, {qubit_b.qstate}")
                     f = qapi.fidelity([qubit_a, qubit_b], ks.b00)
                     # if 0.01 < f < 0.99:
                     #     # raise ValueError(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}")
