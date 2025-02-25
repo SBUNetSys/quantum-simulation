@@ -623,11 +623,11 @@ def run_verification(distance, target_fid):
     for i in range(10):
         nodes_list = [f"Node_{i}" for i in range(2)]
         network = setup_network(nodes_list, "hop-by-hop-purification",
-                                memory_capacity=101, memory_depolar_rate=24583,
+                                memory_capacity=1001, memory_depolar_rate=24583,
                                 node_distance=distance, source_delay=1)
         sample_nodes = [node for node in network.nodes.values()]
         verify_example, dc = example_sim_run(sample_nodes, num_runs=100, memory_depolar_rate=24583, node_distance=distance,
-                                             max_entangle_pairs=100, max_verify_pairs=1, target_fidelity=target_fid,
+                                             max_entangle_pairs=1000, max_verify_pairs=1, target_fidelity=target_fid,
                                              m_size=3, batch_size=4, skip_noise=True)
         # Run the simulation
         verify_example.start()
