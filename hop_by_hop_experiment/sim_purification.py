@@ -50,7 +50,7 @@ class PurificationExample(LocalProtocol):
         null_logger = Logging.Logger("null", logging_enabled=False)
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExamplePurification")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=True)
+        self.logger = Logging.Logger(self.name, logging_enabled=False)
         # initialize the protocol for each node
         # Initialize the entangle protocol
         for index, node in enumerate(network_nodes):
@@ -615,7 +615,7 @@ def simulate_purification_increase_node(max_node=2):
             progress.update(task, advance=1)
 
 
-def simulate_purification_increase_distance(max_dis=2.0):
+def simulate_purification_increase_distance(max_dis=2.0, delayed=True):
     target_fid_dic = {
         "500": [0.989, 0.99],
         "1000": [0.97, 0.98],
@@ -661,12 +661,12 @@ def simulate_purification_increase_distance(max_dis=2.0):
 def run_purify_sim(distance, target_fid) -> dict:
     nodes_list = [f"Node_{i}" for i in range(2)]
     network = setup_network(nodes_list, "hop-by-hop-purification",
-                            memory_capacity=51, memory_depolar_rate=24583,
+                            memory_capacity=101, memory_depolar_rate=24583,
                             node_distance=distance, source_delay=1)
     sample_nodes = [node for node in network.nodes.values()]
-    filt_example, dc = example_sim_run(sample_nodes, num_runs=1, memory_depolar_rate=24583,
+    filt_example, dc = example_sim_run(sample_nodes, num_runs=1000, memory_depolar_rate=24583,
                                        node_distance=distance,
-                                       max_entangle_pairs=50,
+                                       max_entangle_pairs=100,
                                        max_purify_pair=1,
                                        target_fidelity=target_fid,
                                        skip_noise=True)
@@ -812,4 +812,4 @@ if __name__ == "__main__":
     #     exit(0)
     # run_single_stack(2, pop_noise)
     # simulate_purification_increase_node(2)
-    simulate_purification_increase_distance(0.5)
+    simulate_purification_increase_distance(5)

@@ -74,7 +74,7 @@ class EntanglementHandler(NodeProtocol):
         self.depolar_rate = memory_depolar_rate
         self.node_distance = node_distance
         # time out for qubit lost
-        self.timeout_time = 1.5 * (((self.node_distance / 200e3)*1e9) + ((self.node_distance/2090)*1e9))
+        self.timeout_time = 2.2 * ((self.node_distance / 200e3)*1e9)
         # keep last gen signal
         self.last_gen_time = None
         # store the qubit input protocol
@@ -152,7 +152,8 @@ class EntanglementHandler(NodeProtocol):
                              SignalMessages.EntangleSuccessSignalMessage(
                                  self.node.name,
                                  from_node, mem_pos,
-                                 self.entangled_qubits[mem_pos]))
+                                 self.entangled_qubits[mem_pos],
+                             is_source=True))
 
             # process any re-tangle message before we start generate next round of qubits
             if len(self.re_entangle_remote_message_queue) >0:
@@ -203,7 +204,7 @@ class EntanglementHandler(NodeProtocol):
             self.process_entangle_message(message)
 
     def process_re_entangle_message_queue(self):
-        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time >= 10000:
+        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time >= 2000:
             if len(self.re_entangle_message_queue) == 0:
                 return
             self.re_entangle_flush_time = ns.sim_time()
@@ -299,7 +300,8 @@ class EntanglementHandler(NodeProtocol):
                             self.await_signal(self.cc_message_handler, signal_label=MessageType.RE_ENTANGLE) |
                             self.await_signal(self.cc_message_handler,
                                               signal_label=MessageType.RE_ENTANGLE_READY_REMOTE) |
-                            self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_FINISHED) |
+                            self.await_signal(self.cc_message_handler,
+                                              signal_label=MessageType.RE_ENTANGLE_FROM_UPPER_LAYER)|
                             self.re_entangle_ready_signals)
         self.entanglement_watcher.start()
         start_time = sim_time()
@@ -344,7 +346,9 @@ class EntanglementHandler(NodeProtocol):
                             color="yellow")
                         # we don't need to estimate the fidelity for the remote node
                         # as we don't know the initial fidelity. Here it will be None
-                        self.entangled_qubits[mem_pos] = initial_fidelity
+                        # we assume is 1 from source node
+                        cal_fid = self.estimate_fidelity_theoretical(1.0)
+                        self.entangled_qubits[mem_pos] = cal_fid
                         # send the entangled signal to the source node
                         self.cc_message_handler.send_message(MessageType.ENTANGLED, entangle_node,
                                                              ClassicalMessage(
@@ -361,7 +365,9 @@ class EntanglementHandler(NodeProtocol):
                                              self.node.name,
                                              entangle_node,
                                              mem_pos,
-                                             initial_fidelity))
+                                             cal_fid,
+                                             is_source=False
+                                         ))
 
             elif expr.second_term.value:
                 # case we have entanglement signal
@@ -427,15 +433,17 @@ class EntanglementHandler(NodeProtocol):
                         # self.send_signal(f"{self.qubit_input_protocol.name}_re_entangle_ready",
                                          # re_entangle_data)
                         self.re_entangle_remote_message_queue.append(re_entangle_data)
-                    elif ready_signal.label == MessageType.PURIFICATION_FINISHED:
-                        # we upper layer is finished, we need gracefully shutdown
-                        # ignore the message if the signal not meant for us
+                    elif ready_signal.label == MessageType.RE_ENTANGLE_FROM_UPPER_LAYER:
+                        # re-entangle from upper layer
                         if result.entangle_node != self.entangle_node:
                             continue
-                        self.logger.info(f"ManageEntangle {self.name} -> Entanglement Need Stop\n"
-                                         f"\t{self.entangled_qubits}"
-                                         f"\t{len(self.entangled_qubits)}", color="orange")
-                        self.shutdown = True
+                        self.re_entangle_message_queue.append(result)
+                        self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal from upper layer\n"
+                                         f"\tentangle_node: {result.entangle_node}\n"
+                                         f"\tmem_pos: {result.re_entangle_mem_poses}\n"
+                                         f"\tcurrent_entangled pairs: {self.entangled_qubits}",
+                                         color="purple")
+
 
             self.process_message_queue()
             self.process_re_entangle_message_queue()

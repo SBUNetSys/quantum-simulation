@@ -126,7 +126,7 @@ class TransportWithVerificationExample(LocalProtocol):
                                                measurement_m1=measurement_m1,
                                                logger=null_logger,
                                                is_top_layer=False,
-                                               max_entangled_pairs=self.max_entangle_pairs,
+                                               max_verify_pairs=self.max_entangle_pairs,
                                                )
                 self.add_subprotocol(verify_protocol)
                 qubit_input_protocols.append(verify_protocol)
@@ -183,7 +183,7 @@ class TransportWithVerificationExample(LocalProtocol):
                                                measurement_m1=measurement_m1,
                                                logger=null_logger,
                                                is_top_layer=False,
-                                               max_entangled_pairs=self.max_entangle_pairs,
+                                               max_verify_pairs=self.max_entangle_pairs,
                                                )
                 self.add_subprotocol(verify_protocol)
                 qubit_input_protocols.append(verify_protocol)
@@ -380,7 +380,7 @@ class TransportWithVerificationThroughput(LocalProtocol):
                                                measurement_m1=measurement_m1,
                                                logger=null_logger,
                                                is_top_layer=False,
-                                               max_entangled_pairs=self.max_entangle_pairs,
+                                               max_verify_pairs=self.max_entangle_pairs,
                                                )
                 self.add_subprotocol(verify_protocol)
                 qubit_input_protocols.append(verify_protocol)
@@ -437,7 +437,7 @@ class TransportWithVerificationThroughput(LocalProtocol):
                                                measurement_m1=measurement_m1,
                                                logger=null_logger,
                                                is_top_layer=False,
-                                               max_entangled_pairs=self.max_entangle_pairs,
+                                               max_verify_pairs=self.max_entangle_pairs,
                                                )
                 self.add_subprotocol(verify_protocol)
                 qubit_input_protocols.append(verify_protocol)

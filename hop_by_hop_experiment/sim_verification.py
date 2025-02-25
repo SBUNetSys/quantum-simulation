@@ -37,6 +37,7 @@ class VerifyExample(LocalProtocol):
     def __init__(self, network_nodes,
                  num_runs=1,
                  max_entangle_pairs=2,
+                 max_verify_pair = 1,
                  memory_depolar_rate=1,
                  node_distance=20,
                  target_fidelity=0.99,
@@ -48,6 +49,7 @@ class VerifyExample(LocalProtocol):
         self.all_nodes = network_nodes
         self.num_runs = num_runs
         self.max_entangle_pairs = max_entangle_pairs
+        self.max_verify_pair = max_verify_pair
         self.m_size = m_size
         self.batch_size = batch_size
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleVerification")
@@ -121,7 +123,7 @@ class VerifyExample(LocalProtocol):
                                                measurement_m1=measurement_m1,
                                                logger=self.logger,
                                                is_top_layer=True,
-                                               max_entangled_pairs=self.max_entangle_pairs,
+                                               max_verify_pairs=self.max_verify_pair,
                                                )
                 self.add_subprotocol(verify_protocol)
 
@@ -177,7 +179,7 @@ class VerifyExample(LocalProtocol):
                                                measurement_m1=measurement_m1,
                                                logger=self.logger,
                                                is_top_layer=True,
-                                               max_entangled_pairs=self.max_entangle_pairs,
+                                               max_verify_pairs=self.max_verify_pair,
                                                )
                 self.add_subprotocol(verify_protocol)
 
@@ -235,10 +237,10 @@ class VerifyExample(LocalProtocol):
                     # if q_a.qstate != q_b.qstate:
                     #     raise ValueError(f"Qubit states are not the same: {q_a.qstate}, {q_b.qstate}")
                     f = qapi.fidelity([qubit_a, qubit_b], ks.b00)
-                    if 0.01 < f < 0.99:
-                        # raise ValueError(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}")
-                        self.logger.error(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
-                                          color="red")
+                    # if 0.01 < f < 0.99:
+                    #     # raise ValueError(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}")
+                    #     self.logger.error(f"Fidelity is not correct: {f}, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
+                    #                       color="red")
                     if not isinstance(f, float) or str(f) == "nan":
                         f = 0
                         self.logger.error(f"Fidelity is Nan, \n\t{qubit_a.qstate}\n\t{qubit_b.qstate}",
@@ -267,9 +269,9 @@ class VerifyExample(LocalProtocol):
                 }
                 node_index += 1
             # we need to do safety layer to make sure we have gracefully shutdown the subprotocols
-            for subprotocol_name, subprotocol in self.subprotocols.items():
-                if "purify" in subprotocol_name and subprotocol.is_running:
-                    yield self.await_signal(subprotocol, MessageType.PURIFICATION_FINISHED)
+            # for subprotocol_name, subprotocol in self.subprotocols.items():
+            #     if "purify" in subprotocol_name and subprotocol.is_running:
+            #         yield self.await_signal(subprotocol, MessageType.PURIFICATION_FINISHED)
 
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": index})
@@ -320,10 +322,13 @@ class VerifyExample(LocalProtocol):
 
 
 def example_sim_run(nodes, num_runs, memory_depolar_rate,
-                    node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size,
+                    node_distance, max_entangle_pairs,
+                    max_verify_pairs,
+                    target_fidelity, m_size, batch_size,
                     skip_noise=False):
     """
     Run the example verification protocol
+    :param max_verify_pairs: max verify paris to pefrom
     :param nodes: list of nodes
     :param num_runs: number of runs
     :param memory_depolar_rate: memory depolar rate
@@ -343,6 +348,7 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate,
                                    node_distance=node_distance,
                                    target_fidelity=target_fidelity,
                                    m_size=m_size,
+                                   max_verify_pair=max_verify_pairs,
                                    batch_size=batch_size,
                                    skip_noise=skip_noise)
 
@@ -351,6 +357,7 @@ def example_sim_run(nodes, num_runs, memory_depolar_rate,
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
         # print(f"Purification Run {result['run_index']} completed: {result}")
+        print(f"Verification protocol result: {result['run_index']}/1000")
         return result["results"]
 
     dc = DataCollector(record_run, include_time_stamp=False,
@@ -367,9 +374,9 @@ def run_experiment(nodes_count):
                             node_distance=20, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
-    verify_example, dc = example_sim_run(sample_nodes, num_runs=2, memory_depolar_rate=10e-6,
-                                         node_distance=20,
-                                         max_entangle_pairs=16, target_fidelity=0.995, m_size=3, batch_size=8)
+    verify_example, dc = example_sim_run(sample_nodes, num_runs=2, memory_depolar_rate=10e-6, node_distance=20,
+                                         max_entangle_pairs=16, max_verify_pairs=max, target_fidelity=0.995, m_size=3,
+                                         batch_size=8)
     # Run the simulation
     verify_example.start()
     ns.sim_run()
@@ -409,10 +416,9 @@ def run_experiment_multi(nodes_count, skip_noise=False, max_batch_size=8, only_m
                                               total=(max_entangle_pairs - 6) // batch_size)
             for entangle_pairs in range(start_entangle_size, max_entangle_pairs + 1, batch_size):
                 verify_example, dc = example_sim_run(sample_nodes, num_runs=100, memory_depolar_rate=100,
-                                                     node_distance=20,
-                                                     max_entangle_pairs=entangle_pairs, target_fidelity=0.995, m_size=3,
-                                                     batch_size=batch_size,
-                                                     skip_noise=skip_noise)
+                                                     node_distance=20, max_entangle_pairs=entangle_pairs,
+                                                     max_verify_pairs=max, target_fidelity=0.995, m_size=3,
+                                                     batch_size=batch_size, skip_noise=skip_noise)
                 # Run the simulation
                 verify_example.start()
                 # check if is running
@@ -512,10 +518,9 @@ def run_experiment_with_batch_size4_5nodes_with_distance(distances, skip_noise=F
                             node_distance=distances, source_delay=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
-    verify_example, dc = example_sim_run(sample_nodes, num_runs=1, memory_depolar_rate=100,
-                                         node_distance=distances,
-                                         max_entangle_pairs=10, target_fidelity=0.995, m_size=3, batch_size=4,
-                                         skip_noise=skip_noise)
+    verify_example, dc = example_sim_run(sample_nodes, num_runs=1, memory_depolar_rate=100, node_distance=distances,
+                                         max_entangle_pairs=10, max_verify_pairs=max, target_fidelity=0.995, m_size=3,
+                                         batch_size=4, skip_noise=skip_noise)
 
     # Run the simulation
     verify_example.start()
@@ -567,18 +572,146 @@ def run_experiment_with_batch_size4_5nodes_with_distance(distances, skip_noise=F
     verify_example.stop()
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Please provide an argument to skip noise")
-        exit(0)
-    if sys.argv[1] == "true":
-        pop_noise = True
-    elif sys.argv[1] == "false":
-        pop_noise = False
+def run_verification_experiment_increasing_distance(max_distance,):
+    target_fid_dic = {
+        "500": [0.99],
+        "1000": [0.98],
+        "1500": [0.97],
+        "2000": [0.95],
+        "2500": [0.94],
+        "3000": [0.92],
+        "3500": [0.91],
+        "4000": [0.90],
+        "4500": [0.88],
+        "5000": [0.87],
+    }
+    if os.path.exists(f"./verification_results/verification_result_2_nodes_1_paris_{max_distance}km.json"):
+        with open(f"./verification_results/verification_result_2_nodes_1_paris_{max_distance}km.json", 'r')as f:
+            experiment_result = json.load(f)
     else:
-        print("Invalid argument. Please use 'true' or 'false'")
-        exit(0)
-    run_experiment_with_batch_size4_5nodes_with_distance(25, pop_noise)
+        experiment_result = {}
+    from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
+    with Progress(TextColumn("[progress.description]{task.description}"),
+                  BarColumn(),
+                  TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                  TextColumn("[progress.completed]{task.completed}/{task.total}"),
+                  TimeRemainingColumn(),
+                  transient=True) as progress:
+        task = progress.add_task("[green]Paris...", total=int(max_distance) * 4)
+        dis_m = int(max_distance * 1000)
+        for node_dis in range(500,  dis_m + 1, 500):
+            if str(node_dis) in experiment_result:
+                print(f"Skipping distance: {node_dis}, loaded from file")
+                progress.update(task, advance=1)
+                continue
+            experiment_result[str(node_dis)] = {}
+            for target_fid in target_fid_dic[str(node_dis)]:
+                experiment_result[str(node_dis)][target_fid] = run_verification(node_dis/1000, target_fid)
+
+            with open(f"./verification_results/verification_result_2_nodes_1_paris_{max_distance}km.json",
+                      "w") as f:
+                json.dump(experiment_result, f, indent=4)
+            progress.update(task, advance=1)
+
+def run_verification(distance, target_fid):
+    all_actual_fidelities = []
+    all_total_verified_pairs = []
+    all_success_verification_probability = []
+    all_total_verification_count = []
+    all_success_verification_count = []
+    all_teleport_success_count = []
+    for i in range(10):
+        nodes_list = [f"Node_{i}" for i in range(2)]
+        network = setup_network(nodes_list, "hop-by-hop-purification",
+                                memory_capacity=101, memory_depolar_rate=24583,
+                                node_distance=distance, source_delay=1)
+        sample_nodes = [node for node in network.nodes.values()]
+        verify_example, dc = example_sim_run(sample_nodes, num_runs=100, memory_depolar_rate=24583, node_distance=distance,
+                                             max_entangle_pairs=100, max_verify_pairs=1, target_fidelity=target_fid,
+                                             m_size=3, batch_size=4, skip_noise=True)
+        # Run the simulation
+        verify_example.start()
+        ns.sim_run()
+        # Collect the data
+        results = dc.dataframe
+
+        for column in dc.dataframe.columns:
+            flattened_actual_fidelities = []
+            flattened_total_verified_pairs = []
+            flattened_success_verification_probability = []
+            flattened_total_verification_count = []
+            flattened_success_verification_count = []
+            flattened_teleport_success_count = []
+            for result in results[column]:
+                if isinstance(result, dict):
+                    for key, value in result.items():
+                        if "actual_fidelities" in key:
+                            flattened_actual_fidelities += list(value.values())
+                        elif "total_verified_paris" in key:
+                            flattened_total_verified_pairs.append(value)
+                        elif "success_verification_probability" in key:
+                            flattened_success_verification_probability += value
+                        elif "total_verification_count" in key:
+                            flattened_total_verification_count.append(value)
+                        elif "success_verification_count" in key:
+                            flattened_success_verification_count.append(value)
+                        elif "teleport_success_count" in key:
+                            flattened_teleport_success_count.append(value)
+            all_actual_fidelities += flattened_actual_fidelities
+            all_total_verified_pairs += flattened_total_verified_pairs
+            all_success_verification_probability += flattened_success_verification_probability
+            all_total_verification_count += flattened_total_verification_count
+            all_success_verification_count += flattened_success_verification_count
+            all_teleport_success_count += flattened_teleport_success_count
+
+            verify_example.stop()
+            del verify_example
+            gc.collect()
+            # check the time condition
+            # if ns.possible_time_manipulation_accuracy_issue(0, ns.sim_time()):
+                # case we have time overflow, reset the simulation and run again with different RNG
+            ns.sim_reset()
+            new_rng = np.random.RandomState()
+            if new_rng == ns.get_random_state():
+                raise ValueError("Random state is not resetting")
+            ns.set_random_state(rng=new_rng)
+    data = {"actual_fidelities":
+                np.mean(all_actual_fidelities, dtype=np.float64),
+            "total_verified_pairs":
+                np.mean(all_total_verified_pairs, dtype=np.float64),
+            "success_verification_probability":
+                all_success_verification_probability,
+            "total_verification_count":
+                np.mean(all_total_verification_count, dtype=np.float64),
+            "success_verification_count":
+                np.mean(all_success_verification_count, dtype=np.float64),
+            "teleport_success_count":
+                np.mean(all_teleport_success_count, dtype=np.float64),
+            "raw_data":
+                {"actual_fidelities": all_actual_fidelities,
+                 "total_verified_pairs": all_total_verified_pairs,
+                 "total_verification_count": all_total_verification_count,
+                 "success_verification_count": all_success_verification_count,
+                 "teleport_success_count": all_teleport_success_count}
+            }
+    print("*" * 50)
+    print(f"Batch size: {4}\n"
+          f"\tEntangle Pairs: {100}\n"
+          f"\tActual Fidelities: {data['actual_fidelities']}\n"
+          f"\tTotal Verified Pairs: {data['total_verified_pairs']}\n"
+          f"\tTeleport Success Count: {data['teleport_success_count']}\n"
+          f"\tTotal Verification Count: {data['total_verification_count']}\n"
+          f"\tSuccess Verification Count: {data['success_verification_count']}\n"
+          f"\tSuccess Verification Probability: {data['success_verification_probability']}\n")
+
+
+    return data
+
+
+if __name__ == '__main__':
+
+    # run_experiment_with_batch_size4_5nodes_with_distance(25, pop_noise)
+    run_verification_experiment_increasing_distance(5.0)
 
     # run_experiment_multi(2, pop_noise, max_batch_size=8, only_max_batch=False)
     # # ns.sim_stop()

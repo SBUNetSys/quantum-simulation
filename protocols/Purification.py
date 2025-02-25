@@ -85,6 +85,7 @@ class Purification(NodeProtocol):
 
         self.is_top_layer = is_top_layer
         # adding necessary signals
+        self.add_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER)
         self.add_signal(MessageType.PURIFICATION_FINISHED)
 
     def handle_entangle_signal(self, message):
@@ -96,37 +97,20 @@ class Purification(NodeProtocol):
         # store the entangled pairs
         entangled_node = message.entangle_node
         # if we have the entangled pair satisfied the target fidelity, we will store it in the satisfied pairs
-        if message.fidelity is not None:
-            self.is_source_node = True
-            if message.fidelity > self.target_fidelity:
-                self.satisfied_pairs[message.mem_pos] = message.fidelity
-                # tell remote node that we have met the target fidelity
-                self.cc_message_handler.send_message(MessageType.PURIFICATION_TARGET_MET,
-                                                     entangled_node,
-                                                     ClassicalMessage(
-                                                         self.node.name,
-                                                         entangled_node,
-                                                         SignalMessages.PurifyTargetMetSignalMessage(
-                                                             source_node=self.node.name,
-                                                             entangle_node=self.node.name,
-                                                             mem_pos=message.mem_pos,
-                                                             new_fidelity=message.fidelity)
-                                                     ))
-                if not self.is_top_layer:
-                    # remove this info from our record keeping
-                    del self.satisfied_pairs[message.mem_pos]
-                # send signal to upper layer
-                self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
-                    source_node=self.node.name,
-                    entangle_node=entangled_node, mem_pos=message.mem_pos, new_fidelity=message.fidelity,
-                    is_source=True))
-
-            else:
-                self.entangled_pairs[message.mem_pos] = message.fidelity
-
+        self.is_source_node = message.is_source
+        if message.fidelity > self.target_fidelity:
+            self.satisfied_pairs[message.mem_pos] = message.fidelity
+            if not self.is_top_layer:
+                # remove this info from our record keeping
+                del self.satisfied_pairs[message.mem_pos]
+            # send signal to upper layer
+            self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
+                source_node=self.node.name,
+                entangle_node=entangled_node, mem_pos=message.mem_pos, new_fidelity=message.fidelity,
+                is_source=message.is_source))
         else:
-            # case of remote node
             self.entangled_pairs[message.mem_pos] = message.fidelity
+
         # TODO: check if we have enough entangled pairs to start purification? Here?
         # self.print_status(color="orange")
 
@@ -153,6 +137,25 @@ class Purification(NodeProtocol):
             self.logger.info(f"Purify {self.name} -> Purification successful\n"
                              f"\tPair: {message.entangle_node} -> {(message.qubit1_pos, message.qubit2_pos)}",
                              color="yellow")
+            # Calculate the fidelity
+            new_fidelity = self.calculate_purified_fidelity(self.entangled_pairs[message.qubit1_pos],
+                                                            self.entangled_pairs[message.qubit2_pos])
+            self.entangled_pairs[message.qubit1_pos] = new_fidelity
+            if new_fidelity > self.target_fidelity:
+                self.satisfied_pairs[message.qubit1_pos] = new_fidelity
+                del self.entangled_pairs[message.qubit1_pos]
+
+                self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
+                    source_node=self.node.name,
+                    entangle_node=message.entangle_node, mem_pos=message.qubit1_pos,
+                    new_fidelity=new_fidelity,
+                    is_source=False))
+                # remove info for non-top layer
+                if not self.is_top_layer:
+                    # remove this info from our record keeping
+                    del self.satisfied_pairs[message.qubit1_pos]
+                self.print_status()
+
             self.purification_success_count += 1
             self.cc_message_handler.send_message(MessageType.PURIFICATION_RESULT,
                                                  message.entangle_node,
@@ -224,18 +227,18 @@ class Purification(NodeProtocol):
             if new_fidelity > self.target_fidelity:
                 self.satisfied_pairs[message.qubit1_pos] = new_fidelity
                 # send the target met signal to the remote node
-                self.cc_message_handler.send_message(MessageType.PURIFICATION_TARGET_MET,
-                                                     message.entangle_node,
-                                                     ClassicalMessage(
-                                                         self.node.name,
-                                                         message.entangle_node,
-                                                         SignalMessages.PurifyTargetMetSignalMessage(
-                                                             source_node=self.node.name,
-                                                             entangle_node=self.node.name,
-                                                             mem_pos=message.qubit1_pos,
-                                                             new_fidelity=new_fidelity)
-                                                     )
-                                                     )
+                # self.cc_message_handler.send_message(MessageType.PURIFICATION_TARGET_MET,
+                #                                      message.entangle_node,
+                #                                      ClassicalMessage(
+                #                                          self.node.name,
+                #                                          message.entangle_node,
+                #                                          SignalMessages.PurifyTargetMetSignalMessage(
+                #                                              source_node=self.node.name,
+                #                                              entangle_node=self.node.name,
+                #                                              mem_pos=message.qubit1_pos,
+                #                                              new_fidelity=new_fidelity)
+                #                                      )
+                #                                      )
                 # emit signal to upper layer
                 self.send_signal(Signals.SUCCESS, SignalMessages.PurifySuccessSignalMessage(
                     source_node=self.node.name,
@@ -323,7 +326,8 @@ class Purification(NodeProtocol):
             if mem_pos in self.satisfied_pairs:
                 del self.satisfied_pairs[mem_pos]
         # re-entangle the memory position
-        self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE, SignalMessages.ReEntangleSignalMessage(
+        self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
+                                            SignalMessages.ReEntangleSignalMessage(
             entangle_node=entangle_node, re_entangle_mem_poses=mem_poses))
 
     def run(self):
@@ -331,11 +335,7 @@ class Purification(NodeProtocol):
         cc_message_signal = (self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_START) |
                              self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_RESULT) |
                              self.await_signal(self.cc_message_handler,
-                                               signal_label=MessageType.PURIFICATION_TARGET_MET) |
-                             self.await_signal(self.cc_message_handler,
-                                               signal_label=MessageType.VERIFICATION_FINISHED) |
-                             self.await_signal(self.cc_message_handler,
-                                               signal_label=MessageType.RE_ENTANGLE_FROM_UPPER_LAYER)
+                                               signal_label=MessageType.PURIFICATION_TARGET_MET)
                              )
         self.start_time = sim_time()
         while True:
@@ -429,25 +429,11 @@ class Purification(NodeProtocol):
                                          f"\tMem pos: {result.re_entangle_mem_poses}",
                                          color="green")
                         self.re_entangle(result.entangle_node, result.re_entangle_mem_poses)
-                    elif ready_signal.label == MessageType.VERIFICATION_FINISHED:
-                        # case we know the upper layer is done. We need gracefully shutting down
-                        # and also tell lower layer to shut down
-                        result: SignalMessages.ProtocolFinishedSignalMessage = result
-                        # skip if the verification end is not for us
-                        if result.entangle_node != self.entangled_node:
-                            continue
-                        self.logger.info(f"Purify {self.name} -> "
-                                         f"Node {self.node.name} received verification finished signal",
-                                         color="purple")
-                        self.shutdown = True
-                        # yield a bit for cc message to arrive if any
-                        self.shutdown_count_down = 0
-                        self.shutdown_time = sim_time()
 
             # check status
             self.print_status()
             # start purification process from the source node
-            if len(self.entangled_pairs) >= 2 and list(self.entangled_pairs.values())[0] is not None:
+            if len(self.entangled_pairs) >= 2 and self.is_source_node:
                 # we are checking if we have engouh pairs to start purification
                 # AND we are the source node, which means we have the initial fidelity
                 if not self.shutdown:
@@ -463,23 +449,6 @@ class Purification(NodeProtocol):
                 self.logger.info(f"Purify {self.name} -> Node {self.name} Finished purification process",
                                  color="green")
                 self.print_status(color="green")
-
-                # self.cc_message_handler.send_message(MessageType.PURIFICATION_NEED_SHUTDOWN,
-                #                                      self.entangled_node,
-                #                                      ClassicalMessage(
-                #                                          self.node.name,
-                #                                          self.entangled_node,
-                #                                          SignalMessages.PurifyFinishedSignalMessage(
-                #                                              entangle_node=self.node.name)
-                #                                      ))
-                # also broadcast the stop signal to other protocols
-                # self.cc_message_handler.send_signal(MessageType.PURIFICATION_FINISHED,
-                #                                     SignalMessages.ProtocolFinishedSignalMessage(
-                #                                         from_protocol=self,
-                #                                         from_node=self.node.name,
-                #                                         entangle_node=self.entangled_node
-                #                                     )
-                #                                     )
                 # send signal to local protocol
                 self.send_signal(MessageType.PURIFICATION_FINISHED, {"satisfied_pairs": self.satisfied_pairs,
                                                                      "purification_count": self.purification_count,

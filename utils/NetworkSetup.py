@@ -104,8 +104,8 @@ def setup_network(nodes_list, network_name,
                 conn_cchannel = DirectConnection(
                     f"CChannelConn_{nodes[index].name}_{nodes[j].name}",
                     ClassicalChannel(f"CChannel_{nodes[index].name}->{nodes[j].name}", length=node_distance * diff,
-                                     ),# models={"delay_model": FibreDelayModel(c=200e3)}
+                                     models={"delay_model": FibreDelayModel(c=200e3)}),# models={"delay_model": FibreDelayModel(c=200e3)}
                     ClassicalChannel(f"CChannel_{nodes[j].name}->{nodes[index].name}", length=node_distance * diff,
-                                     )) # models={"delay_model": FibreDelayModel(c=200e3)}
+                                     models={"delay_model": FibreDelayModel(c=200e3)})) # models={"delay_model": FibreDelayModel(c=200e3)}
                 network.add_connection(node, nodes[j], connection=conn_cchannel)
     return network

@@ -33,9 +33,10 @@ class EntangleSuccessSignalMessage(EntangleSignalMessage):
     Most used for EntanglementHandler to notify success
     """
 
-    def __init__(self, source_node, entangle_node, mem_pos, fidelity):
+    def __init__(self, source_node, entangle_node, mem_pos, fidelity, is_source=False):
         super().__init__(source_node, entangle_node, mem_pos)
         self.fidelity = fidelity
+        self.is_source = is_source
 
 
 class PurifySignalMessage:

@@ -47,9 +47,8 @@ def plot_lines(xs, ys, title, x_label, y_label, data_legends, xlim=None, save=Tr
     plt.show()
 
 
-def main():
-    # load the data
-    with open("purification_results/purification_results_2_nodes_1_paris_5km.json") as fin:
+def load_data(file_path):
+    with open(file_path) as fin:
         data = json.load(fin)
 
     """
@@ -80,32 +79,49 @@ def main():
         p1 = list(data[key].values())[0]
         p2 = list(data[key].values())[1]
         purify_one_actual_fed.append(p1["actual_fidelity"])
-        purify_one_estimated_fed.append( p1["estimated_fidelity"])
-        purify_one_experiment_duration.append(p1["experiment_duration"]/1e6)
+        purify_one_estimated_fed.append(p1["estimated_fidelity"])
+        purify_one_experiment_duration.append(p1["experiment_duration"] / 1e6)
         purify_one_teleport_success.append(p1["teleport_success_count"])
         purify_one_target_fidelity.append(list(data[key].keys())[0])
 
         purify_two_actual_fed.append(p2["actual_fidelity"])
-        purify_two_estimated_fed.append( p2["estimated_fidelity"])
-        purify_two_experiment_duration.append(p2["experiment_duration"]/1e6)
+        purify_two_estimated_fed.append(p2["estimated_fidelity"])
+        purify_two_experiment_duration.append(p2["experiment_duration"] / 1e6)
         purify_two_teleport_success.append(p2["teleport_success_count"])
         purify_two_target_fidelity.append(list(data[key].keys())[1])
+    return (x,
+            purify_one_actual_fed,
+            purify_one_estimated_fed,
+            purify_one_experiment_duration,
+            purify_one_teleport_success,
+            purify_one_target_fidelity,
+            purify_two_actual_fed,
+            purify_two_estimated_fed,
+            purify_two_experiment_duration,
+            purify_two_teleport_success,
+            purify_two_target_fidelity,)
+
+
+def plot_purify_data():
+    (x,
+     purify_one_actual_fed,
+     purify_one_estimated_fed,
+     purify_one_experiment_duration,
+     purify_one_teleport_success,
+     purify_one_target_fidelity,
+     purify_two_actual_fed,
+     purify_two_estimated_fed,
+     purify_two_experiment_duration,
+     purify_two_teleport_success,
+     purify_two_target_fidelity,) = load_data("purification_results/purification_results_2_nodes_1_paris_5km.json")
 
     with open("entanglement_results/entanglement_results_2nodes_5km.json") as fin:
         data = json.load(fin)
     actual_fidelity = [data[key]["actual_fidelity"] for key in x]
     teleportation_success = [data[key]["average_teleportation_success"] for key in x]
-    experiment_duration = [data[key]["average_duration"]/1e6 for key in x]
+    experiment_duration = [data[key]["average_duration"] / 1e6 for key in x]
 
-    # actual_fidelity = [data[key]["actual_fidelity"] for key in x]
-    # estimated_fidelity = [data[key]["estimated_fidelity"] for key in x]
-    # purified_count = [data[key]["purified_count"] for key in x]
-    # purified_success_count = [data[key]["purified_success_count"] for key in x]
-    # experiment_duration = [data[key]["experiment_duration"] for key in x]
-    # satisfied_pairs = [data[key]["satisfied_pairs_count"] for key in x]
-    # teleportation_success = [data[key]["teleport_success_count"] for key in x]
-
-    x_dis = [int(i)/1000 for i in x]
+    x_dis = [int(i) / 1000 for i in x]
 
     plot_lines([x_dis, x_dis, x_dis, x_dis, x_dis],
                [actual_fidelity,
@@ -120,13 +136,13 @@ def main():
                 "1 Level Purify Estimated Fidelity",
                 "2 Level Purify Estimated Fidelity",
                 "1 Level Actual Fidelity",
-                "2 Level Actual Fidelity",],
-               save_dir="./purification_results/figures",)
+                "2 Level Actual Fidelity", ],
+               save_dir="./purification_results/figures", )
 
     plot_lines([x_dis, x_dis, x_dis],
                [teleportation_success,
                 purify_one_teleport_success,
-                purify_two_teleport_success,],
+                purify_two_teleport_success, ],
                "Purification Teleport Success Comparison with Distance",
                "Node Distance (km)",
                "Success Rate",
@@ -147,6 +163,82 @@ def main():
                 "2 Level Purify", ],
                save_dir="./purification_results/figures", )
 
+
+def plot_purify_delay_comparison():
+    (x,
+     purify_one_actual_fed,
+     purify_one_estimated_fed,
+     purify_one_experiment_duration,
+     purify_one_teleport_success,
+     purify_one_target_fidelity,
+     purify_two_actual_fed,
+     purify_two_estimated_fed,
+     purify_two_experiment_duration,
+     purify_two_teleport_success,
+     purify_two_target_fidelity,) = load_data(
+        "purification_results/purification_results_2_nodes_1_paris_5km.json")
+
+    (x,
+     purify_one_actual_fed_delay,
+     purify_one_estimated_fed_delay,
+     purify_one_experiment_duration_delay,
+     purify_one_teleport_success_delay,
+     purify_one_target_fidelity_delay,
+     purify_two_actual_fed_delay,
+     purify_two_estimated_fed_delay,
+     purify_two_experiment_duration_delay,
+     purify_two_teleport_success_delay,
+     purify_two_target_fidelity_delay,) = load_data(
+        "purification_results/purification_results_2_nodes_1_paris_5km_delayed.json")
+
+    with open("entanglement_results/entanglement_results_2nodes_5km.json") as fin:
+        data = json.load(fin)
+    actual_fidelity = [data[key]["actual_fidelity"] for key in x]
+
+    x_dis = [int(i) / 1000 for i in x]
+
+    plot_lines([x_dis, x_dis, x_dis, x_dis, x_dis, x_dis, x_dis],
+               [
+                   actual_fidelity,
+                   purify_one_estimated_fed,
+                   purify_two_estimated_fed,
+                   purify_one_actual_fed,
+                   purify_one_actual_fed_delay,
+                   purify_two_actual_fed,
+                   purify_two_actual_fed_delay, ],
+               "Purification Fidelity Comparison Delayed vs Non-Delayed",
+               "Node Distance (km)",
+               "Fidelity",
+               [
+                   "No Purify Actual Fidelity",
+                   "1 Level Purify Estimated Fidelity",
+                   "2 Level Purify Estimated Fidelity",
+                   "1 Level No Delay Actual Fidelity",
+                   "1 Level Delayed Actual Fidelity",
+                   "2 Level No Delay Actual Fidelity",
+                   "2 Level Delayed Actual Fidelity",
+               ],
+               save_dir="./purification_results/figures", )
+    plot_lines([x_dis, x_dis, x_dis, x_dis],
+               [
+                   purify_one_experiment_duration,
+                   purify_one_experiment_duration_delay,
+                   purify_two_experiment_duration,
+                   purify_two_experiment_duration_delay],
+               "Purification Duration Comparison Delayed vs Non-Delayed",
+               "Node Distance (km)",
+               "Duration (ms)",
+               [
+                   "1 Level No Delay Purify",
+                   "1 Level Delayed Purify",
+                   "2 Level No DelayPurify",
+                   "2 Level Delayed Purify",
+               ],
+               save_dir="./purification_results/figures", )
+
+
+def main():
+    plot_purify_delay_comparison()
 
 
 if __name__ == '__main__':
