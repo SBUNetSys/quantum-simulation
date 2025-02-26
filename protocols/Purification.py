@@ -328,7 +328,7 @@ class Purification(NodeProtocol):
         # re-entangle the memory position
         self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                             SignalMessages.ReEntangleSignalMessage(
-            entangle_node=entangle_node, re_entangle_mem_poses=mem_poses))
+            entangle_node=entangle_node, re_entangle_mem_poses=mem_poses, is_source=self.is_source_node))
 
     def run(self):
         entangle_signal = self.await_signal(self.entanglement_handler, signal_label=Signals.SUCCESS)

@@ -109,13 +109,15 @@ class ReEntangleSignalMessage:
     race condition
     : param entangle_node: entangle node name
     : param re_entangle_mem_poses: list of memory positions to re-entangle
+    : param is_source: whether we are the source or not
     """
 
-    def __init__(self, entangle_node, re_entangle_mem_poses: list, re_entangle_type="upper"):
+    def __init__(self, entangle_node, re_entangle_mem_poses: list, re_entangle_type="upper", is_source=False):
         self.entangle_node = entangle_node
         self.re_entangle_mem_poses = re_entangle_mem_poses
         self.re_entangle_type = re_entangle_type
         self.timestamp = ns.sim_time()
+        self.is_source = is_source
 
 
 class ProtocolFinishedSignalMessage:

@@ -204,7 +204,7 @@ class EntanglementHandler(NodeProtocol):
             self.process_entangle_message(message)
 
     def process_re_entangle_message_queue(self):
-        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time >= 2000:
+        if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time >= 5000:
             if len(self.re_entangle_message_queue) == 0:
                 return
             self.re_entangle_flush_time = ns.sim_time()
@@ -223,7 +223,7 @@ class EntanglementHandler(NodeProtocol):
         # re-entangle causing qport overwhelm
         if len(self.temp_qubits) > 0 or len(self.re_entangle_remote_message_queue) == 0 or self.last_gen_time is None:
             return
-        if self.last_gen_time and ns.sim_time() - self.last_gen_time < 5000:
+        if self.last_gen_time and ns.sim_time() - self.last_gen_time < 2000:
             return
         data = self.re_entangle_remote_message_queue
         self.re_entangle_remote_message_queue = []
@@ -436,6 +436,8 @@ class EntanglementHandler(NodeProtocol):
                     elif ready_signal.label == MessageType.RE_ENTANGLE_FROM_UPPER_LAYER:
                         # re-entangle from upper layer
                         if result.entangle_node != self.entangle_node:
+                            continue
+                        if result.is_source:
                             continue
                         self.re_entangle_message_queue.append(result)
                         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal from upper layer\n"
