@@ -1,5 +1,6 @@
 import logging
 import sys
+from logging.handlers import RotatingFileHandler
 
 """
 Logging class to log messages to stdout for debugging purposes.
@@ -7,20 +8,42 @@ Logging class to log messages to stdout for debugging purposes.
 
 
 class Logger:
-    def __init__(self, name, level=logging.DEBUG, logging_enabled=True, save_to_file=False, file_name="log.txt"):
+    def __init__(self, name, level=logging.DEBUG, logging_enabled=True,
+                 save_to_file=False, file_name="log.txt",
+                 max_file_size=5 * 1024 * 1024, backup_count=5):
+        """
+        Initialize a logger with optional file rotation capability.
+
+        Args:
+            name: Name of the logger
+            level: Logging level (default: DEBUG)
+            logging_enabled: Whether to output logs to stdout (default: True)
+            save_to_file: Whether to save logs to a file (default: False)
+            file_name: Name of the log file (default: "log.txt")
+            max_file_size: Maximum size of each log file in bytes (default: 10MB)
+            backup_count: Number of backup files to keep (default: 5)
+        """
         self.logger = logging.getLogger(name)
         if self.logger.handlers:
             self.logger.handlers.clear()
         self.logger.setLevel(level)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+        # Console handler
         if logging_enabled:
             ch = logging.StreamHandler(sys.stdout)  # Send logs to stdout
         else:
             ch = logging.NullHandler()
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
+
+        # File handler with rotation
         if save_to_file:
-            fh = logging.FileHandler(file_name)
+            fh = RotatingFileHandler(
+                filename=file_name,
+                maxBytes=max_file_size,
+                backupCount=backup_count
+            )
             fh.setFormatter(formatter)
             self.logger.addHandler(fh)
 
