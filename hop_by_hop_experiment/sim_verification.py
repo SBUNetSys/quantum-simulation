@@ -10,7 +10,6 @@ from functools import reduce
 import numpy as np
 import pydynaa as pd
 import netsquid as ns
-from hypothesis._settings import duration
 from netsquid.util.simtools import sim_time
 from netsquid.util.datacollector import DataCollector
 from netsquid.qubits import qubitapi as qapi
