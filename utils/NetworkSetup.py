@@ -3,7 +3,7 @@ import numpy as np
 import netsquid as ns
 from netsquid.nodes.network import Network
 from netsquid.nodes.connections import DirectConnection
-from netsquid.components import ClassicalChannel, QuantumChannel
+from netsquid.components import ClassicalChannel, QuantumChannel, CombinedChannel
 from netsquid.components.qsource import QSource, SourceStatus
 from netsquid.components.qprocessor import QuantumProcessor
 from netsquid.components.models.delaymodels import FibreDelayModel
@@ -97,6 +97,100 @@ def setup_network(nodes_list, network_name,
                 port_name_node2=f"qin_{node.name}")
             # map the input from node to right_node's qmemory, which is the memory of the left node
             right_node.ports[port_name_b].forward_input(right_node.subcomponents[f"{node.name}_qmemory"].ports[f"qin0"])
+
+            # Add the classical channel between the nodes
+            for j in range(index + 1, len(nodes)):
+                diff = j - index
+                conn_cchannel = DirectConnection(
+                    f"CChannelConn_{nodes[index].name}_{nodes[j].name}",
+                    ClassicalChannel(f"CChannel_{nodes[index].name}->{nodes[j].name}", length=node_distance * diff,
+                                     models={"delay_model": FibreDelayModel(c=200e3)}),# models={"delay_model": FibreDelayModel(c=200e3)}
+                    ClassicalChannel(f"CChannel_{nodes[j].name}->{nodes[index].name}", length=node_distance * diff,
+                                     models={"delay_model": FibreDelayModel(c=200e3)})) # models={"delay_model": FibreDelayModel(c=200e3)}
+                network.add_connection(node, nodes[j], connection=conn_cchannel)
+    return network
+
+def setup_network_parallel(nodes_list, network_name,
+                           memory_capacity=10,
+                           memory_depolar_rate=10,
+                           node_distance=20, ):
+    """
+    Create a network with nodes and channels.
+
+    Connection flow:
+
+    A -> B -> C
+
+
+    Returns
+    -------
+    :class:`~netsquid.components.component.Component`
+        A network component with nodes and channels as subcomponents.
+
+    Notes
+    -----
+        This network is also used by the matching integration test.
+
+    """
+    network = Network(network_name)
+    nodes = network.add_nodes(nodes_list)
+
+    # add components to the nodes
+    for index, node in enumerate(nodes):
+        state_sampler = StateSampler([ns.b00], [1])
+        node.add_subcomponent(QSource(name=f"QSource_{node.name}", state_sampler=state_sampler,
+                                      num_ports=1, status=SourceStatus.EXTERNAL))
+        node.add_subcomponent(QuantumProcessor(name=nodes[index].name + "_transport_qmemory",
+                                               num_positions=memory_capacity,
+                                               fallback_to_nonphysical=True,
+                                               memory_noise_models=
+                                               [DepolarNoiseModel(3883)] * memory_capacity))
+        if index - 1 >= 0:
+            node.add_subcomponent(QuantumProcessor(name=nodes[index - 1].name + "_qmemory",
+                                                   num_positions=memory_capacity,
+                                                   fallback_to_nonphysical=True,
+                                                   memory_noise_models=
+                                                   [DepolarNoiseModel(memory_depolar_rate)] * memory_capacity))
+        if index + 1 < len(nodes):
+            # case of we are the source node
+            node.add_subcomponent(QuantumProcessor(name=nodes[index + 1].name + "_qmemory",
+                                                   num_positions=memory_capacity,
+                                                   fallback_to_nonphysical=True,
+                                                   memory_noise_models=
+                                                   [DepolarNoiseModel(memory_depolar_rate)] * memory_capacity))
+    # get qchannels deploar rate
+    qchannel_depolar_rate = calculate_channel_depolar_rate(node_distance)
+    # add connections between the nodes
+    for index, node in enumerate(nodes):
+
+        if index + 1 < len(nodes):
+            right_node = nodes[index + 1]
+            # case of we are the source node
+            # update, we dont need this internal channel, we just put into memory our self
+            # internal_qchannel = QuantumChannel(name=f"QChannel_{node.name}->{node.name}", length=0, models={
+            #     "delay_model": FibreDelayModel(c=200e3), })
+            # models={"quantum_loss_model": FibreLossModel(p_loss_init=0),
+            #         "delay_model": FibreDelayModel(c=200e3),
+            #         "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
+            # internal qchannel to link right_qmemory for source node
+            # node.add_subcomponent(internal_qchannel, name="internal_qchannel")
+            # We remove the direct connection to qmemory, we will manually handle this
+            # (node.subcomponents["internal_qchannel"].ports["recv"]
+            #  .connect(node.subcomponents[right_node.name + "_qmemory"].ports["qin0"]))
+
+            # create a quantum channel between the source node and the next node
+            qchannel = CombinedChannel(name=f"QChannel_{node.name}->{right_node.name}", length=node_distance,
+                                      models={"quantum_loss_model": FibreLossModel(p_loss_init=0.01, p_loss_length=0.5),
+                                              "delay_model": FibreDelayModel(c=200e3),
+                                              "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
+
+            port_name_a, port_name_b = network.add_connection(
+                node, right_node, channel_to=qchannel, label="quantum",
+                port_name_node1=f"qout_{nodes[index + 1].name}",
+                port_name_node2=f"qin_{node.name}")
+            # map the input from node to right_node's qmemory, which is the memory of the left node
+            # Update: remove this auto-forwarding, we will do it manually
+            # right_node.ports[port_name_b].forward_input(right_node.subcomponents[f"{node.name}_qmemory"].ports[f"qin0"])
 
             # Add the classical channel between the nodes
             for j in range(index + 1, len(nodes)):
