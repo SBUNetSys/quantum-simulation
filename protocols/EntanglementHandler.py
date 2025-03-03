@@ -1,7 +1,6 @@
 import copy
 import operator
 from functools import reduce
-from venv import logger
 
 import numpy as np
 from netsquid.components.qprocessor import sim_time
