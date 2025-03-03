@@ -14,6 +14,9 @@ class MessageType(Enum):
     # entanglement signals
     GEN_ENTANGLE_READY = auto()
     ENTANGLED = auto()
+    ENTANGLED_QUBIT_LOST = auto()
+    # entanglement concurrent signals
+    RE_ENTANGLE_CONCURRENT = auto()
     # re-entanglement signals
     RE_ENTANGLE = auto()
     RE_ENTANGLE_READY = auto()
