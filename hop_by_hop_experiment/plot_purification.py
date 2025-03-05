@@ -191,48 +191,102 @@ def plot_purify_delay_comparison():
      purify_two_target_fidelity_delay,) = load_data(
         "purification_results/purification_results_2_nodes_1_paris_5km_delayed.json")
 
+    (x,
+     concurrent_purify_one_actual_fed,
+     concurrent_purify_one_estimated_fed,
+     concurrent_purify_one_experiment_duration,
+     concurrent_purify_one_teleport_success,
+     concurrent_purify_one_target_fidelity,
+     concurrent_purify_two_actual_fed,
+     concurrent_purify_two_estimated_fed,
+     concurrent_purify_two_experiment_duration,
+     concurrent_purify_two_teleport_success,
+     concurrent_purify_two_target_fidelity,) = load_data(
+        "purification_results/concurrent_purification_results_2_nodes_1_paris_5.0km.json")
+
+
     with open("entanglement_results/entanglement_results_2nodes_5km.json") as fin:
         data = json.load(fin)
     actual_fidelity = [data[key]["actual_fidelity"] for key in x]
 
     x_dis = [int(i) / 1000 for i in x]
 
+    # plot_lines([x_dis, x_dis, x_dis, x_dis, x_dis, x_dis, x_dis],
+    #            [
+    #                actual_fidelity,
+    #                purify_one_estimated_fed,
+    #                purify_two_estimated_fed,
+    #                purify_one_actual_fed,
+    #                purify_one_actual_fed_delay,
+    #                purify_two_actual_fed,
+    #                purify_two_actual_fed_delay, ],
+    #            "Purification Fidelity Comparison Delayed vs Non-Delayed",
+    #            "Node Distance (km)",
+    #            "Fidelity",
+    #            [
+    #                "No Purify Actual Fidelity",
+    #                "1 Level Purify Estimated Fidelity",
+    #                "2 Level Purify Estimated Fidelity",
+    #                "1 Level No Delay Actual Fidelity",
+    #                "1 Level Delayed Actual Fidelity",
+    #                "2 Level No Delay Actual Fidelity",
+    #                "2 Level Delayed Actual Fidelity",
+    #            ],
+    #            save_dir="./purification_results/figures", )
+    #
+    # plot_lines([x_dis, x_dis, x_dis, x_dis],
+    #            [
+    #                purify_one_experiment_duration,
+    #                purify_one_experiment_duration_delay,
+    #                purify_two_experiment_duration,
+    #                purify_two_experiment_duration_delay],
+    #            "Purification Duration Comparison Delayed vs Non-Delayed",
+    #            "Node Distance (km)",
+    #            "Duration (ms)",
+    #            [
+    #                "1 Level No Delay Purify",
+    #                "1 Level Delayed Purify",
+    #                "2 Level No DelayPurify",
+    #                "2 Level Delayed Purify",
+    #            ],
+    #            save_dir="./purification_results/figures", )
+
     plot_lines([x_dis, x_dis, x_dis, x_dis, x_dis, x_dis, x_dis],
                [
                    actual_fidelity,
                    purify_one_estimated_fed,
                    purify_two_estimated_fed,
-                   purify_one_actual_fed,
                    purify_one_actual_fed_delay,
-                   purify_two_actual_fed,
-                   purify_two_actual_fed_delay, ],
-               "Purification Fidelity Comparison Delayed vs Non-Delayed",
+                   concurrent_purify_one_actual_fed,
+                   purify_two_actual_fed_delay,
+                   concurrent_purify_two_actual_fed, ],
+               "Purification Fidelity Comparison Concurrent vs Non-Concurrent",
                "Node Distance (km)",
                "Fidelity",
                [
                    "No Purify Actual Fidelity",
                    "1 Level Purify Estimated Fidelity",
                    "2 Level Purify Estimated Fidelity",
-                   "1 Level No Delay Actual Fidelity",
+                   "1 Level Concurrent Actual Fidelity",
                    "1 Level Delayed Actual Fidelity",
-                   "2 Level No Delay Actual Fidelity",
+                   "2 Level Concurrent Actual Fidelity",
                    "2 Level Delayed Actual Fidelity",
                ],
                save_dir="./purification_results/figures", )
     plot_lines([x_dis, x_dis, x_dis, x_dis],
                [
-                   purify_one_experiment_duration,
                    purify_one_experiment_duration_delay,
-                   purify_two_experiment_duration,
-                   purify_two_experiment_duration_delay],
-               "Purification Duration Comparison Delayed vs Non-Delayed",
+                   concurrent_purify_one_experiment_duration,
+                   purify_two_experiment_duration_delay,
+                   concurrent_purify_two_experiment_duration],
+               "Purification Duration Comparison Concurrent vs Non-Concurrent",
                "Node Distance (km)",
                "Duration (ms)",
                [
-                   "1 Level No Delay Purify",
-                   "1 Level Delayed Purify",
-                   "2 Level No DelayPurify",
-                   "2 Level Delayed Purify",
+                   "1 Level Purify",
+                   "1 Level Concurrent Purify",
+                   "2 Level Purify",
+                   "2 Level Concurrent Purify",
                ],
                save_dir="./purification_results/figures", )
 
