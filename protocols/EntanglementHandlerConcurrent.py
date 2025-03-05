@@ -73,10 +73,12 @@ class EntanglementHandlerConcurrent(NodeProtocol):
         self.node_distance = node_distance
         # time out for qubit lost
         self.timeout_time = 2.2 * ((self.node_distance / 200e3) * 1e9)
+        self.qubit_lost_count = 0
         # store the qubit input protocol
         self.qubit_input_protocol = qubit_input_protocol
         # have expression to wait for the qubit input signal
-        self.qubit_input_signal = (self.await_signal(qubit_input_protocol, signal_label=Signals.SUCCESS) |
+        self.qubit_input_signal = (self.await_signal(qubit_input_protocol,
+                                                     signal_label=MessageType.GEN_ENTANGLE_SUCCESS) |
                                    self.await_signal(qubit_input_protocol,
                                                      signal_label=MessageType.ENTANGLED_QUBIT_LOST))
         # classical message handler
@@ -96,6 +98,8 @@ class EntanglementHandlerConcurrent(NodeProtocol):
         self.add_new_signal(MessageType.ENTANGLED)
         self.add_new_signal(MessageType.RE_ENTANGLE_CONCURRENT)
         self.add_new_signal(MessageType.ENTANGLEMENT_HANDLER_FINISHED)
+        self.add_new_signal(MessageType.ENTANGLED_SUCCESS)
+
         self.shutdown = False
         self.processed_re_entangled = False
         self.is_top_layer = is_top_layer
@@ -187,14 +191,13 @@ class EntanglementHandlerConcurrent(NodeProtocol):
 
         # send the entangle pair to the upper layer
         if len(entangled_poses) > 0:
-            self.send_signal(Signals.SUCCESS,
+            self.send_signal(MessageType.ENTANGLED_SUCCESS,
                              SignalMessages.EntangleSuccessSignalMessage(
                                  self.node.name,
                                  from_node,
                                  entangled_poses,
                                  entangled_fids,
                                  is_source=True))
-
 
     def process_re_entangle_message(self, message: SignalMessages.ReEntangleSignalMessage):
         """
@@ -210,6 +213,7 @@ class EntanglementHandlerConcurrent(NodeProtocol):
         for mem_pos in mem_poses:
             if mem_pos in self.entangled_qubits:
                 del self.entangled_qubits[mem_pos]
+        self.qubit_lost_count = 0
         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal, entangle_node: {entangle_node},"
                          f" mem_pos: {mem_poses}", color="yellow")
         self.send_signal(MessageType.RE_ENTANGLE_CONCURRENT, message)
@@ -222,6 +226,7 @@ class EntanglementHandlerConcurrent(NodeProtocol):
             self.process_entangle_message(message)
 
     def process_re_entangle_message_queue(self):
+        # if len(self.entangled_qubits.keys()) + self.qubit_lost_count == self.max_pairs:
         if self.re_entangle_flush_time is None or ns.sim_time() - self.re_entangle_flush_time >= 2000:
             if len(self.re_entangle_message_queue) == 0:
                 return
@@ -298,6 +303,7 @@ class EntanglementHandlerConcurrent(NodeProtocol):
                             self.await_signal(self.cc_message_handler, signal_label=MessageType.ENTANGLED_QUBIT_LOST) |
                             self.await_signal(self.cc_message_handler,
                                               signal_label=MessageType.RE_ENTANGLE_FROM_UPPER_LAYER))
+        yield self.await_timer(1)
         start_time = sim_time()
         while True:
             # wait for entanglement
@@ -334,7 +340,7 @@ class EntanglementHandlerConcurrent(NodeProtocol):
                                     f"\tTime {sim_time()}", color="blue")
                         else:
                             self.temp_qubits[mem_pos] = (
-                            self.estimate_fidelity_theoretical(initial_fidelity), sim_time())
+                                self.estimate_fidelity_theoretical(initial_fidelity), sim_time())
                             self.logger.info(
                                 f"ManageEntangle {self.name} -> Entangle signal from QSource"
                                 f"\tmem_pos: {mem_pos}\n"
@@ -366,6 +372,7 @@ class EntanglementHandlerConcurrent(NodeProtocol):
                             # we assume is 1 from source node
                             cal_fid = self.estimate_fidelity_theoretical(1.0)
                             entangled_poses = []
+                            entangled_fids = []
                             if type(mem_pos) is list:
                                 for pos in mem_pos:
                                     # add the qubit to the entangled qubits
@@ -377,6 +384,7 @@ class EntanglementHandlerConcurrent(NodeProtocol):
                                         color="yellow")
                                     self.entangled_qubits[pos] = cal_fid
                                     entangled_poses.append(pos)
+                                    entangled_fids.append(cal_fid)
                             else:
                                 self.logger.info(
                                     f"ManageEntangle {self.name} -> Entangle signal from Remote node\n"
@@ -385,6 +393,7 @@ class EntanglementHandlerConcurrent(NodeProtocol):
                                     f"time {sim_time()}",
                                     color="yellow")
                                 self.entangled_qubits[mem_pos] = cal_fid
+                                entangled_fids.append(cal_fid)
                                 entangled_poses.append(mem_pos)
                             # send the entangled signal to the source node
                             self.cc_message_handler.send_message(MessageType.ENTANGLED, entangle_node,
@@ -396,12 +405,12 @@ class EntanglementHandlerConcurrent(NodeProtocol):
                                                                          entangled_poses)
                                                                  ))
                             # send the entangle pair to the upper layer
-                            self.send_signal(Signals.SUCCESS,
+                            self.send_signal(MessageType.ENTANGLED_SUCCESS,
                                              SignalMessages.EntangleSuccessSignalMessage(
                                                  self.node.name,
                                                  entangle_node,
                                                  entangled_poses,
-                                                 cal_fid,
+                                                 entangled_fids,
                                                  is_source=False
                                              ))
 
@@ -434,18 +443,21 @@ class EntanglementHandlerConcurrent(NodeProtocol):
                         # self.process_re_entangle_message(result)
                     elif ready_signal.label == MessageType.ENTANGLED_QUBIT_LOST:
                         result: ClassicalMessage
+                        self.qubit_lost_count += len(result.data.re_entangle_mem_poses)
                         self.re_entangle_message_queue.append(result.data)
                     elif ready_signal.label == MessageType.RE_ENTANGLE_FROM_UPPER_LAYER:
                         # re-entangle from upper layer
                         if result.entangle_node != self.entangle_node:
                             continue
-                        if result.is_source:
+                        if not result.is_source:
                             continue
                         self.re_entangle_message_queue.append(result)
                         self.logger.info(f"ManageEntangle {self.name} -> Re-entangle signal from upper layer\n"
                                          f"\tentangle_node: {result.entangle_node}\n"
                                          f"\tmem_pos: {result.re_entangle_mem_poses}\n"
-                                         f"\tcurrent_entangled pairs: {self.entangled_qubits}",
+                                         f"\tcurrent_entangled pairs: {self.entangled_qubits}\n"
+                                         f"\tcurrent_entangled count: {len(self.entangled_qubits)}\n"
+                                         f"\tqubit_lost_count: {self.qubit_lost_count}\n",
                                          color="purple")
 
             self.process_message_queue()
@@ -474,6 +486,7 @@ class EntanglementHandlerConcurrent(NodeProtocol):
         # reset the shutdown flag
         self.re_entangle_message_queue = []
         self.re_entangle_flush_time = None
+        self.qubit_lost_count = 0
         # reset the shutdown flag
         self.shutdown = False
         super().reset()

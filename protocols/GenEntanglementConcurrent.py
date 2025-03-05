@@ -1,3 +1,5 @@
+from turtledemo.forest import start
+
 import netsquid as ns
 from netsquid import sim_time
 
@@ -83,6 +85,7 @@ class GenEntanglementConcurrent(NodeProtocol):
 
         # add signal for re-entangle ready
         self.add_signal(MessageType.ENTANGLED_QUBIT_LOST)
+        self.add_signal(MessageType.GEN_ENTANGLE_SUCCESS)
 
     def run(self):
         self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
@@ -95,9 +98,9 @@ class GenEntanglementConcurrent(NodeProtocol):
 
         if self.entanglement_handler is None:
             raise ValueError("Re-entangle sender must be specified.")
-        self.start_time = ns.sim_time()
 
-        yield self.await_timer(5001)
+        yield self.await_timer(1)
+        self.start_time = ns.sim_time()
         # start the main logic
         while True:
             """
@@ -111,11 +114,18 @@ class GenEntanglementConcurrent(NodeProtocol):
                     we assume whatever source said and overwrite anything else 
             """
             if self._is_source:
-                yield from self.handle_qubit_generation()
-                expr = yield (self.await_signal(self, Signals.SUCCESS) |
+                if len(self.aval_mem_positions) > 0:
+                    yield from self.handle_qubit_generation()
+                expr = yield (self.await_signal(self, MessageType.GEN_ENTANGLE_SUCCESS) |
                               self.await_signal(self.entanglement_handler, MessageType.RE_ENTANGLE_CONCURRENT))
                 if expr.first_term:
-                    yield from self.handle_qubit_generation()
+                    for event in expr.second_term.triggered_events:
+                        source_protocol = event.source
+                        ready_signal = source_protocol.get_signal_by_event(
+                            event=event, receiver=self)
+                        if ready_signal.result.data.timestamp < self.start_time:
+                            continue
+                        yield from self.handle_qubit_generation()
                 elif expr.second_term:
                     for event in expr.second_term.triggered_events:
                         source_protocol = event.source
@@ -123,6 +133,8 @@ class GenEntanglementConcurrent(NodeProtocol):
                             ready_signal = source_protocol.get_signal_by_event(
                                 event=event, receiver=self)
                             result: SignalMessages.ReEntangleSignalMessage = ready_signal.result
+                            if result.timestamp < self.start_time:
+                                continue
                             self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
                                              f"Re-entangle signal\n"
                                              f"\tRe-entangle pos {result.re_entangle_mem_poses}"
@@ -160,7 +172,12 @@ class GenEntanglementConcurrent(NodeProtocol):
                 lost_mem_poses = []
                 success_mem_poses = []
                 for item in message.items:
-                    pos, qubit = item
+                    pos_info, qubit = item
+                    if pos_info[1] < self.start_time:
+                        lost_mem_poses = []
+                        success_mem_poses = []
+                        break
+                    pos = pos_info[0]
                     # case we lost the qubit we ignore the rest
                     if len(qubit) != 1:
                         lost_mem_poses.append(pos)
@@ -194,7 +211,7 @@ class GenEntanglementConcurrent(NodeProtocol):
                                          self._is_source,
                                          None))
                 if len(success_mem_poses) > 0:
-                    self.send_signal(Signals.SUCCESS,
+                    self.send_signal(MessageType.GEN_ENTANGLE_SUCCESS,
                                      SignalMessages.NewEntanglementSignalMessage(
                                          self.node.name,
                                          self.entangle_node,
@@ -256,7 +273,7 @@ class GenEntanglementConcurrent(NodeProtocol):
                              f"\tIs Source: {self._is_source}\n"
                              f"\tUsed memory positions: {self.used_mem_positions}\n"
                              f"\tAvailable memory positions: {self.aval_mem_positions}", color="red")
-            self.send_signal(Signals.SUCCESS,
+            self.send_signal(MessageType.GEN_ENTANGLE_SUCCESS,
                              SignalMessages.NewEntanglementSignalMessage(
                                  self.node.name,
                                  self.entangle_node,
@@ -273,7 +290,7 @@ class GenEntanglementConcurrent(NodeProtocol):
             # NETSQUID WILL THROW ERROR AS IT CANNOT HANDLE FORWARD MESSAGE TOO FAST
             # yield self.await_timer(1)
             # send qubit to the right node with memory pos to keep reference
-            self.node.ports[f"qout_{self.entangle_node}"].tx_output((mem_pos, qubit_2))
+            self.node.ports[f"qout_{self.entangle_node}"].tx_output(((mem_pos,sim_time()), qubit_2))
 
 
     def reset_memory_positions(self):

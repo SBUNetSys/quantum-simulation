@@ -82,17 +82,22 @@ class Verification(NodeProtocol):
         :return:
         """
         self.is_source = message.is_source
-        self.entangled_pairs[message.mem_pos] = message.fidelity
+        if type(message.mem_pos) is list:
+            for pos, fid in zip(message.mem_pos, message.fidelity):
+                self.entangled_pairs[pos] = fid
+        else:
+            self.entangled_pairs[message.mem_pos] = message.fidelity
         # if message.mem_pos in self.re_entangle_positions:
         #     self.re_entangle_positions.remove(message.mem_pos)
 
     def run(self):
         self.logger.info(f"{self.name} Verification protocol started with {self.entangled_node} [{self.uid}]")
-        entangle_signals = self.await_signal(self.purification_protocol, Signals.SUCCESS)
+        entangle_signals = self.await_signal(self.purification_protocol, MessageType.PURIFICATION_SUCCESS)
         verification_signals = (self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_START) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_REQUEST) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_READY) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_RESULT))
+        yield self.await_timer(1)
         self.start_time = sim_time()
         while True:
             exper = yield entangle_signals | verification_signals
@@ -106,7 +111,7 @@ class Verification(NodeProtocol):
                         continue
                     if result.timestamp < self.start_time:
                         continue
-                    if ready_signal.label == Signals.SUCCESS:
+                    if ready_signal.label == MessageType.PURIFICATION_SUCCESS:
                         self.logger.info(f"{self.name} -> {self.node.name} "
                                          f"received entanglement signal from {source_protocol.name}\n"
                                          f"\tMemory Position: {result.mem_pos}\n"
@@ -521,7 +526,8 @@ class Verification(NodeProtocol):
         del self.current_verification_batches[batch_id]
         self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                             SignalMessages.ReEntangleSignalMessage(self.entangled_node,
-                                                                                   re_entangle_positions))
+                                                                                   re_entangle_positions,
+                                                                                   is_source=self.is_source))
 
     def check_end_condition(self):
         """

@@ -15,6 +15,8 @@ class MessageType(Enum):
     GEN_ENTANGLE_READY = auto()
     ENTANGLED = auto()
     ENTANGLED_QUBIT_LOST = auto()
+    GEN_ENTANGLE_SUCCESS = auto()
+    ENTANGLED_SUCCESS = auto()
     # entanglement concurrent signals
     RE_ENTANGLE_CONCURRENT = auto()
     # re-entanglement signals
@@ -29,6 +31,7 @@ class MessageType(Enum):
     PURIFICATION_RESULT = auto()
     PURIFICATION_TARGET_MET = auto()
     PURIFICATION_NEED_SHUTDOWN = auto()
+    PURIFICATION_SUCCESS = auto()
     # verification signals
     VERIFICATION_REQUEST = auto()
     VERIFICATION_READY = auto()
