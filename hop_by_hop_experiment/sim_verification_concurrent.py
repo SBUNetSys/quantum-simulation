@@ -855,6 +855,7 @@ if __name__ == '__main__':
     # run_experiment_with_batch_size4_5nodes_with_distance(25, pop_noise)
     # run_verification_experiment_increasing_distance(5.0, skip_purify=True)
     run_verification_experiment_increasing_distance(5.0, skip_purify=False)
+    run_verification_experiment_increasing_distance(5.0, skip_purify=True)
     # run_verification_experiment_increasing_distance(0.5, skip_purify=True)
 
     # run_experiment_multi(2, pop_noise, max_batch_size=8, only_max_batch=False)
