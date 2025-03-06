@@ -1,0 +1,47 @@
+{
+  "3": {
+    "fidelity": 0.9749999999999999,
+    "duration": 112875.0,
+    "teleportation_success": 0.982
+  },
+  "4": {
+    "fidelity": 0.9579999999999999,
+    "duration": 194370.0,
+    "teleportation_success": 0.97
+  },
+  "5": {
+    "fidelity": 0.9419999999999998,
+    "duration": 213450.0,
+    "teleportation_success": 0.959
+  },
+  "6": {
+    "fidelity": 0.8869999999999999,
+    "duration": 301035.0,
+    "teleportation_success": 0.929
+  },
+  "7": {
+    "fidelity": 0.8749999999999999,
+    "duration": 302565.0,
+    "teleportation_success": 0.914
+  },
+  "8": {
+    "fidelity": 0.8569999999999999,
+    "duration": 331335.0,
+    "teleportation_success": 0.903
+  },
+  "9": {
+    "fidelity": 0.8719999999999999,
+    "duration": 352635.0,
+    "teleportation_success": 0.915
+  },
+  "10": {
+    "fidelity": 0.8269999999999998,
+    "duration": 446055.0,
+    "teleportation_success": 0.877
+  },
+  "11": {
+    "fidelity": 0.8189999999999998,
+    "duration": 466110.0,
+    "teleportation_success": 0.869
+  }
+}

@@ -12,6 +12,9 @@ import netsquid.qubits.qubitapi as qapi
 from numpy.lib.utils import source
 
 from protocols.MessageHandler import MessageType
+from protocols.Purification import Purification
+from protocols.EntanglementHandlerConcurrent import EntanglementHandlerConcurrent
+from protocols.EntanglementHandler import EntanglementHandler
 from utils import Logging, SignalMessages
 from utils.ClassicalMessages import ClassicalMessage
 from utils.Gates import controlled_unitary, measure_operator
@@ -22,7 +25,7 @@ class Verification(NodeProtocol):
                  m_size,
                  batch_size,
                  is_top_layer=False,
-                 max_entangled_pairs=2,
+                 max_verify_pairs=2,
                  CU_Gate=None,
                  CCU_Gate=None,
                  measurement_m0=None,
@@ -35,10 +38,8 @@ class Verification(NodeProtocol):
         # mapping of entangled qubits to memory positions key: memory position, value: fidelity
         self.entangled_pairs = {}
         self.entangled_node = entangled_node
-        self.max_entangle_pairs = max_entangled_pairs - 3  # mem_pos 0 always is temp qubit, two from the purification
-        # TODO: Can not just use memory positions, because purification does not guarantee the same memory positions
-        #  for the same entangled qubits. We need perhaps to use an counter to keep track of the re-entangle qubits
-        # self.re_entangle_positions = []
+        # ending condition
+        self.max_verify_pairs = max_verify_pairs
         # m_size is the number of qubits in the register
         self.m_size = m_size
         # batch_size is the number of qubits we start verification process
@@ -60,6 +61,8 @@ class Verification(NodeProtocol):
 
         # classical message queue
         self.cc_message_queue = []
+
+        self.start_time = sim_time()
         # statistics
         self.verification_counter = 0
         self.successful_verification_counter = 0
@@ -74,7 +77,6 @@ class Verification(NodeProtocol):
         if self.is_top_layer:
             self.add_signal(MessageType.VERIFICATION_FINISHED)
 
-
     def handle_entanglement_signal(self, message):
         """
         Handle the entanglement signal message.
@@ -82,18 +84,31 @@ class Verification(NodeProtocol):
         :return:
         """
         self.is_source = message.is_source
-        self.entangled_pairs[message.mem_pos] = message.fidelity
+        if type(message.mem_pos) is list:
+            for pos, fid in zip(message.mem_pos, message.fidelity):
+                self.entangled_pairs[pos] = fid
+        else:
+            self.entangled_pairs[message.mem_pos] = message.fidelity
         # if message.mem_pos in self.re_entangle_positions:
         #     self.re_entangle_positions.remove(message.mem_pos)
 
     def run(self):
         self.logger.info(f"{self.name} Verification protocol started with {self.entangled_node} [{self.uid}]")
-        entangle_signals = self.await_signal(self.purification_protocol, Signals.SUCCESS)
+        if type(self.purification_protocol) is Purification:
+            entangle_signals = self.await_signal(self.purification_protocol, MessageType.PURIFICATION_SUCCESS)
+        elif type(self.purification_protocol) is EntanglementHandlerConcurrent:
+            entangle_signals = self.await_signal(self.purification_protocol, MessageType.ENTANGLED_SUCCESS)
+        elif type(self.purification_protocol) is EntanglementHandler:
+            entangle_signals = self.await_signal(self.purification_protocol, Signals.SUCCESS)
+        else:
+            raise NotImplementedError
+
         verification_signals = (self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_START) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_REQUEST) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_READY) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_RESULT))
-
+        yield self.await_timer(1)
+        self.start_time = sim_time()
         while True:
             exper = yield entangle_signals | verification_signals
             if exper.first_term.value:
@@ -102,7 +117,11 @@ class Verification(NodeProtocol):
                     source_protocol = event.source
                     ready_signal = source_protocol.get_signal_by_event(event=event, receiver=self)
                     result: SignalMessages.PurifySuccessSignalMessage = ready_signal.result
-                    if ready_signal.label == Signals.SUCCESS:
+                    if result.entangle_node != self.entangled_node:
+                        continue
+                    if result.timestamp < self.start_time:
+                        continue
+                    if ready_signal.label == MessageType.PURIFICATION_SUCCESS:
                         self.logger.info(f"{self.name} -> {self.node.name} "
                                          f"received entanglement signal from {source_protocol.name}\n"
                                          f"\tMemory Position: {result.mem_pos}\n"
@@ -113,22 +132,10 @@ class Verification(NodeProtocol):
                     source_protocol = event.source
                     ready_signal = source_protocol.get_signal_by_event(event=event, receiver=self)
                     result: ClassicalMessage = ready_signal.result
-                    if ready_signal.label == MessageType.VERIFICATION_REQUEST:
-                        message: SignalMessages.VerificationSignalMessage = result.data
-                        self.logger.info(f"{self.name} -> {self.node.name} "
-                                         f"received verification request signal from {source_protocol.name}\n"
-                                         f"\tBatchID: {message.verif_batch_id}\n"
-                                         f"\tBatchPoses: {message.verif_batch_poses}",
-                                         color="orange")
-                        self.handle_verification_request(message)
-                    elif ready_signal.label == MessageType.VERIFICATION_READY:
-                        message: SignalMessages.VerificationSignalMessage = result.data
-                        self.logger.info(f"{self.name} -> {self.node.name} "
-                                         f"received verification ready signal from {source_protocol.name}\n"
-                                         f"\tBatchID: {message.verif_batch_id}\n"
-                                         f"\tBatchPoses: {message.verif_batch_poses}",
-                                         color="yellow")
-                        yield from self.handle_verification_ready(message)
+                    if result.from_node != self.entangled_node:
+                        continue
+                    if result.data.timestamp < self.start_time:
+                        continue
                     elif ready_signal.label == MessageType.VERIFICATION_START:
                         message: SignalMessages.VerificationStartSignalMessage = result.data
                         self.logger.info(f"{self.name} -> {self.node.name} "
@@ -144,20 +151,14 @@ class Verification(NodeProtocol):
                                          f"received verification result signal from {source_protocol.name}",
                                          color="yellow")
                         self.handle_verification_result(message)
-            self.process_cc_message_queue()
+            yield from self.process_cc_message_queue()
             if self.is_source:
-                self.check_available_verification()
+                yield from self.check_available_verification()
             if self.is_top_layer:
                 if self.check_end_condition():
                     self.logger.info(f"{self.name} -> {self.node.name} "
-                                     f"verification protocol finished", color="green")
-
-                    # broadcast the verification finished signal to lower layer
-                    self.cc_message_handler.send_signal(MessageType.VERIFICATION_FINISHED,
-                                                        SignalMessages.ProtocolFinishedSignalMessage(
-                                                            from_protocol=self,
-                                                            from_node=self.node.name
-                                                        ))
+                                     f"verification protocol finished \n"
+                                     f"Entangled Pairs {self.entangled_pairs}", color="green")
 
                     self.send_signal(MessageType.VERIFICATION_FINISHED,
                                      {"verification_probability": self.successful_verification_probability,
@@ -165,15 +166,14 @@ class Verification(NodeProtocol):
                                       "verification_total_count": self.verification_counter,
                                       "verification_batches": self.successful_verification_batches})
 
-
                     break
 
     def process_cc_message_queue(self):
         temp = self.cc_message_queue
         self.cc_message_queue = []
         for message in temp:
-            if isinstance(message, SignalMessages.VerificationSignalMessage):
-                self.handle_verification_request(message)
+            if isinstance(message, SignalMessages.VerificationStartSignalMessage):
+                yield from self.handle_verification_start(message)
 
     def handle_verification_request(self, message):
         """
@@ -240,9 +240,19 @@ class Verification(NodeProtocol):
                              f"\t Mem pos:{message.verif_batch_poses}", color="green")
             self.successful_verification_batches[message.verif_batch_id] = message.verif_batch_poses
             del self.current_verification_batches[message.verif_batch_id]
-            self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSignalMessage(self.entangled_node,
-                                                                                       message.verif_batch_id,
-                                                                                       message.verif_batch_poses))
+            # self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSignalMessage(self.entangled_node,
+            #                                                                            message.verif_batch_id,
+            #                                                                            message.verif_batch_poses))
+            # TODO: should we remove the success batch as we dont have them anymore?
+            self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSuccessSignalMessage(
+                source_node=self.node.name,
+                entangle_node=self.entangled_node,
+                is_source=self.is_source,
+                verification_batch_poses=message.verif_batch_poses
+            ))
+            if not self.is_top_layer:
+                # we remove this as we sent the information to the upper layer. If we are the top we keep this
+                del self.successful_verification_batches[message.verif_batch_id]
             # send to lower layer to generate the teleportation qubits
             self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                                 SignalMessages.ReEntangleSignalMessage(self.entangled_node,
@@ -274,16 +284,20 @@ class Verification(NodeProtocol):
                              f"Starting verification process with {self.entangled_node}\n"
                              f"\tBatchID: {verification_batch_id}\n"
                              f"\tBatchPoses: {verification_batch_positions}", color="yellow")
-            self.pending_verification_batches[verification_batch_id] = verification_batch_positions
+            # self.pending_verification_batches[verification_batch_id] = verification_batch_positions
+            self.current_verification_batches[verification_batch_id] = copy.copy(verification_batch_positions)
+            self.verification_counter += 1
+            # start verification no need to wait
+            yield from self.start_verification(verification_batch_id, verification_batch_positions, teleport_positions)
             # send the verification request to the entangled node
-            self.cc_message_handler.send_message(MessageType.VERIFICATION_REQUEST,
-                                                 self.entangled_node,
-                                                 ClassicalMessage(self.node.name,
-                                                                  self.entangled_node,
-                                                                  SignalMessages.VerificationSignalMessage(
-                                                                      self.node.name,
-                                                                      verification_batch_id,
-                                                                      verification_batch_positions)))
+            # self.cc_message_handler.send_message(MessageType.VERIFICATION_REQUEST,
+            #                                      self.entangled_node,
+            #                                      ClassicalMessage(self.node.name,
+            #                                                       self.entangled_node,
+            #                                                       SignalMessages.VerificationSignalMessage(
+            #                                                           self.node.name,
+            #                                                           verification_batch_id,
+            #                                                           verification_batch_positions)))
 
     def start_verification(self, verification_batch_id, verification_batch_positions, teleport_positions):
         """
@@ -323,14 +337,30 @@ class Verification(NodeProtocol):
         :param message: SignalMessages.VerificationStartSignalMessage
         :return:
         """
-        if message.verif_batch_id not in self.current_verification_batches:
-            self.logger.error(f"{self.name} -> {self.node.name} Batch ID {message.verif_batch_id}"
-                              f" not found in the current verification batches", color="red")
-            return
+
         verification_batch_id = message.verif_batch_id
         verification_batch_positions = message.verif_batch_poses
         teleport_measurement = message.verif_teleport_measurement
         teleport_positions = list(verification_batch_id)
+
+        for pos in verification_batch_positions:
+            if pos not in self.entangled_pairs:
+                self.logger.info(f"{self.name} -> {self.entangled_node} "
+                                 f"verification batch positions are entangled yet", color="red")
+                self.cc_message_queue.append(message)
+                return
+        for pos in teleport_positions:
+            if pos not in self.entangled_pairs:
+                self.logger.info(f"{self.name} -> {self.entangled_node} "
+                                 f"verification batch positions are entangled yet", color="red")
+                self.cc_message_queue.append(message)
+                return
+        self.current_verification_batches[verification_batch_id] = verification_batch_positions
+        for pos in verification_batch_positions:
+            del self.entangled_pairs[pos]
+        for pos in teleport_positions:
+            del self.entangled_pairs[pos]
+
         self.verification_counter += 1
 
         teleported_qubits = yield from self.correct_teleportation(teleport_measurement)
@@ -361,9 +391,19 @@ class Verification(NodeProtocol):
             self.successful_verification_probability.append(p)
             self.successful_verification_batches[verification_batch_id] = verification_batch_positions
             del self.current_verification_batches[verification_batch_id]
-            self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSignalMessage(self.entangled_node,
-                                                                                       verification_batch_id,
-                                                                                       verification_batch_positions))
+            # self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSignalMessage(self.entangled_node,
+            #                                                                            verification_batch_id,
+            #                                                                            verification_batch_positions))
+            # TODO: should we remove the success batch as we dont have them anymore?
+            self.send_signal(Signals.SUCCESS, SignalMessages.VerificationSuccessSignalMessage(
+                source_node=self.node.name,
+                entangle_node=self.entangled_node,
+                is_source=self.is_source,
+                verification_batch_poses=verification_batch_positions
+            ))
+            if not self.is_top_layer:
+                # remove this information as we sent to top layer already
+                del self.successful_verification_batches[verification_batch_id]
             # send to lower layer to generate the teleportation qubits
             self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                                 SignalMessages.ReEntangleSignalMessage(self.entangled_node,
@@ -495,27 +535,29 @@ class Verification(NodeProtocol):
         del self.current_verification_batches[batch_id]
         self.cc_message_handler.send_signal(MessageType.RE_ENTANGLE_FROM_UPPER_LAYER,
                                             SignalMessages.ReEntangleSignalMessage(self.entangled_node,
-                                                                                   re_entangle_positions))
+                                                                                   re_entangle_positions,
+                                                                                   is_source=self.is_source))
 
     def check_end_condition(self):
         """
         Check the end condition of the protocol if we are the top layer.
         :return: True if the protocol is finished, False otherwise
         """
-        current_entangled_count = len(self.entangled_pairs)
+        # current_entangled_count = len(self.entangled_pairs)
         success_verification_pairs = 0
         for batch_id, batch_poses in self.successful_verification_batches.items():
             success_verification_pairs += len(batch_poses)
-        done_entangle = current_entangled_count + success_verification_pairs == self.max_entangle_pairs
-        if done_entangle is True and current_entangled_count < self.batch_size + self.m_size:
+        if success_verification_pairs >= self.max_verify_pairs:
             return True
+        # done_entangle = current_entangled_count + success_verification_pairs == self.max_verify_pairs
+        # if done_entangle is True and current_entangled_count < self.batch_size + self.m_size:
+        #     return True
         # if self.max_entangle_pairs - success_verification_pairs < self.batch_size + self.m_size and \
         #     len(self.re_entangle_positions) == 0:
         #     return True
         return False
 
     def reset(self):
-        gc.collect()
         self.entangled_pairs = {}
         self.current_verification_batches = {}
         self.pending_verification_batches = {}
@@ -524,13 +566,10 @@ class Verification(NodeProtocol):
         self.verification_counter = 0
         self.successful_verification_counter = 0
         self.successful_verification_probability = []
-        gc.collect()
         super().reset()
 
     def stop(self):
-        gc.collect()
         super().stop()
-
 
     def clean_gates(self):
         del self.CCU_Gate
@@ -538,4 +577,3 @@ class Verification(NodeProtocol):
         del self.measurement_m0
         del self.measurement_m1
         gc.collect()
-

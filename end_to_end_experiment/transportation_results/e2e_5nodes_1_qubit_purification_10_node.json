@@ -1,0 +1,44 @@
+{
+  "3": {
+    "teleport_success_count": 0.475,
+    "total_count": 1.0,
+    "teleport_success_rate": 0.475,
+    "teleport_fids": 0.47499999999999987,
+    "duration": 16819116.16025359
+  },
+  "4": {
+    "teleport_success_count": 0.496,
+    "total_count": 1.0,
+    "teleport_success_rate": 0.496,
+    "teleport_fids": 0.4959999999999999,
+    "duration": 24405733.30343541
+  },
+  "5": {
+    "teleport_success_count": 0.507,
+    "total_count": 1.0,
+    "teleport_success_rate": 0.507,
+    "teleport_fids": 0.5069999999999999,
+    "duration": 30218027.608344503
+  },
+  "6": {
+    "teleport_fids": 0.5013639610306788,
+    "teleport_success_count": 0.495,
+    "total_count": 1.0,
+    "teleport_success_rate": 0.495,
+    "duration": 39131152.31502393
+  },
+  "7": {
+    "teleport_fids": 0.48477817459305195,
+    "teleport_success_count": 0.477,
+    "total_count": 1.0,
+    "teleport_success_rate": 0.477,
+    "duration": 43244314.765062205
+  },
+  "8": {
+    "teleport_fids": 0.4911421356237308,
+    "teleport_success_count": 0.477,
+    "total_count": 1.0,
+    "teleport_success_rate": 0.477,
+    "duration": 48238167.8811866
+  }
+}

@@ -1,7 +1,6 @@
 import numpy as np
 import netsquid.qubits.operators as op
 import netsquid.qubits.qubitapi as qapi
-from pandas.conftest import observed
 
 
 def controlled_unitary(number_of_qubits):
