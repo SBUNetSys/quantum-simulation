@@ -854,7 +854,7 @@ def run_verification(distance, target_fid, skip_purify):
 if __name__ == '__main__':
     # run_experiment_with_batch_size4_5nodes_with_distance(25, pop_noise)
     # run_verification_experiment_increasing_distance(5.0, skip_purify=True)
-    run_verification_experiment_increasing_distance(5.0, skip_purify=False)
+    # run_verification_experiment_increasing_distance(5.0, skip_purify=False)
     run_verification_experiment_increasing_distance(5.0, skip_purify=True)
     # run_verification_experiment_increasing_distance(0.5, skip_purify=True)
 

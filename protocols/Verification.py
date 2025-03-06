@@ -12,6 +12,9 @@ import netsquid.qubits.qubitapi as qapi
 from numpy.lib.utils import source
 
 from protocols.MessageHandler import MessageType
+from protocols.Purification import Purification
+from protocols.EntanglementHandlerConcurrent import EntanglementHandlerConcurrent
+from protocols.EntanglementHandler import EntanglementHandler
 from utils import Logging, SignalMessages
 from utils.ClassicalMessages import ClassicalMessage
 from utils.Gates import controlled_unitary, measure_operator
@@ -74,7 +77,6 @@ class Verification(NodeProtocol):
         if self.is_top_layer:
             self.add_signal(MessageType.VERIFICATION_FINISHED)
 
-
     def handle_entanglement_signal(self, message):
         """
         Handle the entanglement signal message.
@@ -92,7 +94,15 @@ class Verification(NodeProtocol):
 
     def run(self):
         self.logger.info(f"{self.name} Verification protocol started with {self.entangled_node} [{self.uid}]")
-        entangle_signals = self.await_signal(self.purification_protocol, MessageType.PURIFICATION_SUCCESS)
+        if type(self.purification_protocol) is Purification:
+            entangle_signals = self.await_signal(self.purification_protocol, MessageType.PURIFICATION_SUCCESS)
+        elif type(self.purification_protocol) is EntanglementHandlerConcurrent:
+            entangle_signals = self.await_signal(self.purification_protocol, MessageType.ENTANGLED_SUCCESS)
+        elif type(self.purification_protocol) is EntanglementHandler:
+            entangle_signals = self.await_signal(self.purification_protocol, Signals.SUCCESS)
+        else:
+            raise NotImplementedError
+
         verification_signals = (self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_START) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_REQUEST) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_READY) |
@@ -155,7 +165,6 @@ class Verification(NodeProtocol):
                                       "verification_success_count": self.successful_verification_counter,
                                       "verification_total_count": self.verification_counter,
                                       "verification_batches": self.successful_verification_batches})
-
 
                     break
 
@@ -562,11 +571,9 @@ class Verification(NodeProtocol):
     def stop(self):
         super().stop()
 
-
     def clean_gates(self):
         del self.CCU_Gate
         del self.CU_Gate
         del self.measurement_m0
         del self.measurement_m1
         gc.collect()
-
