@@ -362,14 +362,14 @@ def experiment_with_increasing_distance(max_dis, save_dir):
         for node_dis in range(500, int(max_dis*1000) + 1, 500):
             nodes_list = [f"Node_{i}" for i in range(2)]
             network = setup_network_parallel(nodes_list, "hop-by-hop-entangle",
-                                    memory_capacity=10, memory_depolar_rate=24583,
+                                    memory_capacity=24001, memory_depolar_rate=24583,
                                     node_distance=node_dis/1000)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
-            entangle_protocol, dc = example_sim_run(sample_nodes, num_runs=1000,
+            entangle_protocol, dc = example_sim_run(sample_nodes, num_runs=1,
                                                     memory_depolar_rate=24583,
                                                     node_distance=node_dis/1000,
-                                                    max_entangle_pairs=1,
+                                                    max_entangle_pairs=24000,
                                                     skip_noise=True
                                                     )
             entangle_protocol.start()
@@ -523,7 +523,7 @@ def main():
     #     exit(0)
     # experiment_with_increasing_pairs(2, "./entanglement_results", skip_noise=pop_noise)
     # experiment_with_increasing_nodes(5, "./entanglement_results")
-    experiment_with_increasing_distance(5, "./entanglement_results")
+    experiment_with_increasing_distance(0.5, "./entanglement_results")
 
 
 
