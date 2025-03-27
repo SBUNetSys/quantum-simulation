@@ -55,7 +55,7 @@ class VerifyExample(LocalProtocol):
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleVerification")
         # create logger
         self.logger = Logging.Logger(self.name, logging_enabled=False)
-        null_logger = Logging.Logger("null", logging_enabled=False, save_to_file=True, file_name="v.log")
+        null_logger = Logging.Logger("null", logging_enabled=False, save_to_file=False, file_name="v.log")
         self.skip_noise = skip_noise
 
         # Initialize the controlled unitary matrix and measurement operators

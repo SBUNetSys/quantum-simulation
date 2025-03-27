@@ -93,16 +93,21 @@ class Verification(NodeProtocol):
         #     self.re_entangle_positions.remove(message.mem_pos)
 
     def run(self):
-        self.logger.info(f"{self.name} Verification protocol started with {self.entangled_node} [{self.uid}]")
+
+        entangle_label = None
         if type(self.purification_protocol) is Purification:
             entangle_signals = self.await_signal(self.purification_protocol, MessageType.PURIFICATION_SUCCESS)
+            entangle_label = MessageType.PURIFICATION_SUCCESS
         elif type(self.purification_protocol) is EntanglementHandlerConcurrent:
             entangle_signals = self.await_signal(self.purification_protocol, MessageType.ENTANGLED_SUCCESS)
+            entangle_label = MessageType.ENTANGLED_SUCCESS
         elif type(self.purification_protocol) is EntanglementHandler:
             entangle_signals = self.await_signal(self.purification_protocol, Signals.SUCCESS)
+            entangle_label = Signals.SUCCESS
         else:
             raise NotImplementedError
-
+        self.logger.info(f"{self.name} Verification protocol started with {self.entangled_node} [{self.uid}]\n"
+                         f"Entanglement signals: {entangle_signals}")
         verification_signals = (self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_START) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_REQUEST) |
                                 self.await_signal(self.cc_message_handler, MessageType.VERIFICATION_READY) |
@@ -121,7 +126,7 @@ class Verification(NodeProtocol):
                         continue
                     if result.timestamp < self.start_time:
                         continue
-                    if ready_signal.label == MessageType.PURIFICATION_SUCCESS:
+                    if ready_signal.label == entangle_label:
                         self.logger.info(f"{self.name} -> {self.node.name} "
                                          f"received entanglement signal from {source_protocol.name}\n"
                                          f"\tMemory Position: {result.mem_pos}\n"
