@@ -335,15 +335,31 @@ class TransportApplyCorrectionMessage:
         self.m2 = m2
         self.timestamp = ns.sim_time()
 
+class TransportApplyCorrectionMessageList:
+    """
+    Signal message for list of apply correction on teleportation operation
+
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param operations: list of TransportApplyCorrectionMessage
+    """
+
+    def __init__(self, source_node, target_node, operations):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.operations = operations
+        self.timestamp = ns.sim_time()
+
+
 
 class TransportApplySuccessMessage:
     """
     Signal message for successfully applied correction on teleportation operation
-    :param operation_key : the operation key is used to identify the transmission operation
+    :param operation_keys : list of operation key is used to identify the transmission operation
     """
 
-    def __init__(self, operation_key):
-        self.operation_key = operation_key
+    def __init__(self, operation_keys):
+        self.operation_keys = operation_keys
         self.timestamp = ns.sim_time()
 
 
