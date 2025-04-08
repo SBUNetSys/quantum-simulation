@@ -44,8 +44,8 @@ class TransportWithVerificationExample(LocalProtocol):
                  batch_size=10,
                  qubits_to_transport=1,
                  skip_noise=False,
-                 CU_gate = None,
-                 CCU_gate = None,):
+                 CU_gate=None,
+                 CCU_gate=None,):
         if len(network_nodes) < 1:
             raise ValueError("This protocol requires at least nodes.")
         self.all_nodes = network_nodes
@@ -2099,6 +2099,7 @@ def run_evaluation_4_node_verify_depolar(qubit_number=1, node_count=3, distance=
             print(f"5 Node ->{k}: {final_result[k]}")
         with open(f"./transportation_results/{node_count}nodes_{qubit_number}_qubit_verification_{distance}km_{rate}hz.json", "w") as f:
             json.dump(final_result, f)
+
 def run_evaluation_4_node_verify_throughput(qubit_number=1000, node_count=3, batch_size=4, distance=1.0):
     final_data_raw = {}
     final_data = {}
