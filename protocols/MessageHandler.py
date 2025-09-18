@@ -50,6 +50,9 @@ class MessageType(Enum):
     TRANSPORT_APPLY_CORRECTION = auto()
     TRANSPORT_APPLY_CORRECTION_SUCCESS = auto()
     TRANSPORT_SUCCESS = auto()
+    # multi-hop transport signals
+    MULTI_HOP_RESULT = auto()
+    MULTI_HOP_SUCCESS = auto()
     # termination signals
     ENTANGLEMENT_HANDLER_FINISHED = auto()
     PURIFICATION_FINISHED = auto()
@@ -57,6 +60,7 @@ class MessageType(Enum):
     SECURITY_VERIFICATION_FINISHED = auto()
     SWAP_FINISHED = auto()
     TRANSPORT_FINISHED = auto()
+    MULTI_HOP_FINISHED = auto()
     # security signals
     SECURITY_TRANSPORT_START = auto()
     SECURITY_TRANSPORT_QUBIT = auto()

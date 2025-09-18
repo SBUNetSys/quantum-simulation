@@ -350,7 +350,44 @@ class TransportApplyCorrectionMessageList:
         self.operations = operations
         self.timestamp = ns.sim_time()
 
+class MultiHopTransportMeasurementMessageList:
+    """
+    Signal message for list of multihop results
 
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param operations: list of measurement
+    """
+
+    def __init__(self, source_node, target_node, operations):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.operations = operations
+        self.timestamp = ns.sim_time()
+
+class MultiHopTransportMeasurementMessage:
+    """
+    Signal message for multihop measurement results, each object will contain all the measurement results
+
+    :param source_node: source node name
+    :param target_node: entangle node name
+    :param target_memo_pos: memory position
+    :param operation_key: operation key is used to identify the transportation
+    :param measurement_results: list of measurement results from previous nodes
+    """
+
+    def __init__(self, source_node, target_node, target_memo_pos, operation_key, measurement_results=None):
+        self.source_node = source_node
+        self.target_node = target_node
+        self.operation_key = operation_key
+        self.target_memo_pos = target_memo_pos
+        if measurement_results is None:
+            self.measurement_results = []
+        else:
+            self.measurement_results = measurement_results
+        self.timestamp = ns.sim_time()
+    def add_measurement_result(self, m1, m2):
+        self.measurement_results.append((m1, m2))
 
 class TransportApplySuccessMessage:
     """
