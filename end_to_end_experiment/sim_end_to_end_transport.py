@@ -1166,7 +1166,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
         try:
             nodes_list = [f"Node_{j}" for j in range(node_count)]
             network = setup_network_parallel(nodes_list, "hop-by-hop-transportation",
-                                    memory_capacity=6, memory_depolar_rate=depolar_rate,
+                                    memory_capacity=101, memory_depolar_rate=depolar_rate,
                                     node_distance=node_distance)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
@@ -1175,7 +1175,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
                                                                           num_runs=1,
                                                                           memory_depolar_rate=depolar_rate,
                                                                           node_distance=node_distance,
-                                                                          max_entangle_pairs=5,
+                                                                          max_entangle_pairs=100,
                                                                           target_fidelity=target_fidelity,
                                                                           qubit_to_transport=qubit_number,
                                                                           m_size=m_size,
@@ -1189,7 +1189,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
                                                                           num_runs=1,
                                                                           memory_depolar_rate=depolar_rate,
                                                                           node_distance=node_distance,
-                                                                          max_entangle_pairs=5,
+                                                                          max_entangle_pairs=100,
                                                                           target_fidelity=target_fidelity,
                                                                           qubits_to_transport=qubit_number,
                                                                           with_purification=True,
@@ -1238,10 +1238,10 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
     print(f"Run {node_count} node, res {node_data_calculated}")
     return final_data, final_data_raw
 
-def e2e_increase_distance_experiment(max_distance, node_count, depolar_rate, with_purification,
+def e2e_increase_distance_experiment(max_distances, experiment_name, node_count, depolar_rate, with_purification,
                                      with_verification, throughput_mode, preload=False):
     target_fid_dic = {
-        "500": [0.98],
+        "500": [0.99],
         "1000": [0.98],
         "1500": [0.97],
         "2000": [0.95],
@@ -1252,7 +1252,7 @@ def e2e_increase_distance_experiment(max_distance, node_count, depolar_rate, wit
         "4500": [0.88],
         "5000": [0.87],
     }
-    save_path = (f"./e2e_increase_distance_{max_distance}km_{node_count}nodes_"
+    save_path = (f"./e2e_increase_distance_{experiment_name}km_{node_count}nodes_"
                  f"purification_{with_purification}_verification_{with_verification}_"
                  f"throughput_{throughput_mode}.json")
     experiment_data = {}
@@ -1267,9 +1267,10 @@ def e2e_increase_distance_experiment(max_distance, node_count, depolar_rate, wit
                   TextColumn("[progress.completed]{task.completed}/{task.total}"),
                   TimeRemainingColumn(),
                   transient=True) as progress:
-        task = progress.add_task("[green]Paris...", total=int(max_distance) * 4)
-        dis_m = int(max_distance * 1000)
-        for distance in range(500, dis_m + 1, 500):
+        task = progress.add_task("[green]Paris...", total=len(max_distances))
+
+        for distance in max_distances:
+            distance = int(distance * 1000)
             if str(distance) in experiment_data:
                 print(f"Skip distance {distance}")
                 progress.update(task, advance=4)
@@ -1300,7 +1301,7 @@ if __name__ == '__main__':
     # seed = 3020
     # np.random.seed(seed)
     # print(f'seed {seed}')
-    e2e_increase_distance_experiment(max_distance=0.5, node_count=5, depolar_rate=6000,
+    e2e_increase_distance_experiment(max_distances=[1.5], experiment_name="max 1.5", node_count=3, depolar_rate=6000,
                                      with_purification=True, with_verification=False,
                                  throughput_mode=False, preload=False)
     pass

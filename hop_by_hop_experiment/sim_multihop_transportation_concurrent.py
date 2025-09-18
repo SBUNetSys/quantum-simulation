@@ -86,17 +86,17 @@ class TransportWithVerificationExample(LocalProtocol):
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandlerConcurrent(node=node,
-                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
-                                                 num_pairs=self.max_entangle_pairs,
-                                                 qubit_input_protocol=gen_protocol,
-                                                 cc_message_handler=self.subprotocols[
-                                                     f"message_handler_{node.name}"],
-                                                 entangle_node=network_nodes[index - 1].name,
-                                                 memory_depolar_rate=memory_depolar_rate,
-                                                 node_distance=node_distance,
-                                                 is_top_layer=False,
-                                                 logger=null_logger
-                                                 )
+                                                           name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
+                                                           num_pairs=self.max_entangle_pairs,
+                                                           qubit_input_protocol=gen_protocol,
+                                                           cc_message_handler=self.subprotocols[
+                                                               f"message_handler_{node.name}"],
+                                                           entangle_node=network_nodes[index - 1].name,
+                                                           memory_depolar_rate=memory_depolar_rate,
+                                                           node_distance=node_distance,
+                                                           is_top_layer=False,
+                                                           logger=null_logger
+                                                           )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 if with_purify:
@@ -161,17 +161,17 @@ class TransportWithVerificationExample(LocalProtocol):
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandlerConcurrent(node=node,
-                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
-                                                 num_pairs=self.max_entangle_pairs,
-                                                 qubit_input_protocol=gen_protocol,
-                                                 cc_message_handler=self.subprotocols[
-                                                     f"message_handler_{node.name}"],
-                                                 entangle_node=network_nodes[index + 1].name,
-                                                 memory_depolar_rate=memory_depolar_rate,
-                                                 node_distance=node_distance,
-                                                 is_top_layer=False,
-                                                 logger=null_logger
-                                                 )
+                                                           name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
+                                                           num_pairs=self.max_entangle_pairs,
+                                                           qubit_input_protocol=gen_protocol,
+                                                           cc_message_handler=self.subprotocols[
+                                                               f"message_handler_{node.name}"],
+                                                           entangle_node=network_nodes[index + 1].name,
+                                                           memory_depolar_rate=memory_depolar_rate,
+                                                           node_distance=node_distance,
+                                                           is_top_layer=False,
+                                                           logger=null_logger
+                                                           )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 if with_purify:
@@ -319,6 +319,7 @@ class TransportWithVerificationExample(LocalProtocol):
         for subprotocol in self.subprotocols.values():
             subprotocol.stop()
 
+
 class TransportWithVerificationThroughput(LocalProtocol):
     """
     Protocol for a complete verification example.
@@ -334,9 +335,9 @@ class TransportWithVerificationThroughput(LocalProtocol):
                  batch_size=10,
                  qubits_to_transport=1,
                  skip_noise=False,
-                 CU_gate = None,
-                 CCU_gate = None,
-                 with_purification=True,):
+                 CU_gate=None,
+                 CCU_gate=None,
+                 with_purification=True, ):
         if len(network_nodes) < 1:
             raise ValueError("This protocol requires at least nodes.")
         self.all_nodes = network_nodes
@@ -378,17 +379,17 @@ class TransportWithVerificationThroughput(LocalProtocol):
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandlerConcurrent(node=node,
-                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
-                                                 num_pairs=self.max_entangle_pairs,
-                                                 qubit_input_protocol=gen_protocol,
-                                                 cc_message_handler=self.subprotocols[
-                                                     f"message_handler_{node.name}"],
-                                                 entangle_node=network_nodes[index - 1].name,
-                                                 memory_depolar_rate=memory_depolar_rate,
-                                                 node_distance=node_distance,
-                                                 is_top_layer=False,
-                                                 logger=null_logger
-                                                 )
+                                                           name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
+                                                           num_pairs=self.max_entangle_pairs,
+                                                           qubit_input_protocol=gen_protocol,
+                                                           cc_message_handler=self.subprotocols[
+                                                               f"message_handler_{node.name}"],
+                                                           entangle_node=network_nodes[index - 1].name,
+                                                           memory_depolar_rate=memory_depolar_rate,
+                                                           node_distance=node_distance,
+                                                           is_top_layer=False,
+                                                           logger=null_logger
+                                                           )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 if with_purification:
@@ -451,17 +452,17 @@ class TransportWithVerificationThroughput(LocalProtocol):
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandlerConcurrent(node=node,
-                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
-                                                 num_pairs=self.max_entangle_pairs,
-                                                 qubit_input_protocol=gen_protocol,
-                                                 cc_message_handler=self.subprotocols[
-                                                     f"message_handler_{node.name}"],
-                                                 entangle_node=network_nodes[index + 1].name,
-                                                 memory_depolar_rate=memory_depolar_rate,
-                                                 node_distance=node_distance,
-                                                 is_top_layer=False,
-                                                 logger=null_logger
-                                                 )
+                                                           name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
+                                                           num_pairs=self.max_entangle_pairs,
+                                                           qubit_input_protocol=gen_protocol,
+                                                           cc_message_handler=self.subprotocols[
+                                                               f"message_handler_{node.name}"],
+                                                           entangle_node=network_nodes[index + 1].name,
+                                                           memory_depolar_rate=memory_depolar_rate,
+                                                           node_distance=node_distance,
+                                                           is_top_layer=False,
+                                                           logger=null_logger
+                                                           )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 if with_purification:
@@ -545,7 +546,6 @@ class TransportWithVerificationThroughput(LocalProtocol):
                 # print(results)
                 self.send_signal(Signals.SUCCESS, results)
 
-
     def get_cc_ports(self, node):
         cc_ports = {}
         for n in self.all_nodes:
@@ -556,6 +556,7 @@ class TransportWithVerificationThroughput(LocalProtocol):
     def stop(self):
         for subprotocol in self.subprotocols.values():
             subprotocol.stop()
+
 
 class TransportWithPurificationExample(LocalProtocol):
     """
@@ -578,7 +579,7 @@ class TransportWithPurificationExample(LocalProtocol):
         self.qubits_to_transport = qubits_to_transport
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleTransportation")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=False)
+        self.logger = Logging.Logger(self.name, logging_enabled=True)
         null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
 
@@ -603,17 +604,17 @@ class TransportWithPurificationExample(LocalProtocol):
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandlerConcurrent(node=node,
-                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
-                                                 num_pairs=self.max_entangle_pairs,
-                                                 qubit_input_protocol=gen_protocol,
-                                                 cc_message_handler=self.subprotocols[
-                                                     f"message_handler_{node.name}"],
-                                                 entangle_node=network_nodes[index - 1].name,
-                                                 memory_depolar_rate=memory_depolar_rate,
-                                                 node_distance=node_distance,
-                                                 is_top_layer=False,
-                                                 logger=null_logger
-                                                 )
+                                                           name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
+                                                           num_pairs=self.max_entangle_pairs,
+                                                           qubit_input_protocol=gen_protocol,
+                                                           cc_message_handler=self.subprotocols[
+                                                               f"message_handler_{node.name}"],
+                                                           entangle_node=network_nodes[index - 1].name,
+                                                           memory_depolar_rate=memory_depolar_rate,
+                                                           node_distance=node_distance,
+                                                           is_top_layer=False,
+                                                           logger=null_logger
+                                                           )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 # add purification
@@ -642,17 +643,17 @@ class TransportWithPurificationExample(LocalProtocol):
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandlerConcurrent(node=node,
-                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
-                                                 num_pairs=self.max_entangle_pairs,
-                                                 qubit_input_protocol=gen_protocol,
-                                                 cc_message_handler=self.subprotocols[
-                                                     f"message_handler_{node.name}"],
-                                                 entangle_node=network_nodes[index + 1].name,
-                                                 memory_depolar_rate=memory_depolar_rate,
-                                                 node_distance=node_distance,
-                                                 is_top_layer=False,
-                                                 logger=null_logger
-                                                 )
+                                                           name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
+                                                           num_pairs=self.max_entangle_pairs,
+                                                           qubit_input_protocol=gen_protocol,
+                                                           cc_message_handler=self.subprotocols[
+                                                               f"message_handler_{node.name}"],
+                                                           entangle_node=network_nodes[index + 1].name,
+                                                           memory_depolar_rate=memory_depolar_rate,
+                                                           node_distance=node_distance,
+                                                           is_top_layer=False,
+                                                           logger=null_logger
+                                                           )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 # Initialize the purification protocol
@@ -693,7 +694,7 @@ class TransportWithPurificationExample(LocalProtocol):
             start_time = sim_time()
 
             yield self.await_signal(self.subprotocols[f"transport_{self.all_nodes[-1].name}"],
-                                    MessageType.TRANSPORT_FINISHED)
+                                    MessageType.MULTI_HOP_FINISHED)
             # yield self.await_signal(self.subprotocols[f"transport_{self.all_nodes[0].name}"],
             #                         MessageType.TRANSPORT_FINISHED)
             end_time = sim_time()
@@ -713,7 +714,7 @@ class TransportWithPurificationExample(LocalProtocol):
             # result_dic["teleport_success_rate"] = result_dic["teleport_success_count"] / result_dic["total_count"]
             # print(f"Success rate: {result_dic['teleport_success_rate']}")
             results = self.subprotocols[f"transport_{self.all_nodes[-1].name}"].get_signal_result(
-                MessageType.TRANSPORT_FINISHED, self)
+                MessageType.MULTI_HOP_FINISHED, self)
             """
             result = {entangle_node: name, results:{}}
             """
@@ -781,6 +782,7 @@ class TransportWithPurificationExample(LocalProtocol):
         for subprotocol in self.subprotocols.values():
             subprotocol.stop()
 
+
 class TransportWithPurificationThroughput(LocalProtocol):
     """
     Protocol for a complete verification example.
@@ -827,17 +829,17 @@ class TransportWithPurificationThroughput(LocalProtocol):
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandlerConcurrent(node=node,
-                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
-                                                 num_pairs=self.max_entangle_pairs,
-                                                 qubit_input_protocol=gen_protocol,
-                                                 cc_message_handler=self.subprotocols[
-                                                     f"message_handler_{node.name}"],
-                                                 entangle_node=network_nodes[index - 1].name,
-                                                 memory_depolar_rate=memory_depolar_rate,
-                                                 node_distance=node_distance,
-                                                 is_top_layer=False,
-                                                 logger=null_logger
-                                                 )
+                                                           name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
+                                                           num_pairs=self.max_entangle_pairs,
+                                                           qubit_input_protocol=gen_protocol,
+                                                           cc_message_handler=self.subprotocols[
+                                                               f"message_handler_{node.name}"],
+                                                           entangle_node=network_nodes[index - 1].name,
+                                                           memory_depolar_rate=memory_depolar_rate,
+                                                           node_distance=node_distance,
+                                                           is_top_layer=False,
+                                                           logger=null_logger
+                                                           )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 # add purification
@@ -857,7 +859,6 @@ class TransportWithPurificationThroughput(LocalProtocol):
             if index + 1 < len(network_nodes):
                 # case of we have a next node
                 gen_protocol = GenEntanglementConcurrent(
-                    input_mem_pos=0,
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index + 1].name,
                     node=node,
@@ -867,17 +868,17 @@ class TransportWithPurificationThroughput(LocalProtocol):
                 )
                 self.add_subprotocol(gen_protocol)
                 eh_handler = EntanglementHandlerConcurrent(node=node,
-                                                 name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
-                                                 num_pairs=self.max_entangle_pairs,
-                                                 qubit_input_protocol=gen_protocol,
-                                                 cc_message_handler=self.subprotocols[
-                                                     f"message_handler_{node.name}"],
-                                                 entangle_node=network_nodes[index + 1].name,
-                                                 memory_depolar_rate=memory_depolar_rate,
-                                                 node_distance=node_distance,
-                                                 is_top_layer=False,
-                                                 logger=null_logger
-                                                 )
+                                                           name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
+                                                           num_pairs=self.max_entangle_pairs,
+                                                           qubit_input_protocol=gen_protocol,
+                                                           cc_message_handler=self.subprotocols[
+                                                               f"message_handler_{node.name}"],
+                                                           entangle_node=network_nodes[index + 1].name,
+                                                           memory_depolar_rate=memory_depolar_rate,
+                                                           node_distance=node_distance,
+                                                           is_top_layer=False,
+                                                           logger=null_logger
+                                                           )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 # Initialize the purification protocol
@@ -915,9 +916,9 @@ class TransportWithPurificationThroughput(LocalProtocol):
         #     print(f"Subprotocol: {subprotoco}")
         while True:
             yield self.await_signal(self.subprotocols[f"transport_{self.all_nodes[-1].name}"],
-                                    MessageType.TRANSPORT_SUCCESS)
+                                    MessageType.MULTI_HOP_SUCCESS)
             results = self.subprotocols[f"transport_{self.all_nodes[-1].name}"].get_signal_result(
-                MessageType.TRANSPORT_SUCCESS, self)
+                MessageType.MULTI_HOP_SUCCESS, self)
             self.send_signal(Signals.SUCCESS, results)
 
     def get_cc_ports(self, node):
@@ -930,6 +931,7 @@ class TransportWithPurificationThroughput(LocalProtocol):
     def stop(self):
         for subprotocol in self.subprotocols.values():
             subprotocol.stop()
+
 
 def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
                                       node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size,
@@ -985,7 +987,7 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
                                                              qubits_to_transport=qubit_to_transport,
                                                              CU_gate=CU_gate,
                                                              CCU_gate=CCU_gate,
-                                                             with_purify=with_purification,)
+                                                             with_purify=with_purification, )
 
     # Run the protocol
     def record_run(evexpr):
@@ -1005,7 +1007,8 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
 def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
                                       node_distance, max_entangle_pairs, target_fidelity,
                                       qubit_to_transport,
-                                      skip_noise=True):
+                                      skip_noise=True,
+                                      is_throughput=False):
     """
     Run the example verification protocol
     :param nodes: list of nodes
@@ -1019,14 +1022,24 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
     :return:
     """
     # Create the protocol
-    transport_example = TransportWithPurificationExample(network_nodes=nodes,
-                                                         num_runs=num_runs,
-                                                         max_entangle_pairs=max_entangle_pairs,
-                                                         memory_depolar_rate=memory_depolar_rate,
-                                                         node_distance=node_distance,
-                                                         target_fidelity=target_fidelity,
-                                                         skip_noise=skip_noise,
-                                                         qubits_to_transport=qubit_to_transport)
+    if is_throughput:
+        transport_example = TransportWithPurificationThroughput(network_nodes=nodes,
+                                                                num_runs=num_runs,
+                                                                max_entangle_pairs=max_entangle_pairs,
+                                                                memory_depolar_rate=memory_depolar_rate,
+                                                                node_distance=node_distance,
+                                                                target_fidelity=target_fidelity,
+                                                                skip_noise=skip_noise,
+                                                                qubits_to_transport=qubit_to_transport)
+    else:
+        transport_example = TransportWithPurificationExample(network_nodes=nodes,
+                                                             num_runs=num_runs,
+                                                             max_entangle_pairs=max_entangle_pairs,
+                                                             memory_depolar_rate=memory_depolar_rate,
+                                                             node_distance=node_distance,
+                                                             target_fidelity=target_fidelity,
+                                                             skip_noise=skip_noise,
+                                                             qubits_to_transport=qubit_to_transport)
 
     # Run the protocol
     def record_run(evexpr):
@@ -1042,10 +1055,11 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
                                      event_type=Signals.SUCCESS.value))
     return transport_example, dc
 
+
 def example_sim_run_with_purification_throughput(nodes, num_runs, memory_depolar_rate,
-                                      node_distance, max_entangle_pairs, target_fidelity,
-                                      qubit_to_transport,
-                                      skip_noise=True):
+                                                 node_distance, max_entangle_pairs, target_fidelity,
+                                                 qubit_to_transport,
+                                                 skip_noise=True):
     """
     Run the example verification protocol
     :param nodes: list of nodes
@@ -1060,13 +1074,13 @@ def example_sim_run_with_purification_throughput(nodes, num_runs, memory_depolar
     """
     # Create the protocol
     transport_example = TransportWithPurificationThroughput(network_nodes=nodes,
-                                                         num_runs=num_runs,
-                                                         max_entangle_pairs=max_entangle_pairs,
-                                                         memory_depolar_rate=memory_depolar_rate,
-                                                         node_distance=node_distance,
-                                                         target_fidelity=target_fidelity,
-                                                         skip_noise=skip_noise,
-                                                         qubits_to_transport=qubit_to_transport)
+                                                            num_runs=num_runs,
+                                                            max_entangle_pairs=max_entangle_pairs,
+                                                            memory_depolar_rate=memory_depolar_rate,
+                                                            node_distance=node_distance,
+                                                            target_fidelity=target_fidelity,
+                                                            skip_noise=skip_noise,
+                                                            qubits_to_transport=qubit_to_transport)
 
     # Run the protocol
     def record_run(evexpr):
@@ -1084,7 +1098,6 @@ def example_sim_run_with_purification_throughput(nodes, num_runs, memory_depolar
     return transport_example, dc
 
 
-
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -1095,19 +1108,21 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NumpyEncoder, self).default(obj)
 
-def simulate_transport_with_verification_increasing_distance(max_dis, max_node, depolar_rate,
+
+def simulate_transport_with_verification_increasing_distance(all_distance, experiment_name, max_node, depolar_rate,
                                                              with_purify, batch_size=4, is_throughput=False,
+                                                             with_verification=True,
                                                              preload=False):
     # save path
     if not is_throughput:
         save_path = (f"./transportation_results/"
-                     f"concurrent_transport_verification_{max_node}_nodes_{max_dis}km_purify_{with_purify}_1_qubit.json")
+                     f"concurrent_transport_verification_{max_node}_nodes_{experiment_name}km_purify_{with_purify}_1_qubit.json")
     else:
         save_path = (f"./transportation_results/"
-                     f"concurrent_transport_verification_{max_node}_nodes_{max_dis}km_purify_{with_purify}_throughput.json")
+                     f"concurrent_transport_verification_{max_node}_nodes_{experiment_name}km_purify_{with_purify}_throughput.json")
     if preload:
         if os.path.exists(save_path):
-            with open(save_path,"r") as f:
+            with open(save_path, "r") as f:
                 experiment_result = json.load(f)
         else:
             experiment_result = {}
@@ -1116,6 +1131,7 @@ def simulate_transport_with_verification_increasing_distance(max_dis, max_node, 
 
     target_fid_dic = {
         "500": [0.99],
+        "750": [0.99],
         "1000": [0.98],
         "1500": [0.97],
         "2000": [0.95],
@@ -1135,10 +1151,10 @@ def simulate_transport_with_verification_increasing_distance(max_dis, max_node, 
                   TextColumn("[progress.completed]{task.completed}/{task.total}"),
                   TimeRemainingColumn(),
                   transient=True) as progress:
-        task = progress.add_task("[green]Paris...", total=int(max_dis) * 4)
+        task = progress.add_task("[green]Paris...", total=len(all_distance))
 
-        dis_m = int(max_dis * 1000)
-        for node_dis in range(500, dis_m + 1, 500):
+        for node_dis in all_distance:
+            node_dis = int(node_dis * 1000)
             if str(node_dis) in experiment_result:
                 print(f"Skipping distance: {node_dis}, loaded from file")
                 progress.update(task, advance=1)
@@ -1152,15 +1168,13 @@ def simulate_transport_with_verification_increasing_distance(max_dis, max_node, 
                                                                                  batch_size,
                                                                                  with_purify,
                                                                                  is_throughput,
-                                                                                 with_verification=True)
+                                                                                 with_verification=with_verification)
             with open(save_path, "w") as f:
                 json.dump(experiment_result, f, indent=4, cls=NumpyEncoder)
             progress.update(task, advance=1)
 
 
-
-
-def run_transport_sim(distance, target_fid, depolar_rate, node_count,batch_size,
+def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size,
                       with_purify, is_throughput,
                       with_verification):
     CU_matrix = controlled_unitary(batch_size)
@@ -1174,17 +1188,17 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count,batch_size,
         qubit_number = 1
     nodes_list = [f"Node_{i}" for i in range(node_count)]
     network = setup_network_parallel(nodes_list, "hop-by-hop-purification",
-                                     memory_capacity=1501, memory_depolar_rate=depolar_rate,
+                                     memory_capacity=101, memory_depolar_rate=depolar_rate,
                                      node_distance=distance)
     node_data = {}
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     if with_verification:
         transport_example, dc = example_sim_run_with_verification(sample_nodes,
-                                                                  num_runs=2,
+                                                                  num_runs=10,
                                                                   memory_depolar_rate=depolar_rate,
                                                                   node_distance=distance,
-                                                                  max_entangle_pairs=1500,
+                                                                  max_entangle_pairs=100,
                                                                   target_fidelity=target_fid,
                                                                   skip_noise=True,
                                                                   qubit_to_transport=qubit_number,
@@ -1193,17 +1207,18 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count,batch_size,
                                                                   CU_gate=CU_gate,
                                                                   CCU_gate=CCU_gate,
                                                                   with_purification=with_purify,
-                                                                  is_throughput=is_throughput,)
+                                                                  is_throughput=is_throughput, )
     else:
         # TODO add purification part
-        transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes, num_runs=1,
-                                                                             memory_depolar_rate=63109,
-                                                                             node_distance=1,
-                                                                             max_entangle_pairs=1500,
-                                                                             target_fidelity=0.98,
-                                                                             skip_noise=True,
-                                                                             qubit_to_transport=qubit_number,
-                                                                             )
+        transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1000,
+                                                                  memory_depolar_rate=depolar_rate,
+                                                                  node_distance=1,
+                                                                  max_entangle_pairs=100,
+                                                                  target_fidelity=target_fid,
+                                                                  skip_noise=True,
+                                                                  qubit_to_transport=qubit_number,
+                                                                  is_throughput=is_throughput
+                                                                  )
     # Run the simulation
     transport_example.start()
     ns.sim_run()
@@ -1238,6 +1253,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count,batch_size,
           f"\tWith Purify {with_purify}\n"
           f"\tIs Throughput {is_throughput}\n"
           f"\tResult")
+    print(f"\t{node_data}")
     for k, v in node_data.items():
         print(f"\t\t{k}: {np.mean(v)}")
 
@@ -1245,6 +1261,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count,batch_size,
     transport_example = None
     gc.collect()
     return node_data
+
 
 if __name__ == '__main__':
     # exit()
@@ -1260,9 +1277,11 @@ if __name__ == '__main__':
     # run_evaluation_target_node(target_node=3, qubit_number=1)
     # run_evaluation_target_node(target_node=4, qubit_number=1)
     # max_dis, max_node, depolar_rate, with_purify
-    simulate_transport_with_verification_increasing_distance(max_dis=0.5,
-                                                             max_node=3,
-                                                             depolar_rate=8458,
-                                                             with_purify=False,
+    simulate_transport_with_verification_increasing_distance(all_distance=[0.75],
+                                                             experiment_name="max 0.75",
+                                                             max_node=5,
+                                                             depolar_rate=6000,
+                                                             with_purify=True,
+                                                             with_verification=False,
                                                              is_throughput=False
                                                              )

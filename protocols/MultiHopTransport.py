@@ -11,6 +11,7 @@ from netsquid.protocols.protocol import Signals
 import netsquid.qubits.operators as ops
 from netsquid.components.instructions import INSTR_Z, INSTR_X
 
+from protocols.Purification import Purification
 from protocols.MessageHandler import MessageType
 from utils import Logging
 from utils.ClassicalMessages import ClassicalMessage
@@ -83,7 +84,13 @@ class Transportation(NodeProtocol):
             await_signals = [self.await_signal(protocol, MessageType.SECURITY_TRANSPORT_QUBIT)
                              for protocol in qubit_ready_protocols]
         else:
-            await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
+            await_signals = []
+            for protocol in qubit_ready_protocols:
+                if type(protocol) is Purification:
+                    await_signals.append(self.await_signal(protocol, MessageType.PURIFICATION_SUCCESS))
+                else:
+                    await_signals.append(self.await_signal(protocol, Signals.SUCCESS))
+            # await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
         # have expression to wait for ANY qubit input signal
         self.qubit_input_signal = reduce(operator.or_, await_signals)
         # classical message handler
@@ -431,7 +438,8 @@ class Transportation(NodeProtocol):
                 #     print("Hi")
                 self.logger.info(f"MultiHop Transport {self.name} -> received Qubits\n"
                                  f"Current Qubits Received {len(self.final_result[self.entangled_node])}\n"
-                                 f"Target Qubits Needed {self.transmitting_qubit_size}\n", color="green")
+                                 f"Target Qubits Needed {self.transmitting_qubit_size}\n"
+                                 f"Fid {fid}", color="blue")
                 self.send_signal(MessageType.MULTI_HOP_SUCCESS,
                                  {"results": self.final_result[self.entangled_node],})
 
