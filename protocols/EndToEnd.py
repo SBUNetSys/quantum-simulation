@@ -11,6 +11,9 @@ from netsquid.protocols.protocol import Signals
 from netsquid.components.instructions import  INSTR_Z, INSTR_X
 
 from protocols.MessageHandler import MessageType
+from protocols.EntanglementHandlerConcurrent import EntanglementHandlerConcurrent
+from protocols.EntanglementHandler import EntanglementHandler
+from protocols.Purification import Purification
 from utils import Logging
 from utils.ClassicalMessages import ClassicalMessage
 from utils.SignalMessages import *
@@ -88,7 +91,7 @@ class EndToEndProtocol(NodeProtocol):
         :param name: the name of the protocol
         :param swapping_nodes: the swapping tree that lays out the swapping path
         :param qubit_ready_protocols: the lower layers that will send the qubit ready signal 
-        (i.e purfication or verification)
+        (i.e purification or verification)
         :param cc_message_handler: the classical message handler
         :param final_entanglement: the final entanglement goal, (source node, target node)
         :param max_pairs: the maximum number of pairs that can be entangled
@@ -126,7 +129,15 @@ class EndToEndProtocol(NodeProtocol):
         # keep track of the entangle node's origin in the stack
         self.swapping_stack = defaultdict(list)  # key = (source, target), value = [intermediate node]
         # qubit input signal from lower layers, can be purification or verification
-        await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
+        await_signals = []
+        for protocol in qubit_ready_protocols:
+            if type(protocol) is EntanglementHandler:
+                await_signals.append(self.await_signal(protocol, Signals.SUCCESS))
+            elif type(protocol) is EntanglementHandlerConcurrent:
+                await_signals.append(self.await_signal(protocol, MessageType.ENTANGLED_SUCCESS))
+            elif type(protocol) is Purification:
+                await_signals.append(self.await_signal(protocol, MessageType.PURIFICATION_SUCCESS))
+        # await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
         # have expression to wait for ANY qubit input signal
         self.qubit_input_signal = reduce(operator.or_, await_signals)
         # classical message handler
