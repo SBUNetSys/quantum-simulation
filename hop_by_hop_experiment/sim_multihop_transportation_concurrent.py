@@ -55,7 +55,7 @@ class TransportWithVerificationExample(LocalProtocol):
         self.qubits_to_transport = qubits_to_transport
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleTransportation")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=True)
+        self.logger = Logging.Logger(self.name, logging_enabled=False)
         null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
 
@@ -1195,7 +1195,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
     sample_nodes = [node for node in network.nodes.values()]
     if with_verification:
         transport_example, dc = example_sim_run_with_verification(sample_nodes,
-                                                                  num_runs=10,
+                                                                  num_runs=1000,
                                                                   memory_depolar_rate=depolar_rate,
                                                                   node_distance=distance,
                                                                   max_entangle_pairs=100,
