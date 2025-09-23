@@ -579,7 +579,7 @@ class TransportWithPurificationExample(LocalProtocol):
         self.qubits_to_transport = qubits_to_transport
         super().__init__(nodes={node.name: node for node in network_nodes}, name="ExampleTransportation")
         # create logger
-        self.logger = Logging.Logger(self.name, logging_enabled=True)
+        self.logger = Logging.Logger(self.name, logging_enabled=False)
         null_logger = Logging.Logger("null", logging_enabled=False)
         self.skip_noise = skip_noise
 
@@ -748,7 +748,7 @@ class TransportWithPurificationExample(LocalProtocol):
                                                                    from_node=subprotocol.node.name,
                                                                    entangle_node=subprotocol.entangled_node
                                                                ))
-            # print(f"{i}/{self.num_runs} finished")
+            print(f"{i}/{self.num_runs} finished")
             self.send_signal(Signals.SUCCESS, {"results": result_dic,
                                                "run_index": i})
             # print(f"{i}/{self.num_runs} stopping")
@@ -1221,7 +1221,10 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
                                                                   )
     # Run the simulation
     transport_example.start()
-    ns.sim_run()
+    if is_throughput:
+        ns.sim_run(duration=1e9)
+    else:
+        ns.sim_run()
     # Collect the data
     collected_data = dc.dataframe
     # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
@@ -1277,11 +1280,44 @@ if __name__ == '__main__':
     # run_evaluation_target_node(target_node=3, qubit_number=1)
     # run_evaluation_target_node(target_node=4, qubit_number=1)
     # max_dis, max_node, depolar_rate, with_purify
-    simulate_transport_with_verification_increasing_distance(all_distance=[0.75],
-                                                             experiment_name="max 0.75",
-                                                             max_node=5,
-                                                             depolar_rate=6000,
-                                                             with_purify=True,
-                                                             with_verification=False,
-                                                             is_throughput=False
-                                                             )
+    import argparse
+    parser = argparse.ArgumentParser(description='Run transport simulation with verification')
+    parser.add_argument('--distance', type=float, default=1.0, help='Node distance in km')
+    parser.add_argument('--target-fid', type=float, default=0.99, help='Target fidelity')
+    parser.add_argument('--depolar-rate', type=int, default=6000, help='Memory depolar rate')
+    parser.add_argument('--node-count', type=int, default=5, help='Number of nodes')
+    parser.add_argument('--batch-size', type=int, default=4, help='Batch size')
+    parser.add_argument('--with-purify', action='store_true', help='Enable purification')
+    parser.add_argument('--is-throughput', action='store_true', help='Enable throughput mode')
+    parser.add_argument('--with-verification', action='store_true', help='Enable verification')
+
+    args = parser.parse_args()
+
+    result = run_transport_sim(
+        distance=args.distance,
+        target_fid=args.target_fid,
+        depolar_rate=args.depolar_rate,
+        node_count=args.node_count,
+        batch_size=args.batch_size,
+        with_purify=args.with_purify,
+        is_throughput=args.is_throughput,
+        with_verification=args.with_verification
+    )
+    if not args.is_throughput:
+        save_path = (f"./transportation_results/"
+                     f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
+                     f"{args.with_purify}_verify_{args.with_verification}_1_qubit.json")
+    else:
+        save_path = (f"./transportation_results/"
+                     f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
+                     f"{args.with_purify}_verify_{args.with_verification}_throughput.json")
+    with open(save_path, 'w') as f:
+        json.dump(result, f)
+    # simulate_transport_with_verification_increasing_distance(all_distance=[1.0],
+    #                                                          experiment_name="max_1.0",
+    #                                                          max_node=5,
+    #                                                          depolar_rate=6000,
+    #                                                          with_purify=True,
+    #                                                          with_verification=False,
+    #                                                          is_throughput=False
+    #                                                          )

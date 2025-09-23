@@ -1206,7 +1206,10 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count,batch_size,
                                                                              )
     # Run the simulation
     transport_example.start()
-    ns.sim_run()
+    if is_throughput:
+        ns.sim_run(duration=1e9)
+    else:
+        ns.sim_run()
     # Collect the data
     collected_data = dc.dataframe
     # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")

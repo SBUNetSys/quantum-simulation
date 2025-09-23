@@ -1101,9 +1101,9 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
 
 def run_test_example_with_purification(qubit_number=2):
     nodes_list = [f"Node_{i}" for i in range(3)]
-    network = setup_network(nodes_list, "hop-by-hop-transportation",
+    network = setup_network_parallel(nodes_list, "hop-by-hop-transportation",
                             memory_capacity=10, memory_depolar_rate=0.001,
-                            node_distance=1, source_delay=1)
+                            node_distance=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     transport_example, dc = example_sim_run_with_purification(sample_nodes,
@@ -1124,9 +1124,9 @@ def run_test_example_with_purification(qubit_number=2):
 
 def run_test_example_with_verification(qubit_number=1):
     nodes_list = [f"Node_{i}" for i in range(3)]
-    network = setup_network(nodes_list, "hop-by-hop-transportation",
+    network = setup_network_parallel(nodes_list, "hop-by-hop-transportation",
                             memory_capacity=128, memory_depolar_rate=100,
-                            node_distance=3, source_delay=1)
+                            node_distance=3,)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=2, memory_depolar_rate=100,
@@ -1197,7 +1197,10 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
                                                                           )
             # Run the simulation
             transport_example.start()
-            ns.sim_run()
+            if throughput_mode:
+                ns.sim_run(duration=1e9)
+            else:
+                ns.sim_run()
             # Collect the data
             collected_data = dc.dataframe
             # final_data_raw[node] = collected_data.to_dict()
@@ -1301,7 +1304,37 @@ if __name__ == '__main__':
     # seed = 3020
     # np.random.seed(seed)
     # print(f'seed {seed}')
-    e2e_increase_distance_experiment(max_distances=[1.5], experiment_name="max 1.5", node_count=3, depolar_rate=6000,
-                                     with_purification=True, with_verification=False,
-                                 throughput_mode=False, preload=False)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run end-to-end quantum network experiment")
+    parser.add_argument('--qubit_number', type=int, default=1, help='Number of qubits to transport')
+    parser.add_argument('--node_count', type=int, default=10, help='Number of nodes in the network')
+    parser.add_argument('--throughput_mode', action='store_false', help='Enable throughput mode')
+    parser.add_argument('--with_purification', action='store_true', help='Enable purification')
+    parser.add_argument('--target_fidelity', type=float, default=0.98, help='Target fidelity')
+    parser.add_argument('--with_verification', action='store_false', help='Enable verification')
+    parser.add_argument('--batch_size', type=int, default=4, help='Batch size for verification')
+    parser.add_argument('--m_size', type=int, default=3, help='M size for verification')
+    parser.add_argument('--node_distance', type=float, default=1.0, help='Distance between nodes')
+    parser.add_argument('--depolar_rate', type=float, default=63109, help='Memory depolarization rate')
+    parser.add_argument('--preload', action='store_false', help='Preload previous results')
+
+    args = parser.parse_args()
+
+    run_e2e_experiment(
+        qubit_number=args.qubit_number,
+        node_count=args.node_count,
+        throughput_mode=args.throughput_mode,
+        with_purification=args.with_purification,
+        target_fidelity=args.target_fidelity,
+        with_verification=args.with_verification,
+        batch_size=args.batch_size,
+        m_size=args.m_size,
+        node_distance=args.node_distance,
+        depolar_rate=args.depolar_rate,
+        preload=args.preload
+    )
+    # e2e_increase_distance_experiment(max_distances=[2], experiment_name="max_2.0", node_count=3, depolar_rate=6000,
+    #                                  with_purification=True, with_verification=False,
+    #                              throughput_mode=False, preload=False)
     pass
