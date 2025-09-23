@@ -1292,7 +1292,13 @@ if __name__ == '__main__':
     parser.add_argument('--with-verification', action='store_true', help='Enable verification')
 
     args = parser.parse_args()
-
+    print(
+        f"Running with args: with args: distance={args.distance}, "
+        f"target_fid={args.target_fid}, " 
+        f"depolar_rate={args.depolar_rate}, "
+        f"node_count={args.node_count}, " 
+        f"batch_size={args.batch_size}, with_purify={args.with_purify}, " 
+        f"is_throughput={args.is_throughput}, with_verification={args.with_verification}")
     result = run_transport_sim(
         distance=args.distance,
         target_fid=args.target_fid,
@@ -1312,7 +1318,7 @@ if __name__ == '__main__':
                      f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
                      f"{args.with_purify}_verify_{args.with_verification}_throughput.json")
     with open(save_path, 'w') as f:
-        json.dump(result, f)
+        json.dump(result, f, indent=4, cls=NumpyEncoder)
     # simulate_transport_with_verification_increasing_distance(all_distance=[1.0],
     #                                                          experiment_name="max_1.0",
     #                                                          max_node=5,
