@@ -593,7 +593,9 @@ class Verification(NodeProtocol):
         self.measurement_m0 = measurement_m0
         self.measurement_m1 = measurement_m1
         # Force cleanup before calling super
-        gc.collect()
+        # Force immediate cleanup
+        for _ in range(3):
+            gc.collect()
         super().reset()
 
     def stop(self):
