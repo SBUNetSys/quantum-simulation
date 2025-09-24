@@ -1,6 +1,7 @@
 import gc
 import json
 import os
+import traceback
 
 import numpy as np
 import pydynaa as pd
@@ -1320,7 +1321,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
                                                                       skip_noise=True,
                                                                       qubit_to_transport=qubit_number,
                                                                       m_size=3,
-                                                                      batch_size=4,
+                                                                      batch_size=batch_size,
                                                                       CU_gate=CU_gate,
                                                                       CCU_gate=CCU_gate,
                                                                       with_purification=with_purify,
@@ -1328,7 +1329,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
         else:
             transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1,
                                                                       memory_depolar_rate=depolar_rate,
-                                                                      node_distance=1,
+                                                                      node_distance=distance,
                                                                       max_entangle_pairs=100,
                                                                       target_fidelity=target_fid,
                                                                       skip_noise=True,
@@ -1383,7 +1384,9 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
             with open(raw_data_save_path, 'a') as f:
                 json.dump(all_result_raw, f, indent=4, cls=NumpyEncoder)
         except Exception as e:
-            print(f"Error during simulation: {e}")
+            print(f"Error during simulation run {success_run}: {e}")
+            print("Full stack trace:")
+            print(traceback.format_exc())
             ns.sim_reset()
             transport_example = None
             gc.collect()

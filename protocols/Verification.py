@@ -572,18 +572,18 @@ class Verification(NodeProtocol):
         self.successful_verification_counter = 0
         self.successful_verification_probability = []
         # Clean up gates with explicit reference breaking
-        if hasattr(self, 'CCU_Gate'):
-            self.CCU_Gate._matrix = None  # Break matrix reference
-            del self.CCU_Gate
-        if hasattr(self, 'CU_Gate'):
-            self.CU_Gate._matrix = None   # Break matrix reference
-            del self.CU_Gate
-        if hasattr(self, 'measurement_m0'):
-            self.measurement_m0._matrix = None
-            del self.measurement_m0
-        if hasattr(self, 'measurement_m1'):
-            self.measurement_m1._matrix = None
-            del self.measurement_m1
+        # if hasattr(self, 'CCU_Gate'):
+        #     self.CCU_Gate._matrix = None  # Break matrix reference
+        #     del self.CCU_Gate
+        # if hasattr(self, 'CU_Gate'):
+        #     self.CU_Gate._matrix = None   # Break matrix reference
+        #     del self.CU_Gate
+        # if hasattr(self, 'measurement_m0'):
+        #     self.measurement_m0._matrix = None
+        #     del self.measurement_m0
+        # if hasattr(self, 'measurement_m1'):
+        #     self.measurement_m1._matrix = None
+        #     del self.measurement_m1
 
         # Recreate gates
         # CU_matrix = controlled_unitary(self.batch_size)
