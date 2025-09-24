@@ -574,8 +574,8 @@ class Verification(NodeProtocol):
         del self.CCU_Gate
         del self.CU_Gate
         CU_matrix = controlled_unitary(self.batch_size)
-        self.CU_gate = ops.Operator("CU_Gate", CU_matrix)
-        self.CCU_gate = self.CU_gate.conj
+        self.CU_Gate = ops.Operator("CU_Gate", CU_matrix)
+        self.CCU_Gate = self.CU_gate.conj
         super().reset()
 
     def stop(self):
