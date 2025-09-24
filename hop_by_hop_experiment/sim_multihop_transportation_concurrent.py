@@ -1280,9 +1280,6 @@ if __name__ == '__main__':
     # run_evaluation_target_node(target_node=3, qubit_number=1)
     # run_evaluation_target_node(target_node=4, qubit_number=1)
     # max_dis, max_node, depolar_rate, with_purify
-    import os
-    os.environ['PYTHONMALLOC'] = 'pymalloc'  # Use Python's allocator
-    os.environ['MALLOC_TRIM_THRESHOLD_'] = '65536'  # More aggressive malloc trimming
 
     import argparse
     parser = argparse.ArgumentParser(description='Run transport simulation with verification')
