@@ -586,12 +586,12 @@ class Verification(NodeProtocol):
             del self.measurement_m1
 
         # Recreate gates
-        CU_matrix = controlled_unitary(self.batch_size)
-        self.CU_Gate = ops.Operator("CU_Gate", CU_matrix)
-        self.CCU_Gate = self.CU_Gate.conj
-        measurement_m0, measurement_m1 = measure_operator()
-        self.measurement_m0 = measurement_m0
-        self.measurement_m1 = measurement_m1
+        # CU_matrix = controlled_unitary(self.batch_size)
+        # self.CU_Gate = ops.Operator("CU_Gate", CU_matrix)
+        # self.CCU_Gate = self.CU_Gate.conj
+        # measurement_m0, measurement_m1 = measure_operator()
+        # self.measurement_m0 = measurement_m0
+        # self.measurement_m1 = measurement_m1
         # Force cleanup before calling super
         # Force immediate cleanup
         for _ in range(3):

@@ -1312,7 +1312,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
         sample_nodes = [node for node in network.nodes.values()]
         if with_verification:
             transport_example, dc = example_sim_run_with_verification(sample_nodes,
-                                                                      num_runs=1000,
+                                                                      num_runs=1,
                                                                       memory_depolar_rate=depolar_rate,
                                                                       node_distance=distance,
                                                                       max_entangle_pairs=100,
@@ -1326,7 +1326,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
                                                                       with_purification=with_purify,
                                                                       is_throughput=is_throughput, )
         else:
-            transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1000,
+            transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1,
                                                                       memory_depolar_rate=depolar_rate,
                                                                       node_distance=1,
                                                                       max_entangle_pairs=100,
