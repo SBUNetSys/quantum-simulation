@@ -1174,7 +1174,7 @@ def simulate_transport_with_verification_increasing_distance(all_distance, exper
             progress.update(task, advance=1)
 
 
-def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size,
+def run_transport_sim_backup(distance, target_fid, depolar_rate, node_count, batch_size,
                       with_purify, is_throughput,
                       with_verification):
     CU_matrix = controlled_unitary(batch_size)
@@ -1186,6 +1186,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
         qubit_number = 1500
     else:
         qubit_number = 1
+
     nodes_list = [f"Node_{i}" for i in range(node_count)]
     network = setup_network_parallel(nodes_list, "hop-by-hop-purification",
                                      memory_capacity=101, memory_depolar_rate=depolar_rate,
@@ -1265,7 +1266,137 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
     gc.collect()
     return node_data
 
+def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size,
+                      with_purify, is_throughput,
+                      with_verification, preload=False):
+    CU_matrix = controlled_unitary(batch_size)
+    CU_gate = ops.Operator("CU_Gate", CU_matrix)
+    CCU_gate = CU_gate.conj
+    if not args.is_throughput:
+        data_save_path = (f"./transportation_results/"
+                     f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
+                     f"{args.with_purify}_verify_{args.with_verification}_1_qubit.json")
+        raw_data_save_path = (f"./transportation_results/"
+                              f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
+                              f"{args.with_purify}_verify_{args.with_verification}_1_qubit_raw.json")
+    else:
+        data_save_path = (f"./transportation_results/"
+                     f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
+                     f"{args.with_purify}_verify_{args.with_verification}_throughput.json")
+        raw_data_save_path = (f"./transportation_results/"
+                     f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
+                     f"{args.with_purify}_verify_{args.with_verification}_throughput_raw.json")
 
+    # non throughput mode we care only one qubit to transmitted
+    if is_throughput:
+        qubit_number = 1500
+    else:
+        qubit_number = 1
+    all_result = {}
+    all_result_raw = {}
+    if preload:
+        with open(data_save_path, "r") as f:
+            all_result = json.load(f)
+        with open(raw_data_save_path, "r") as f:
+            all_result_raw = json.load(f)
+    success_run = len(all_result) if len(all_result) == len(all_result_raw) else 0
+    while success_run < 1000:
+        print(f"Run {success_run} / 1000")
+        node_data = {}
+        node_data_raw = {}
+        nodes_list = [f"Node_{i}" for i in range(node_count)]
+        network = setup_network_parallel(nodes_list, "hop-by-hop-purification",
+                                         memory_capacity=101, memory_depolar_rate=depolar_rate,
+                                         node_distance=distance)
+        # create a protocol to entangle two nodes
+        sample_nodes = [node for node in network.nodes.values()]
+        if with_verification:
+            transport_example, dc = example_sim_run_with_verification(sample_nodes,
+                                                                      num_runs=1000,
+                                                                      memory_depolar_rate=depolar_rate,
+                                                                      node_distance=distance,
+                                                                      max_entangle_pairs=100,
+                                                                      target_fidelity=target_fid,
+                                                                      skip_noise=True,
+                                                                      qubit_to_transport=qubit_number,
+                                                                      m_size=3,
+                                                                      batch_size=4,
+                                                                      CU_gate=CU_gate,
+                                                                      CCU_gate=CCU_gate,
+                                                                      with_purification=with_purify,
+                                                                      is_throughput=is_throughput, )
+        else:
+            transport_example, dc = example_sim_run_with_purification(sample_nodes, num_runs=1000,
+                                                                      memory_depolar_rate=depolar_rate,
+                                                                      node_distance=1,
+                                                                      max_entangle_pairs=100,
+                                                                      target_fidelity=target_fid,
+                                                                      skip_noise=True,
+                                                                      qubit_to_transport=qubit_number,
+                                                                      is_throughput=is_throughput
+                                                                      )
+        try:
+            # Run the simulation
+            transport_example.start()
+            if is_throughput:
+                ns.sim_run(duration=1e9)
+            else:
+                ns.sim_run()
+            # Collect the data
+            collected_data = dc.dataframe
+            # collected_data.to_json(f"./transportation_results/4nodes_{qubit_number}_qubit_verification_raw.json")
+            # raw_data = collected_data.to_dict()
+            for c in collected_data.columns:
+                # if c == "teleport_fids":
+                #     node_data[c] = []
+                #     for v in collected_data[c].values:
+                #         node_data[c] += list(v)
+                # else:
+                #     node_data[c] = list(collected_data[c].values)
+                if c not in node_data:
+                    node_data[c] = []
+                    node_data_raw[c] = []
+                if c == "teleport_fids":
+                    s = []
+                    for t in collected_data[c]:
+                        s += t
+                    node_data_raw[c] = s
+                    node_data[c].append(np.mean(s))
+                else:
+                    node_data[c].append(collected_data[c].mean())
+                # if c not in node_data:
+                #     node_data[c] = []
+                # node_data[c].append(collected_data[c].values)
+            transport_example.stop()
+            # ns.set_random_state(rng=np.random.RandomState())
+
+            ns.sim_reset()
+            transport_example = None
+            gc.collect()
+            del transport_example
+            gc.collect()
+            success_run += 1
+            all_result[success_run] = node_data
+            all_result_raw[success_run] = node_data_raw
+            with open(data_save_path, 'a') as f:
+                json.dump(all_result, f, indent=4, cls=NumpyEncoder)
+            with open(raw_data_save_path, 'a') as f:
+                json.dump(all_result_raw, f, indent=4, cls=NumpyEncoder)
+        except Exception as e:
+            print(f"Error during simulation: {e}")
+            ns.sim_reset()
+            transport_example = None
+            gc.collect()
+            del transport_example
+            gc.collect()
+            continue
+    print(f"Teleportation Done\n"
+          f"\tVerification {with_verification}\n"
+          f"\tTransmitted Qubits {qubit_number}\n"
+          f"\tWith Purify {with_purify}\n"
+          f"\tIs Throughput {is_throughput}\n"
+          f"\tResult")
+    return all_result, all_result_raw
 if __name__ == '__main__':
     # exit()
     # seed = np.random.randint(0, 10000)
@@ -1291,15 +1422,20 @@ if __name__ == '__main__':
     parser.add_argument('--with-purify', action='store_true', help='Enable purification')
     parser.add_argument('--is-throughput', action='store_true', help='Enable throughput mode')
     parser.add_argument('--with-verification', action='store_true', help='Enable verification')
+    parser.add_argument('--preload', action='store_true', help='Preload existing results if available')
 
     args = parser.parse_args()
     print(
-        f"Running with args: with args: distance={args.distance}, "
-        f"target_fid={args.target_fid}, " 
-        f"depolar_rate={args.depolar_rate}, "
-        f"node_count={args.node_count}, " 
-        f"batch_size={args.batch_size}, with_purify={args.with_purify}, " 
-        f"is_throughput={args.is_throughput}, with_verification={args.with_verification}")
+        f"Running with args: with args: "
+        f"\n\tdistance={args.distance}"
+        f"\n\ttarget_fid={args.target_fid}" 
+        f"\n\tdepolar_rate={args.depolar_rate}"
+        f"\n\tnode_count={args.node_count}" 
+        f"\n\tbatch_size={args.batch_size}"
+        f"\n\twith_purify={args.with_purify}" 
+        f"\n\tis_throughput={args.is_throughput}"
+        f"\n\twith_verification={args.with_verification}"
+        f"\n\tpreload={args.preload}")
     result = run_transport_sim(
         distance=args.distance,
         target_fid=args.target_fid,
@@ -1308,18 +1444,10 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
         with_purify=args.with_purify,
         is_throughput=args.is_throughput,
-        with_verification=args.with_verification
+        with_verification=args.with_verification,
+        preload=args.preload,
     )
-    if not args.is_throughput:
-        save_path = (f"./transportation_results/"
-                     f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
-                     f"{args.with_purify}_verify_{args.with_verification}_1_qubit.json")
-    else:
-        save_path = (f"./transportation_results/"
-                     f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"
-                     f"{args.with_purify}_verify_{args.with_verification}_throughput.json")
-    with open(save_path, 'w') as f:
-        json.dump(result, f, indent=4, cls=NumpyEncoder)
+
     # simulate_transport_with_verification_increasing_distance(all_distance=[1.0],
     #                                                          experiment_name="max_1.0",
     #                                                          max_node=5,
