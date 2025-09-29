@@ -1561,7 +1561,10 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
                 print(f"Process didn't terminate cleanly, killing it")
                 process.terminate()
                 process.join()
-
+            if process.exitcode < 0:
+                print(f"Process was killed by signal {-process.exitcode}")
+                # skip incrementing success_run
+                continue
             if result[0] == 'success':
                 _, run_index, node_data, node_data_raw = result
                 success_run += 1
