@@ -1270,9 +1270,13 @@ def run_transport_sim_backup(distance, target_fid, depolar_rate, node_count, bat
 def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size,
                       with_purify, is_throughput,
                       with_verification, preload=False):
-    CU_matrix = controlled_unitary(batch_size)
-    CU_gate = ops.Operator("CU_Gate", CU_matrix)
-    CCU_gate = CU_gate.conj
+
+    # CU_matrix = controlled_unitary(batch_size)
+    # CU_gate = ops.Operator("CU_Gate", CU_matrix)
+    # CCU_gate = CU_gate.conj
+    CU_matrix = None
+    CU_gate = None
+    CCU_gate = None
     if not args.is_throughput:
         data_save_path = (f"./transportation_results/"
                      f"concurrent_transport_{args.node_count}_nodes_{args.distance}km_purify_"

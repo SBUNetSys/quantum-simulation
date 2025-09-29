@@ -56,8 +56,11 @@ class Verification(NodeProtocol):
         self.measurement_m0 = measurement_m0
         self.measurement_m1 = measurement_m1
         # controlled unitary gate
-        self.CU_Gate = CU_Gate
-        self.CCU_Gate = CCU_Gate
+        CU_matrix = controlled_unitary(batch_size)
+        CU_gate = ops.Operator("CU_Gate", CU_matrix)
+        CCU_gate = CU_gate.conj
+        self.CU_Gate = CU_gate
+        self.CCU_Gate = CCU_gate
 
         # classical message queue
         self.cc_message_queue = []
