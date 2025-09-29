@@ -1382,9 +1382,9 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
             success_run += 1
             all_result[success_run] = node_data
             all_result_raw[success_run] = node_data_raw
-            with open(data_save_path, 'a') as f:
+            with open(data_save_path, 'w') as f:
                 json.dump(all_result, f, indent=4, cls=NumpyEncoder)
-            with open(raw_data_save_path, 'a') as f:
+            with open(raw_data_save_path, 'w') as f:
                 json.dump(all_result_raw, f, indent=4, cls=NumpyEncoder)
             # ns.sim_reset()
             # new_rng = np.random.RandomState()
