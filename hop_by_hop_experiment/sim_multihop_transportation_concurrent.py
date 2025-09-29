@@ -1484,7 +1484,11 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
                 node_data[c].append(collected_data[c].mean())
 
         transport_example.stop()
+        ns.sim_stop()
         ns.sim_reset()
+        transport_example = None
+        gc.collect()
+        del transport_example
         new_rng = np.random.RandomState()
         if new_rng == ns.get_random_state():
             raise ValueError("Random state is not resetting")
