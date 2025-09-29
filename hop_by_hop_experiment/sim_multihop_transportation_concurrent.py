@@ -1554,7 +1554,7 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
         # Wait for result with timeout
         try:
             # Wait up to 300 seconds (5 minutes) for each run
-            process.join(timeout=10)  # Give process time to clean up
+            process.join(timeout=60)  # Give process time to clean up
             ns.sim_stop()
             ns.sim_reset()
             new_rng = np.random.RandomState()
@@ -1565,7 +1565,7 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
                 print(f"Process didn't terminate cleanly, killing it")
                 process.terminate()
                 process.join()
-            if process.exitcode < 0:
+            if process.exitcode != 0:
                 print(f"Process was killed by signal {-process.exitcode}")
                 # skip incrementing success_run
                 continue
