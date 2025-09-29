@@ -1556,6 +1556,7 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
             # Wait up to 300 seconds (5 minutes) for each run
             process.join(timeout=10)  # Give process time to clean up
             ns.sim_stop()
+            ns.sim_reset()
             new_rng = np.random.RandomState()
             if new_rng == ns.get_random_state():
                 raise ValueError("Random state is not resetting")
