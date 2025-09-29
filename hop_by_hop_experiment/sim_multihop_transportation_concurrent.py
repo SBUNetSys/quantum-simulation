@@ -1554,9 +1554,8 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
         # Wait for result with timeout
         try:
             # Wait up to 300 seconds (5 minutes) for each run
-            result = queue.get(timeout=300)
-            process.join(timeout=10)  # Give process time to clean up
 
+            process.join(timeout=10)  # Give process time to clean up
             if process.is_alive():
                 print(f"Process didn't terminate cleanly, killing it")
                 process.terminate()
@@ -1565,10 +1564,13 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
                 print(f"Process was killed by signal {-process.exitcode}")
                 # skip incrementing success_run
                 continue
+            result = queue.get(timeout=300)
+            ns.sim_stop()
             new_rng = np.random.RandomState()
             if new_rng == ns.get_random_state():
                 raise ValueError("Random state is not resetting")
             ns.set_random_state(rng=new_rng)
+            result = queue.get(timeout=300)
             if result[0] == 'success':
                 _, run_index, node_data, node_data_raw = result
                 success_run += 1
