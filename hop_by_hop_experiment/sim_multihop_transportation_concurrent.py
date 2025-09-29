@@ -1376,6 +1376,10 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count, batch_size
             # ns.set_random_state(rng=np.random.RandomState())
 
             ns.sim_reset()
+            new_rng = np.random.RandomState()
+            if new_rng == ns.get_random_state():
+                raise ValueError("Random state is not resetting")
+            ns.set_random_state(rng=new_rng)
             transport_example = None
             gc.collect()
             del transport_example
