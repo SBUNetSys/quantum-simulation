@@ -1,3 +1,4 @@
+import json
 import sys
 
 import numpy as np
@@ -5,7 +6,7 @@ import numpy as np
 if __name__ == '__main__':
     file_path = sys.argv[1]
     with open(file_path, "r") as f:
-        results = f.read()
+        results = json.load(f)
     fid_data = []
     nan_count = 0
     duration_data = []
