@@ -144,7 +144,7 @@ def setup_network_parallel(nodes_list, network_name,
                                                num_positions=memory_capacity,
                                                fallback_to_nonphysical=True,
                                                memory_noise_models=
-                                               [DepolarNoiseModel(3883)] * memory_capacity))
+                                               [DepolarNoiseModel(memory_depolar_rate)] * memory_capacity))
         if index - 1 >= 0:
             node.add_subcomponent(QuantumProcessor(name=nodes[index - 1].name + "_qmemory",
                                                    num_positions=memory_capacity,
