@@ -356,10 +356,10 @@ class TransportWithVerificationThroughput(LocalProtocol):
         self.skip_noise = skip_noise
 
         # Initialize the controlled unitary matrix and measurement operators
-        CU_matrix = controlled_unitary(batch_size)
+        # CU_matrix = controlled_unitary(batch_size)
         measurement_m0, measurement_m1 = measure_operator()
-        CU_gate = ops.Operator("CU_Gate", CU_matrix)
-        CCU_gate = CU_gate.conj
+        # CU_gate = ops.Operator("CU_Gate", CU_matrix)
+        # CCU_gate = CU_gate.conj
 
         # initialize the protocol for each node
         for index, node in enumerate(network_nodes):
@@ -1014,6 +1014,7 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
                                       is_throughput=False):
     """
     Run the example verification protocol
+    :param is_throughput: throuput mode
     :param nodes: list of nodes
     :param num_runs: number of runs
     :param memory_depolar_rate: memory depolar rate
