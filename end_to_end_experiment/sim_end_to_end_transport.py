@@ -1170,7 +1170,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
         except Exception as e:
             print(e)
             print(f"Failed to load data from {save_file}, start fresh")
-    node_data = {"teleport_fids": []}
+    node_data = {"teleport_fids": final_data_raw["teleport_fids"] if "teleport_fids" in final_data_raw else []}
     while len(node_data["teleport_fids"]) < 1000:
         try:
             nodes_list = [f"Node_{j}" for j in range(node_count)]
