@@ -16,7 +16,7 @@ def calculate_channel_depolar_rate(length_km, loss_db_per_km=0.2, c=200e3):
     loss_rate = 1 - 10 ** (-loss_db_per_km * length_km / 10)
     transit_time = length_km / c  # in second
     depolar_rate = -np.log(1 - loss_rate) / transit_time
-    return 8641
+    return 63109
 
 
 def setup_network(nodes_list, network_name,
