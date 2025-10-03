@@ -1165,7 +1165,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
     while len(node_data["teleport_fids"]) < 1000:
         try:
             nodes_list = [f"Node_{j}" for j in range(node_count)]
-            network = setup_network_parallel(nodes_list, "hop-by-hop-transportation",
+            network = setup_network_parallel(nodes_list, "end-to-end-transportation",
                                     memory_capacity=101, memory_depolar_rate=depolar_rate,
                                     node_distance=node_distance)
             # create a protocol to entangle two nodes
@@ -1228,8 +1228,8 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
             with open(save_file_raw, "w") as f:
                 json.dump(node_data, f)
         except Exception as e:
-            traceback.print_exc()
             print(e)
+            traceback.print_exc()
             transport_example.stop()
             ns.set_random_state(rng=np.random.RandomState())
             ns.sim_reset()
