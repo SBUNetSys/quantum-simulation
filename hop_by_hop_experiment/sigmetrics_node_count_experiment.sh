@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-START_NODES=3
+START_NODES=4
 END_NODES=10
 DEPOLAR_RATE=8641
 DISTANCE=1.0
