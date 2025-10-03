@@ -5,7 +5,7 @@ START_NODES=4
 END_NODES=10
 DEPOLAR_RATE=8641
 DISTANCE=1.0
-TARGET_FID=0.99
+TARGET_FID=0.98
 
 # Create results directory if it doesn't exist
 mkdir -p ./transportation_results
@@ -29,6 +29,7 @@ for ((node_count=$START_NODES; node_count<=$END_NODES; node_count++)); do
             --node_count $node_count \
             --depolar_rate $DEPOLAR_RATE \
             --node_distance=$DISTANCE \
+            --preload
 
     # Check if the run was successful
     if [ $? -eq 0 ]; then

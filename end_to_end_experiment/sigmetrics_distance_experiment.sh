@@ -9,8 +9,8 @@ STEP=0.5
 
 # Target fidelities for different distances
 declare -A TARGET_FIDS
-TARGET_FIDS[1.0]=0.99
-TARGET_FIDS[1.5]=0.98
+TARGET_FIDS[1.0]=0.98
+TARGET_FIDS[1.5]=0.97
 TARGET_FIDS[2.0]=0.96
 TARGET_FIDS[2.5]=0.94
 TARGET_FIDS[3.0]=0.92

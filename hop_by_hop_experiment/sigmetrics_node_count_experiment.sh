@@ -5,7 +5,7 @@ START_NODES=4
 END_NODES=10
 DEPOLAR_RATE=8641
 DISTANCE=1.0
-TARGET_FID=0.99
+TARGET_FID=0.98
 WITH_VERIFICATION="--with-verification"
 
 # Create results directory if it doesn't exist
@@ -34,7 +34,7 @@ for ((node_count=$START_NODES; node_count<=$END_NODES; node_count++)); do
         --depolar-rate ${DEPOLAR_RATE} \
         --node-count ${node_count} \
         --with-verification \
-
+        --preload
     # Check if the run was successful
     if [ $? -eq 0 ]; then
         echo "✓ Successfully completed ${node_count} nodes experiment"
