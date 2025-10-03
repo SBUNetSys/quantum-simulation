@@ -1192,7 +1192,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
                                                                           max_entangle_pairs=100,
                                                                           target_fidelity=target_fidelity,
                                                                           qubits_to_transport=qubit_number,
-                                                                          with_purification=True,
+                                                                          with_purification=with_purification,
                                                                           throughput_mode=throughput_mode
                                                                           )
             # Run the simulation
@@ -1320,7 +1320,19 @@ if __name__ == '__main__':
     parser.add_argument('--preload', action='store_false', help='Preload previous results')
 
     args = parser.parse_args()
-
+    print(
+        f"Running with args: with args: "
+        f"\n\tdistance={args.node_distance}"
+        f"\n\ttarget_fid={args.target_fidelity}"
+        f"\n\tdepolar_rate={args.depolar_rate}"
+        f"\n\tnode_count={args.node_count}"
+        f"\n\tbatch_size={args.batch_size}"
+        f"\n\tm_size={args.m_size}"
+        f"\n\tqubit_number={args.qubit_number}"
+        f"\n\twith_purify={args.with_purify}"
+        f"\n\tis_throughput={args.throughput_mode}"
+        f"\n\twith_verification={args.with_verification}"
+        f"\n\tpreload={args.preload}")
     run_e2e_experiment(
         qubit_number=args.qubit_number,
         node_count=args.node_count,
