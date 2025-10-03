@@ -1509,17 +1509,17 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
     # Setup file paths
     if not is_throughput:
         data_save_path = (f"./transportation_results/"
-                          f"concurrent_transport_{node_count}_nodes_{distance}km_purify_"
+                          f"concurrent_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                           f"{with_purify}_{target_fid}_verify_{with_verification}_1_qubit.json")
         raw_data_save_path = (f"./transportation_results/"
-                              f"concurrent_transport_{node_count}_nodes_{distance}km_purify_"
+                              f"concurrent_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                               f"{with_purify}_{target_fid}_verify_{with_verification}_1_qubit_raw.json")
     else:
         data_save_path = (f"./transportation_results/"
-                          f"concurrent_transport_{node_count}_nodes_{distance}km_purify_"
+                          f"concurrent_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                           f"{with_purify}_{target_fid}_verify_{with_verification}_throughput.json")
         raw_data_save_path = (f"./transportation_results/"
-                              f"concurrent_transport_{node_count}_nodes_{distance}km_purify_"
+                              f"concurrent_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                               f"{with_purify}_{target_fid}_verify_{with_verification}_throughput_raw.json")
 
     # Load existing results if requested

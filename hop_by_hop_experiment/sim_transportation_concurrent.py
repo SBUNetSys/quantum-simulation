@@ -1049,7 +1049,7 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
         protocol = evexpr.triggered_events[-1].source
         result = protocol.get_signal_result(Signals.SUCCESS)
         # result = protocol.get_signal_result(Signals.FINISHED)
-        # print(f"Purification Run {result['run_index']} completed: {result}")
+        print(f"Purification Run {result['run_index']} completed: {result}")
         return result["results"]
 
     dc = DataCollector(record_run, include_time_stamp=False,
@@ -1361,17 +1361,17 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
     # Setup file paths
     if not is_throughput:
         data_save_path = (f"./transportation_results/"
-                          f"hbh_transport_{node_count}_nodes_{distance}km_purify_"
+                          f"hbh_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                           f"{with_purify}_{target_fid}_verify_{with_verification}_1_qubit.json")
         raw_data_save_path = (f"./transportation_results/"
-                              f"hbh_transport_{node_count}_nodes_{distance}km_purify_"
+                              f"hbh_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                               f"{with_purify}_{target_fid}_verify_{with_verification}_1_qubit_raw.json")
     else:
         data_save_path = (f"./transportation_results/"
-                          f"hbh_transport_{node_count}_nodes_{distance}km_purify_"
+                          f"hbh_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                           f"{with_purify}_{target_fid}_verify_{with_verification}_throughput.json")
         raw_data_save_path = (f"./transportation_results/"
-                              f"hbh_transport_{node_count}_nodes_{distance}km_purify_"
+                              f"hbh_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                               f"{with_purify}_{target_fid}_verify_{with_verification}_throughput_raw.json")
 
     # Load existing results if requested

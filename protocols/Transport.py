@@ -14,6 +14,7 @@ from netsquid.components.instructions import INSTR_Z, INSTR_X
 from protocols.MessageHandler import MessageType
 from utils import Logging
 from utils.ClassicalMessages import ClassicalMessage
+from protocols.Purification import Purification
 from utils.SignalMessages import *
 
 
@@ -78,7 +79,12 @@ class Transportation(NodeProtocol):
             await_signals = [self.await_signal(protocol, MessageType.SECURITY_TRANSPORT_QUBIT)
                              for protocol in qubit_ready_protocols]
         else:
-            await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
+            await_signals = []
+            for protocol in qubit_ready_protocols:
+                if type(protocol) is Purification:
+                    await_signals.append(self.await_signal(protocol, MessageType.PURIFICATION_SUCCESS))
+                else:
+                    await_signals.append(self.await_signal(protocol, Signals.SUCCESS))
         # have expression to wait for ANY qubit input signal
         self.qubit_input_signal = reduce(operator.or_, await_signals)
         # classical message handler
