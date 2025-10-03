@@ -1225,7 +1225,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
             ns.sim_reset()
             with open(save_file_raw, "w") as f:
                 json.dump(node_data, f)
-            with open(save_file_raw, "w") as f:
+            with open(save_file, "w") as f:
                 json.dump(node_data, f)
         except Exception as e:
             print(e)
