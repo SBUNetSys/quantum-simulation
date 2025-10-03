@@ -36,6 +36,7 @@ while (( $(echo "$distance <= $END_DISTANCE" | bc -l) )); do
         --node_count $NODE_COUNT \
         --depolar_rate $DEPOLAR_RATE \
         --node_distance=$distance \
+        --preload
 
     if [ $? -eq 0 ]; then
         echo "Successfully completed experiment for ${distance}km"
@@ -65,6 +66,7 @@ while (( $(echo "$distance <= $END_DISTANCE" | bc -l) )); do
         --depolar_rate $DEPOLAR_RATE \
         --node_distance=$distance \
         --with_purification \
+        --target_fidelity=$target_fid
 
     if [ $? -eq 0 ]; then
         echo "Successfully completed experiment for ${distance}km"

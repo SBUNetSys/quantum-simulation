@@ -1161,6 +1161,15 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
 
     final_data = {}
     final_data_raw = {}
+    if preload:
+        try:
+            with open(save_file, "r") as f:
+                final_data = json.load(f)
+            with open(save_file_raw, "r") as f:
+                final_data_raw = json.load(f)
+        except Exception as e:
+            print(e)
+            print(f"Failed to load data from {save_file}, start fresh")
     node_data = {"teleport_fids": []}
     while len(node_data["teleport_fids"]) < 1000:
         try:
