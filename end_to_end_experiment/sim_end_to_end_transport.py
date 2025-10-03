@@ -1329,7 +1329,7 @@ if __name__ == '__main__':
         f"\n\tbatch_size={args.batch_size}"
         f"\n\tm_size={args.m_size}"
         f"\n\tqubit_number={args.qubit_number}"
-        f"\n\twith_purify={args.with_purify}"
+        f"\n\twith_purify={args.with_purification}"
         f"\n\tis_throughput={args.throughput_mode}"
         f"\n\twith_verification={args.with_verification}"
         f"\n\tpreload={args.preload}")
