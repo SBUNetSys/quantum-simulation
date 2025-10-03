@@ -1161,13 +1161,14 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
 
     final_data = {}
     final_data_raw = {}
+    node_data = {"teleport_fids":[]}
     if preload:
         if os.path.exists(save_file) and os.path.exists(save_file_raw):
             with open(save_file, "r") as f:
                 final_data = json.load(f)
             with open(save_file_raw, "r") as f:
                 final_data_raw = json.load(f)
-    node_data = final_data_raw
+            node_data = final_data_raw
     while len(node_data["teleport_fids"]) < 1000:
         try:
             nodes_list = [f"Node_{j}" for j in range(node_count)]
