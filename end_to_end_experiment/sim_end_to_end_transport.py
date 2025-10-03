@@ -1223,6 +1223,10 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
             transport_example.stop()
             ns.set_random_state(rng=np.random.RandomState())
             ns.sim_reset()
+            with open(save_file_raw, "w") as f:
+                json.dump(node_data, f)
+            with open(save_file_raw, "w") as f:
+                json.dump(node_data, f)
         except Exception as e:
             traceback.print_exc()
             print(e)
@@ -1317,7 +1321,7 @@ if __name__ == '__main__':
     parser.add_argument('--m_size', type=int, default=3, help='M size for verification')
     parser.add_argument('--node_distance', type=float, default=1.0, help='Distance between nodes')
     parser.add_argument('--depolar_rate', type=float, default=63109, help='Memory depolarization rate')
-    parser.add_argument('--preload', action='store_false', help='Preload previous results')
+    parser.add_argument('--preload', action='store_true', help='Preload previous results')
 
     args = parser.parse_args()
     print(
