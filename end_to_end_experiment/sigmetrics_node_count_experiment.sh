@@ -26,7 +26,7 @@ for ((node_count=$START_NODES; node_count<=$END_NODES; node_count++)); do
     echo "Started at: $(date)"
 
     python -u sim_end_to_end_transport.py \
-            --node_count $NODE_COUNT \
+            --node_count $node_count \
             --depolar_rate $DEPOLAR_RATE \
             --node_distance=$distance \
 
@@ -56,7 +56,7 @@ for ((node_count=$START_NODES; node_count<=$END_NODES; node_count++)); do
     echo "Started at: $(date)"
 
     python -u sim_end_to_end_transport.py \
-            --node_count $NODE_COUNT \
+            --node_count $node_count \
             --depolar_rate $DEPOLAR_RATE \
             --node_distance=$distance \
             --with_purification \
