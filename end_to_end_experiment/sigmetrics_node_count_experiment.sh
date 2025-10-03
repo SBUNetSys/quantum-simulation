@@ -28,7 +28,7 @@ for ((node_count=$START_NODES; node_count<=$END_NODES; node_count++)); do
     python -u sim_end_to_end_transport.py \
             --node_count $node_count \
             --depolar_rate $DEPOLAR_RATE \
-            --node_distance=$distance \
+            --node_distance=$DISTANCE \
 
     # Check if the run was successful
     if [ $? -eq 0 ]; then
@@ -58,7 +58,7 @@ for ((node_count=$START_NODES; node_count<=$END_NODES; node_count++)); do
     python -u sim_end_to_end_transport.py \
             --node_count $node_count \
             --depolar_rate $DEPOLAR_RATE \
-            --node_distance=$distance \
+            --node_distance=$DISTANCE \
             --with_purification \
             --target_fidelity=$TARGET_FID
     # Check if the run was successful
