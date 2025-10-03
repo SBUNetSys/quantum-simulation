@@ -32,7 +32,7 @@ while (( $(echo "$distance <= $END_DISTANCE" | bc -l) )); do
 
     echo "Running experiment for distance: ${distance}km with target fidelity: ${target_fid}"
 
-    python sim_multihop_transportation_concurrent.py \
+    python -u sim_multihop_transportation_concurrent.py \
         --distance $distance \
         --target-fid $target_fid \
         --depolar-rate $DEPOLAR_RATE \
@@ -63,7 +63,7 @@ while (( $(echo "$distance <= $END_DISTANCE" | bc -l) )); do
 
     echo "Running experiment for distance: ${distance}km with target fidelity: ${target_fid}"
 
-    python sim_multihop_transportation_concurrent.py \
+    python -u sim_multihop_transportation_concurrent.py \
         --distance $distance \
         --target-fid $target_fid \
         --depolar-rate $DEPOLAR_RATE \

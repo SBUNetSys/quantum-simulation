@@ -28,7 +28,7 @@ for ((node_count=$START_NODES; node_count<=$END_NODES; node_count++)); do
     echo "Started at: $(date)"
 
     # Run the simulation
-    python sim_multihop_transportation_concurrent.py \
+    python -u sim_multihop_transportation_concurrent.py \
         --distance ${DISTANCE} \
         --target-fid ${TARGET_FID} \
         --depolar-rate ${DEPOLAR_RATE} \
@@ -62,7 +62,7 @@ for ((node_count=$START_NODES; node_count<=$END_NODES; node_count++)); do
     echo "Started at: $(date)"
 
     # Run the simulation
-    python sim_multihop_transportation_concurrent.py \
+    python -u sim_multihop_transportation_concurrent.py \
         --distance ${DISTANCE} \
         --target-fid ${TARGET_FID} \
         --depolar-rate ${DEPOLAR_RATE} \
