@@ -33,8 +33,8 @@ while (( $(echo "$distance <= $END_DISTANCE" | bc -l) )); do
     echo "Running experiment for distance: ${distance}km with target fidelity: ${target_fid}"
 
     python sim_end_to_end_transport.py \
-        --node-count $NODE_COUNT \
-        --depolar-rate $DEPOLAR_RATE \
+        --node_count $NODE_COUNT \
+        --depolar_rate $DEPOLAR_RATE \
         --node_distance=$distance \
 
     if [ $? -eq 0 ]; then
@@ -61,10 +61,10 @@ while (( $(echo "$distance <= $END_DISTANCE" | bc -l) )); do
     echo "Running experiment for distance: ${distance}km with target fidelity: ${target_fid}"
 
     python sim_end_to_end_transport.py \
-        --node-count $NODE_COUNT \
-        --depolar-rate $DEPOLAR_RATE \
+        --node_count $NODE_COUNT \
+        --depolar_rate $DEPOLAR_RATE \
         --node_distance=$distance \
-        --with_verification \
+        --with_purification \
 
     if [ $? -eq 0 ]; then
         echo "Successfully completed experiment for ${distance}km"
