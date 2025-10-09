@@ -572,7 +572,8 @@ class TransportWithPurificationExample(LocalProtocol):
                  node_distance=20,
                  target_fidelity=0.99,
                  qubits_to_transport=1,
-                 skip_noise=False):
+                 skip_noise=False,
+                 with_purify=True):
         if len(network_nodes) < 1:
             raise ValueError("This protocol requires at least nodes.")
         self.all_nodes = network_nodes
@@ -620,18 +621,21 @@ class TransportWithPurificationExample(LocalProtocol):
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
                 # add purification
-                pure_protocol = Purification(node=node,
-                                             name=f"purify_{node.name}->{network_nodes[index - 1].name}",
-                                             entangled_node=network_nodes[index - 1].name,
-                                             entanglement_handler=eh_handler,
-                                             cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                             max_purify_pair=self.max_entangle_pairs,
-                                             target_fidelity=target_fidelity,
-                                             is_top_layer=False,
-                                             logger=null_logger
-                                             )
-                self.add_subprotocol(pure_protocol)
-                qubit_input_protocols.append(pure_protocol)
+                if with_purify:
+                    pure_protocol = Purification(node=node,
+                                                 name=f"purify_{node.name}->{network_nodes[index - 1].name}",
+                                                 entangled_node=network_nodes[index - 1].name,
+                                                 entanglement_handler=eh_handler,
+                                                 cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
+                                                 max_purify_pair=self.max_entangle_pairs,
+                                                 target_fidelity=target_fidelity,
+                                                 is_top_layer=False,
+                                                 logger=null_logger
+                                                 )
+                    self.add_subprotocol(pure_protocol)
+                    qubit_input_protocols.append(pure_protocol)
+                else:
+                    qubit_input_protocols.append(eh_handler)
 
             if index + 1 < len(network_nodes):
                 # case of we have a next node
@@ -658,19 +662,22 @@ class TransportWithPurificationExample(LocalProtocol):
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
-                # Initialize the purification protocol
-                pure_protocol = Purification(node=node,
-                                             name=f"purify_{node.name}->{network_nodes[index + 1].name}",
-                                             entangled_node=network_nodes[index + 1].name,
-                                             entanglement_handler=eh_handler,
-                                             cc_message_handler=self.subprotocols[
-                                                 f"message_handler_{node.name}"],
-                                             max_purify_pair=self.max_entangle_pairs,
-                                             target_fidelity=target_fidelity,
-                                             is_top_layer=False,
-                                             logger=null_logger)
-                self.add_subprotocol(pure_protocol)
-                qubit_input_protocols.append(pure_protocol)
+                if with_purify:
+                    # Initialize the purification protocol
+                    pure_protocol = Purification(node=node,
+                                                 name=f"purify_{node.name}->{network_nodes[index + 1].name}",
+                                                 entangled_node=network_nodes[index + 1].name,
+                                                 entanglement_handler=eh_handler,
+                                                 cc_message_handler=self.subprotocols[
+                                                     f"message_handler_{node.name}"],
+                                                 max_purify_pair=self.max_entangle_pairs,
+                                                 target_fidelity=target_fidelity,
+                                                 is_top_layer=False,
+                                                 logger=null_logger)
+                    self.add_subprotocol(pure_protocol)
+                    qubit_input_protocols.append(pure_protocol)
+                else:
+                    qubit_input_protocols.append(eh_handler)
             # add transport protocol
             entangle_name = network_nodes[index + 1].name if index + 1 < len(network_nodes) \
                 else network_nodes[index - 1].name
@@ -1009,7 +1016,8 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
                                       node_distance, max_entangle_pairs, target_fidelity,
                                       qubit_to_transport,
                                       skip_noise=True,
-                                      is_throughput=False):
+                                      is_throughput=False,
+                                      with_purification=True):
     """
     Run the example verification protocol
     :param is_throughput: throughput mode or not
@@ -1042,7 +1050,8 @@ def example_sim_run_with_purification(nodes, num_runs, memory_depolar_rate,
                                                              node_distance=node_distance,
                                                              target_fidelity=target_fidelity,
                                                              skip_noise=skip_noise,
-                                                             qubits_to_transport=qubit_to_transport)
+                                                             qubits_to_transport=qubit_to_transport,
+                                                             with_purify=with_purification)
 
     # Run the protocol
     def record_run(evexpr):
@@ -1311,7 +1320,8 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
                 target_fidelity=target_fid,
                 skip_noise=True,
                 qubit_to_transport=qubit_number,
-                is_throughput=is_throughput
+                is_throughput=is_throughput,
+                with_purification=with_purify,
             )
 
         # Run simulation
