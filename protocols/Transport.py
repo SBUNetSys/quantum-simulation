@@ -85,8 +85,7 @@ class Transportation(NodeProtocol):
                 if type(protocol) is Purification:
                     await_signals.append(self.await_signal(protocol, MessageType.PURIFICATION_SUCCESS))
                 if type(protocol) is EntanglementHandlerConcurrent:
-                    await_signals.append(self.await_signal(self.entanglement_handler,
-                                                           signal_label=MessageType.ENTANGLED_SUCCESS))
+                    await_signals.append(self.await_signal(protocol, MessageType.ENTANGLED_SUCCESS))
                 else:
                     await_signals.append(self.await_signal(protocol, Signals.SUCCESS))
         # have expression to wait for ANY qubit input signal
