@@ -1,0 +1,155 @@
+{
+    "1": {
+        "teleport_success_count": [
+            1.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            1.0
+        ],
+        "teleport_fids": [
+            0.9999999999999998
+        ],
+        "duration": [
+            30001.0
+        ]
+    },
+    "2": {
+        "teleport_success_count": [
+            0.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            0.0
+        ],
+        "teleport_fids": [
+            0.0
+        ],
+        "duration": [
+            30001.0
+        ]
+    },
+    "3": {
+        "teleport_success_count": [
+            1.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            1.0
+        ],
+        "teleport_fids": [
+            0.9999999999999998
+        ],
+        "duration": [
+            30001.0
+        ]
+    },
+    "4": {
+        "teleport_success_count": [
+            1.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            1.0
+        ],
+        "teleport_fids": [
+            0.9999999999999998
+        ],
+        "duration": [
+            37501.0
+        ]
+    },
+    "5": {
+        "teleport_success_count": [
+            1.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            1.0
+        ],
+        "teleport_fids": [
+            0.9999999999999998
+        ],
+        "duration": [
+            30001.0
+        ]
+    },
+    "6": {
+        "teleport_success_count": [
+            0.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            0.0
+        ],
+        "teleport_fids": [
+            0.0
+        ],
+        "duration": [
+            37501.0
+        ]
+    },
+    "7": {
+        "teleport_success_count": [
+            1.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            1.0
+        ],
+        "teleport_fids": [
+            0.9999999999999998
+        ],
+        "duration": [
+            30001.0
+        ]
+    },
+    "8": {
+        "teleport_success_count": [
+            1.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            1.0
+        ],
+        "teleport_fids": [
+            0.9999999999999998
+        ],
+        "duration": [
+            30001.0
+        ]
+    },
+    "9": {
+        "teleport_success_count": [
+            1.0
+        ],
+        "total_count": [
+            1.0
+        ],
+        "teleport_success_rate": [
+            1.0
+        ],
+        "teleport_fids": [
+            0.9999999999999998
+        ],
+        "duration": [
+            30001.0
+        ]
+    }
+}

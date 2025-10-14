@@ -1,0 +1,26 @@
+{
+    "500": {
+        "0.99": {
+            "teleport_success_count": [
+                1,
+                1
+            ],
+            "total_count": [
+                1,
+                1
+            ],
+            "teleport_success_rate": [
+                1.0,
+                1.0
+            ],
+            "teleport_fids": [
+                0.9999999999999999,
+                0.9999999999999999
+            ],
+            "duration": [
+                15001.0,
+                20001.0
+            ]
+        }
+    }
+}
