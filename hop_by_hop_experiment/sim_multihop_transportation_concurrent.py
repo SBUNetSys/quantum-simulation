@@ -1503,7 +1503,7 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
 
 def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_count,
                                    batch_size, with_purify, is_throughput,
-                                   with_verification, preload=False):
+                                   with_verification, preload=False, total_runs=1000):
     """Main function with multiprocessing support"""
 
     # Setup file paths
@@ -1536,8 +1536,8 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
 
     success_run = len(all_result) if len(all_result) == len(all_result_raw) else 0
 
-    while success_run < 1000:
-        print(f"Run {success_run + 1} / 1000")
+    while success_run < total_runs:
+        print(f"Run {success_run + 1} / total {total_runs}")
 
         # Create queue for inter-process communication
         queue = Queue()
@@ -1640,7 +1640,7 @@ if __name__ == '__main__':
     parser.add_argument('--is-throughput', action='store_true', help='Enable throughput mode')
     parser.add_argument('--with-verification', action='store_true', help='Enable verification')
     parser.add_argument('--preload', action='store_true', help='Preload existing results if available')
-
+    parser.add_argument('--total-runs', type=int, default=1000, help='Total number of runs to perform')
     args = parser.parse_args()
     print(
         f"Running with args: with args: "
@@ -1652,6 +1652,7 @@ if __name__ == '__main__':
         f"\n\twith_purify={args.with_purify}" 
         f"\n\tis_throughput={args.is_throughput}"
         f"\n\twith_verification={args.with_verification}"
+        f"\n\ttotal_runs={args.total_runs}"
         f"\n\tpreload={args.preload}")
     # result = run_transport_sim(
     #     distance=args.distance,
@@ -1674,6 +1675,7 @@ if __name__ == '__main__':
         is_throughput=args.is_throughput,
         with_verification=args.with_verification,
         preload=args.preload,
+        total_runs=args.total_runs
     )
 
     # simulate_transport_with_verification_increasing_distance(all_distance=[1.0],
