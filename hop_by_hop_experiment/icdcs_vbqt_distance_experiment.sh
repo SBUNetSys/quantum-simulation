@@ -23,7 +23,7 @@ while (( $(echo "$distance <= $END_DISTANCE" | bc -l) )); do
 	      --with-verification \
         --node-count $NODE_COUNT \
         --batch-size 4 \
-        --total-runs 1000
+        --total-runs 1000 \
         --preload
 
     if [ $? -eq 0 ]; then
