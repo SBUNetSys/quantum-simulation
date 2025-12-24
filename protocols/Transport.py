@@ -461,7 +461,7 @@ class Transportation(NodeProtocol):
                                  f"Current Qubits Received {len(self.final_result[self.entangled_node])}\n"
                                  f"Target Qubits Needed {self.transmitting_qubit_size}\n", color="green")
                 self.send_signal(MessageType.TRANSPORT_SUCCESS,
-                                 {"results": self.final_result[self.entangled_node],})
+                                 {"results": fid})
             transport_memory = self.node.subcomponents[f"{self.node.name}_transport_qmemory"]
             transport_memory.put(qubit, message.target_memo_pos)
 

@@ -441,7 +441,7 @@ class Transportation(NodeProtocol):
                                  f"Target Qubits Needed {self.transmitting_qubit_size}\n"
                                  f"Fid {fid}", color="blue")
                 self.send_signal(MessageType.MULTI_HOP_SUCCESS,
-                                 {"results": self.final_result[self.entangled_node],})
+                                 {"results": fid,})
 
     def get_qmemory(self, node_name):
         """

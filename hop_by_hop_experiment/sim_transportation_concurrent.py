@@ -16,6 +16,8 @@ from netsquid.protocols.protocol import Signals
 from netsquid.qubits import ketstates as ks
 import sys
 
+from setuptools.sandbox import save_path
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network_parallel
 from utils import Logging
@@ -546,7 +548,8 @@ class TransportWithVerificationThroughput(LocalProtocol):
                 results = self.subprotocols[f"transport_{self.all_nodes[-1].name}"].get_signal_result(
                     MessageType.TRANSPORT_SUCCESS, self)
                 # print(results)
-                self.send_signal(Signals.SUCCESS, results)
+                result_dic = {"teleport_fid": results["results"],}
+                self.send_signal(Signals.SUCCESS, result_dic)
 
 
     def get_cc_ports(self, node):
@@ -1000,11 +1003,14 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
     # Run the protocol
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
-        result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Verification Run {result['run_index']} completed, fid{result['results']['teleport_fids']}, "
-              f"sim_time {sim_time()}")
-        return result["results"]
-
+        run_result = protocol.get_signal_result(Signals.SUCCESS)
+        if not is_throughput:
+            print(f"Verification Run {run_result['run_index']} completed, fid{run_result['results']['teleport_fids']}, "
+                  f"sim_time {sim_time()}")
+            return run_result["results"]
+        else:
+            print(f"Verification Run completed. Fidelity: {run_result['teleport_fid']}, sim_time {sim_time()}")
+            return run_result
     dc = DataCollector(record_run, include_time_stamp=False,
                        include_entity_name=False)
     dc.collect_on(pd.EventExpression(source=transport_example,
@@ -1232,7 +1238,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count,batch_size,
     # Run the simulation
     transport_example.start()
     if is_throughput:
-        ns.sim_run(duration=1e9)
+        ns.sim_run(duration=1e7)
     else:
         ns.sim_run()
     # Collect the data
@@ -1258,6 +1264,7 @@ def run_transport_sim(distance, target_fid, depolar_rate, node_count,batch_size,
         # if c not in node_data:
         #     node_data[c] = []
         # node_data[c].append(collected_data[c].values)
+
     transport_example.stop()
     # ns.set_random_state(rng=np.random.RandomState())
     print(f"Teleportation Done\n"
@@ -1284,14 +1291,21 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
         node_data_raw = {}
 
         nodes_list = [f"Node_{i}" for i in range(node_count)]
-        network = setup_network_parallel(nodes_list, "hop-by-hop-purification",
-                                         memory_capacity=101, memory_depolar_rate=depolar_rate,
-                                         node_distance=distance)
+        if is_throughput:
+            network = setup_network_parallel(nodes_list, "hop-by-hop-purification",
+                                             memory_capacity=9001, memory_depolar_rate=depolar_rate,
+                                             node_distance=distance)
+            max_entangle_pair = 9000
+        else:
+            network = setup_network_parallel(nodes_list, "hop-by-hop-purification",
+                                             memory_capacity=101, memory_depolar_rate=depolar_rate,
+                                             node_distance=distance)
+            max_entangle_pair = 100
 
         sample_nodes = [node for node in network.nodes.values()]
 
         # Set qubit number based on throughput mode
-        qubit_number = 1500 if is_throughput else 1
+        qubit_number = 9000 if is_throughput else 1
 
         if with_verification:
             transport_example, dc = example_sim_run_with_verification(
@@ -1299,7 +1313,7 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
                 num_runs=1,
                 memory_depolar_rate=depolar_rate,
                 node_distance=distance,
-                max_entangle_pairs=100,
+                max_entangle_pairs=max_entangle_pair,
                 target_fidelity=target_fid,
                 skip_noise=True,
                 qubit_to_transport=qubit_number,
@@ -1316,7 +1330,7 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
                 num_runs=1,
                 memory_depolar_rate=depolar_rate,
                 node_distance=distance,
-                max_entangle_pairs=100,
+                max_entangle_pairs=max_entangle_pair,
                 target_fidelity=target_fid,
                 skip_noise=True,
                 qubit_to_transport=qubit_number,
@@ -1327,7 +1341,7 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
         # Run simulation
         transport_example.start()
         if is_throughput:
-            ns.sim_run(duration=1e9)
+            ns.sim_run(duration=1e6)
         else:
             ns.sim_run()
 
@@ -1337,14 +1351,22 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
             if c not in node_data:
                 node_data[c] = []
                 node_data_raw[c] = []
-            if c == "teleport_fids":
-                s = []
-                for t in collected_data[c]:
-                    s += t
-                node_data_raw[c] = s
-                node_data[c].append(np.mean(s))
+            if not is_throughput:
+                if c == "teleport_fids":
+                    s = []
+                    for t in collected_data[c]:
+                        s += t
+                    node_data_raw[c] = s
+                    node_data[c].append(np.mean(s))
+                else:
+                    node_data[c].append(collected_data[c].mean())
             else:
-                node_data[c].append(collected_data[c].mean())
+                # if is throughput, we only care fidelity
+                if c == "teleport_fid":
+                    # all are list value so we have no raw or not raw difference
+                    fid_values = collected_data[c].values.tolist()
+                    node_data_raw[c].append(fid_values)
+                    node_data[c].append(fid_values)
 
         transport_example.stop()
         ns.sim_stop()
@@ -1369,18 +1391,23 @@ def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_coun
     """Main function with multiprocessing support"""
 
     # Setup file paths
+
     if not is_throughput:
-        data_save_path = (f"./transportation_results/"
+        save_dir = "./transportation_results/"
+        os.makedirs(save_dir, exist_ok=True)
+        data_save_path = os.path.join(save_dir,
                           f"hbh_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                           f"{with_purify}_{target_fid}_verify_{with_verification}_1_qubit.json")
-        raw_data_save_path = (f"./transportation_results/"
+        raw_data_save_path = os.path.join(save_dir,
                               f"hbh_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                               f"{with_purify}_{target_fid}_verify_{with_verification}_1_qubit_raw.json")
     else:
-        data_save_path = (f"./transportation_results/"
+        save_dir = "./transport_throughput/"
+        os.makedirs(save_dir, exist_ok=True)
+        data_save_path = os.path.join(save_dir,
                           f"hbh_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                           f"{with_purify}_{target_fid}_verify_{with_verification}_throughput.json")
-        raw_data_save_path = (f"./transportation_results/"
+        raw_data_save_path = os.path.join(save_dir,
                               f"hbh_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
                               f"{with_purify}_{target_fid}_verify_{with_verification}_throughput_raw.json")
 
