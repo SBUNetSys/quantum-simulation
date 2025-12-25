@@ -1146,10 +1146,12 @@ def run_test_example_with_verification(qubit_number=1):
 def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, with_purification=True,
                        target_fidelity=0.98, with_verification=False, batch_size=4, m_size=3,
                        node_distance=1.0, depolar_rate=63109, preload=False):
-    save_file = (f"./transportation_results/e2e_{node_count}nodes_{node_distance}m_{qubit_number}_qubit_{depolar_rate}Hz_"
+    save_dir = "./e2e_5nodes_transportation_results/"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    save_file = os.path.join(save_dir,f"e2e_{node_count}nodes_{node_distance}m_{qubit_number}_qubit_{depolar_rate}Hz_"
                  f"purification_{with_purification}_verification_{with_verification}_throughput_{throughput_mode}.json")
-    save_file_raw = (
-        f"./transportation_results/e2e_{node_count}nodes_{node_distance}m_{qubit_number}_qubit_{depolar_rate}Hz_"
+    save_file_raw = os.path.join(save_dir, f"e2e_{node_count}nodes_{node_distance}m_{qubit_number}_qubit_{depolar_rate}Hz_"
         f"purification_{with_purification}_verification_{with_verification}_throughput_{throughput_mode}_raw.json")
     CU_matrix = None
     CU_gate = None
@@ -1173,7 +1175,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
         try:
             nodes_list = [f"Node_{j}" for j in range(node_count)]
             network = setup_network_parallel(nodes_list, "end-to-end-transportation",
-                                    memory_capacity=101, memory_depolar_rate=depolar_rate,
+                                    memory_capacity=1001, memory_depolar_rate=depolar_rate,
                                     node_distance=node_distance)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
@@ -1182,7 +1184,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
                                                                           num_runs=1,
                                                                           memory_depolar_rate=depolar_rate,
                                                                           node_distance=node_distance,
-                                                                          max_entangle_pairs=100,
+                                                                          max_entangle_pairs=1000,
                                                                           target_fidelity=target_fidelity,
                                                                           qubit_to_transport=qubit_number,
                                                                           m_size=m_size,
