@@ -12,7 +12,7 @@ echo "With verification, no purification"
 echo "----------------------------------------"
 
 python -u sim_vbqt_transportation_concurrent.py \
-      --distance $distance \
+      --distance $DISTANCE \
       --target-fid $TARGET_FID \
       --depolar-rate $DEPOLAR_RATE \
       --with-verification \
