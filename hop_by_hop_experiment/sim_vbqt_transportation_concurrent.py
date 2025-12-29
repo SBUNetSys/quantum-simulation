@@ -17,6 +17,8 @@ from netsquid.protocols.protocol import Signals
 from netsquid.qubits import ketstates as ks
 import sys
 
+from setuptools.sandbox import save_path
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.NetworkSetup import setup_network_parallel
 from utils import Logging
@@ -1528,21 +1530,21 @@ def run_transport_sim_worker(queue, distance, target_fid, depolar_rate, node_cou
 
 def run_transport_sim_multiprocess(distance, target_fid, depolar_rate, node_count,
                                    batch_size, with_purify, is_throughput,
-                                   with_verification, preload=False, total_runs=1000):
+                                   with_verification, preload=False, total_runs=1000, save_path="./vbqt_results/"):
     """Main function with multiprocessing support"""
 
     # Setup file paths
 
 
     if not is_throughput:
-        save_dir = "./vbqt_results/"
+        save_dir = save_path
         os.makedirs(save_dir, exist_ok=True)
         data_save_path = os.path.join(save_dir,
                           f"vbqt_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
-                          f"{with_purify}_{target_fid}_verify_{with_verification}_1_qubit.json")
+                          f"{with_purify}_{target_fid}_verify_{with_verification}_batch_{batch_size}_qubit.json")
         raw_data_save_path = os.path.join(save_dir,
                               f"vbqt_transport_{node_count}_nodes_{distance}km@{depolar_rate}hz_purify_"
-                              f"{with_purify}_{target_fid}_verify_{with_verification}_1_qubit_raw.json")
+                              f"{with_purify}_{target_fid}_verify_{with_verification}_batch_{batch_size}_qubit_raw.json")
     else:
         save_dir = "./vbqt_throughput_results/"
         os.makedirs(save_dir, exist_ok=True)
@@ -1672,6 +1674,7 @@ if __name__ == '__main__':
     parser.add_argument('--with-verification', action='store_true', help='Enable verification')
     parser.add_argument('--preload', action='store_true', help='Preload existing results if available')
     parser.add_argument('--total-runs', type=int, default=1000, help='Total number of runs to perform')
+    parser.add_argument('--save-path', type=str, default='./vbqt_results/', help='Path to save results')
     args = parser.parse_args()
     print(
         f"Running with args: with args: "
@@ -1684,7 +1687,9 @@ if __name__ == '__main__':
         f"\n\tis_throughput={args.is_throughput}"
         f"\n\twith_verification={args.with_verification}"
         f"\n\ttotal_runs={args.total_runs}"
-        f"\n\tpreload={args.preload}")
+        f"\n\tpreload={args.preload}"
+        f"\n\tsave_path={args.save_path}"
+    )
     # result = run_transport_sim(
     #     distance=args.distance,
     #     target_fid=args.target_fid,
@@ -1706,7 +1711,8 @@ if __name__ == '__main__':
         is_throughput=args.is_throughput,
         with_verification=args.with_verification,
         preload=args.preload,
-        total_runs=args.total_runs
+        total_runs=args.total_runs,
+        save_path=args.save_path
     )
 
     # simulate_transport_with_verification_increasing_distance(all_distance=[1.0],
