@@ -1232,6 +1232,7 @@ def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, wit
             transport_example.stop()
             ns.set_random_state(rng=np.random.RandomState())
             ns.sim_reset()
+            gc.collect()
             with open(save_file_raw, "w") as f:
                 json.dump(node_data, f)
             with open(save_file, "w") as f:

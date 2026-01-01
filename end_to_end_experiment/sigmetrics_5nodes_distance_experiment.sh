@@ -4,8 +4,8 @@
 NODE_COUNT=5
 DEPOLAR_RATE=24483
 START_DISTANCE=0.5
-END_DISTANCE=2.5
-STEP=0.25
+END_DISTANCE=5.0
+STEP=0.5
 
 # Target fidelities for different distances
 declare -A TARGET_FIDS
