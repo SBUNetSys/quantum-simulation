@@ -197,11 +197,15 @@ def load_vbqt_results(results_dir):
     """Load hop-by-hop experiment results"""
     results = {}
     pattern = r'vbqt_transport_(\d+)_nodes_([\d.]+)km@([\d.]+)hz_purify_(\w+)_([\d.]+)_verify_(\w+)_(\d+)_qubit'
+    pattern2 = r'vbqt_transport_(\d+)_nodes_([\d.]+)km@([\d.]+)hz_purify_(\w+)_([\d.]+)_verify_(\w+)_batch_(\d+)_qubit'
 
     for file in Path(results_dir).glob('vbqt_transport_*.json'):
         if 'raw' in file.name:
             continue
-        match = re.search(pattern, file.name)
+        if 'batch' in file.name:
+            match = re.search(pattern2, file.name)
+        else:
+            match = re.search(pattern, file.name)
         if match:
             nodes = int(match.group(1))
             distance = float(match.group(2))
@@ -236,6 +240,56 @@ def load_vbqt_results(results_dir):
                             "goodput": goodput}
 
     return results
+
+
+def load_vbqt_batch_results(results_dir):
+    """Load hop-by-hop experiment results"""
+    results = {}
+    pattern = r'vbqt_transport_(\d+)_nodes_([\d.]+)km@([\d.]+)hz_purify_(\w+)_([\d.]+)_verify_(\w+)_batch_(\d+)_qubit'
+
+    for file in Path(results_dir).glob('vbqt_transport_*.json'):
+        if 'raw' in file.name:
+            continue
+        match = re.search(pattern, file.name)
+        if match:
+            nodes = int(match.group(1))
+            distance = float(match.group(2))
+            rate = float(match.group(3))
+            purify = match.group(4) == 'True'
+            target_fid = float(match.group(5))
+            verify = match.group(6) == 'True'
+            qubit_count = int(match.group(7))
+            with open(file) as f:
+                data = json.load(f)
+                fid_data = []
+            nan_count = 0
+            duration_data = []
+            goodput = 0
+            for run, val in data.items():
+                for fid_val in val["teleport_fids_all"]:
+                    if fid_val is None or np.isnan(fid_val):
+                        nan_count += 1
+                    else:
+                        fid_data.append(fid_val)
+                        if fid_val >= 0.7:
+                            goodput += 1
+                duration_data.append(val["duration"][0])
+            goodput_ratio = goodput / len(fid_data) if len(fid_data) > 0 else 0
+            key = (nodes, distance, rate, purify, verify, target_fid, qubit_count)
+            # if nodes == 5 and rate==8641 and not purify and verify:
+            #     plot_cdf(fid_data,
+            #              f'Hop-by-Hop Fidelity CDF {nodes} Nodes {distance}km {rate}Hz Purify {purify} Verify {verify}',
+            #              'Fidelity', xlim=(0, 1), save=True,)
+            results[key] = {"duration": np.mean(duration_data),
+                            "teleport_fids": np.mean(fid_data),
+                            "goodput_ratio": goodput_ratio,
+                            "goodput": goodput,
+                            "batch_size": qubit_count
+                            }
+
+    return results
+
+
 
 def load_default_results(results_dir):
     """Load hop-by-hop experiment results"""
@@ -277,12 +331,15 @@ def load_default_results(results_dir):
 
     return results
 
-def plot_distance_comparison(e2e_results, hbh_results, default_result,  depolar_rate=8641, nodes=3):
+def plot_distance_comparison(e2e_results, hbh_results, default_result,  depolar_rate=8641, nodes=3,
+                             save_dir="./sigmetrics_plots"):
     """Plot metrics vs distance for both schemes"""
-
+    os.makedirs(save_dir, exist_ok=True)
     # Extract data for e2e (no purification, no verification)
     e2e_distances, e2e_fidelities, e2e_latencies, e2e_goodput = [], [], [], []
     for (n, d, r, p, v), data in e2e_results.items():
+        if d < 1:
+            continue
         if n == nodes and r == depolar_rate and not p and not v:
             e2e_distances.append(d)
             fid = data.get('teleport_fids', 0)
@@ -294,17 +351,19 @@ def plot_distance_comparison(e2e_results, hbh_results, default_result,  depolar_
     hbh_distances, hbh_fidelities, hbh_latencies, hbh_goodput = [], [], [], []
     for (n, d, r, p, v, tf), data in hbh_results.items():
         if n == nodes and r == depolar_rate and not p and v:
-            hbh_distances.append(d)
-            hbh_fidelities.append(data.get('teleport_fids', 0))
-            hbh_latencies.append(data.get('duration', 0))
-            hbh_goodput.append(data.get('goodput', 0))
+            if d not in hbh_distances:
+                hbh_distances.append(d)
+                hbh_fidelities.append(data.get('teleport_fids', 0))
+                hbh_latencies.append(data.get('duration', 0))
+                hbh_goodput.append(data.get('goodput', 0))
     default_distances, default_fidelities, default_latencies, default_goodput = [], [], [], []
     for (n, d, r, p, v, tf), data in default_result.items():
         if n == nodes and r == depolar_rate and not p and not v:
-            default_distances.append(d)
-            default_fidelities.append(data.get('teleport_fids', 0))
-            default_latencies.append(data.get('duration', 0))
-            default_goodput.append(data.get('goodput', 0))
+            if d not in default_distances:
+                default_distances.append(d)
+                default_fidelities.append(data.get('teleport_fids', 0))
+                default_latencies.append(data.get('duration', 0))
+                default_goodput.append(data.get('goodput', 0))
 
 
     # Sort by distance
@@ -326,8 +385,8 @@ def plot_distance_comparison(e2e_results, hbh_results, default_result,  depolar_
         title=f'Fidelity vs Distance ({nodes} nodes, {depolar_rate} Hz)',
         x_label='Distance (km)',
         y_label='Average Fidelity',
-        data_legends=['End-to-End 3 Nodes', 'VBQT 3 Nodes', "Hop-by-Hop 3 Nodes"],
-        save_dir='./sigmetrics_plots',
+        data_legends=[f'End-to-End {nodes} Nodes', f'VBQT {nodes} Nodes', f"Hop-by-Hop {nodes} Nodes"],
+        save_dir=save_dir,
         ylim=(0, 1)
     )
 
@@ -338,8 +397,8 @@ def plot_distance_comparison(e2e_results, hbh_results, default_result,  depolar_
         title=f'Latency vs Distance ({nodes} nodes, {depolar_rate} Hz)',
         x_label='Distance (km)',
         y_label='Transmission Time (ns)',
-        data_legends=['End-to-End 3 Nodes', 'VBQT 3 Nodes', "Hop-by-Hop 3 Nodes"],
-        save_dir='./sigmetrics_plots'
+        data_legends=[f'End-to-End {nodes} Nodes', f'VBQT {nodes} Nodes', f"Hop-by-Hop {nodes} Nodes"],
+        save_dir=save_dir,
     )
     # plot goodput using plot_lines
     e2e_goodput = np.array(e2e_goodput) / (np.array(e2e_latencies) / 1e3)  # Convert ns to us
@@ -351,14 +410,15 @@ def plot_distance_comparison(e2e_results, hbh_results, default_result,  depolar_
         title=f'Goodput vs Distance ({nodes} nodes, {depolar_rate} Hz)',
         x_label='Distance (km)',
         y_label='Goodput',
-        data_legends=['End-to-End 3 Nodes', 'VBQT 3 Nodes', "Hop-by-Hop 3 Nodes"],
-        save_dir='./sigmetrics_plots',
+        data_legends=[f'End-to-End {nodes} Nodes', f'VBQT {nodes} Nodes', f"Hop-by-Hop {nodes} Nodes"],
+        save_dir=save_dir,
         # ylim=(0, 1)
     )
 def plot_distance_comparison_more_hbh_node(e2e_results, hbh_results, default_result,
-                                           depolar_rate=8641, e2e_nodes=5, hbh_nodes=5):
+                                           depolar_rate=8641, e2e_nodes=5, hbh_nodes=5,
+                                           save_dir="./sigmetrics_plots"):
     """Plot metrics vs distance for both schemes"""
-
+    os.makedirs(save_dir, exist_ok=True)
     # Extract data for e2e (no purification, no verification)
     e2e_distances, e2e_fidelities, e2e_latencies, e2e_goodput, e2e_goodput_ratio = [], [], [], [], []
     for (n, d, r, p, v), data in e2e_results.items():
@@ -428,7 +488,7 @@ def plot_distance_comparison_more_hbh_node(e2e_results, hbh_results, default_res
         x_label='Total Path Distance (km)',
         y_label='Average Fidelity',
         data_legends=[f'End-to-End {e2e_nodes} Nodes', 'VBQT 5 Nodes', 'Hop-by-Hop 5 Nodes'],
-        save_dir='./sigmetrics_plots',
+        save_dir=save_dir,
         ylim=(0, 1)
     )
 
@@ -440,7 +500,7 @@ def plot_distance_comparison_more_hbh_node(e2e_results, hbh_results, default_res
         x_label='Total Path Distance (km)',
         y_label='Transmission Time (ns)',
         data_legends=[f'End-to-End {e2e_nodes} Nodes', 'VBQT 5 Nodes', 'Hop-by-Hop 5 Nodes'],
-        save_dir='./sigmetrics_plots'
+        save_dir=save_dir,
     )
     # plot goodput using plot_lines
     e2e_latencies_ms = np.array(e2e_latencies) / 1e3  # Convert ns to us
@@ -457,7 +517,7 @@ def plot_distance_comparison_more_hbh_node(e2e_results, hbh_results, default_res
         x_label='Total Path Distance (km)',
         y_label='Goodput',
         data_legends=[f'End-to-End {e2e_nodes} Nodes', 'VBQT 5 Nodes', 'Hop-by-Hop 5 Nodes', ], #'VBQT 6 Nodes'
-        save_dir='./sigmetrics_plots',
+        save_dir=save_dir,
         # ylim=(0, 1)
     )
     # plot goodput ratio
@@ -468,14 +528,16 @@ def plot_distance_comparison_more_hbh_node(e2e_results, hbh_results, default_res
         x_label='Total Path Distance (km)',
         y_label='Goodput Ratio',
         data_legends=[f'End-to-End {e2e_nodes} Nodes', 'VBQT 5 Nodes', 'Hop-by-Hop 5 Nodes'],
-        save_dir='./sigmetrics_plots',
+        save_dir=save_dir,
         ylim=(0, 1)
     )
 
 
-def plot_nodecount_comparison(e2e_results, hbh_results,default_results, depolar_rate=8641, distance=1.0):
+def plot_nodecount_comparison(e2e_results, hbh_results,default_results, depolar_rate=8641, distance=1.0,
+                              save_dir="./sigmetrics_plots"):
     """Plot metrics vs node count for both schemes"""
 
+    os.makedirs(save_dir, exist_ok=True)
     # Extract data for e2e
     e2e_nodes, e2e_fidelities, e2e_latencies, e2e_goodput = [], [], [], []
     for (n, d, r, p, v), data in e2e_results.items():
@@ -527,7 +589,7 @@ def plot_nodecount_comparison(e2e_results, hbh_results,default_results, depolar_
         x_label='Number of Nodes',
         y_label='Average Fidelity',
         data_legends=['End-to-End', 'VBQT', 'Hop-by-Hop'],
-        save_dir='./sigmetrics_plots'
+        save_dir=save_dir
     )
     plot_bars(
         xs=[e2e_nodes, hbh_nodes, default_nodes],
@@ -536,7 +598,7 @@ def plot_nodecount_comparison(e2e_results, hbh_results,default_results, depolar_
         x_label='Number of Nodes',
         y_label='Average Fidelity',
         data_legends=['End-to-End', 'VBQT', 'Hop-by-Hop'],
-        save_dir='./sigmetrics_plots'
+        save_dir=save_dir
     )
     # Plot latency using plot_lines
     plot_lines(
@@ -546,7 +608,7 @@ def plot_nodecount_comparison(e2e_results, hbh_results,default_results, depolar_
         x_label='Number of Nodes',
         y_label='Transmission Time (ns)',
         data_legends=['End-to-End', 'VBQT', 'Hop-by-Hop'],
-        save_dir='./sigmetrics_plots'
+        save_dir=save_dir
     )
     plot_bars(
         xs=[e2e_nodes, hbh_nodes, default_nodes],
@@ -555,7 +617,7 @@ def plot_nodecount_comparison(e2e_results, hbh_results,default_results, depolar_
         x_label='Number of Nodes',
         y_label='Transmission Time (ns)',
         data_legends=['End-to-End', 'VBQT', 'Hop-by-Hop'],
-        save_dir='./sigmetrics_plots'
+        save_dir=save_dir
     )
     # plot goodput using plot_bar
     plot_bars(xs=[e2e_nodes, hbh_nodes, default_nodes],
@@ -564,7 +626,7 @@ def plot_nodecount_comparison(e2e_results, hbh_results,default_results, depolar_
         x_label='Number of Nodes',
         y_label='Goodput',
         data_legends=['End-to-End', 'VBQT', 'Hop-by-Hop'],
-        save_dir='./sigmetrics_plots'
+        save_dir=save_dir
     )
 
     plot_lines(xs=[e2e_nodes, hbh_nodes, default_nodes],
@@ -573,7 +635,60 @@ def plot_nodecount_comparison(e2e_results, hbh_results,default_results, depolar_
               x_label='Number of Nodes',
               y_label='Goodput',
               data_legends=['End-to-End', 'VBQT', 'Hop-by-Hop'],
-              save_dir='./sigmetrics_plots'
+              save_dir=save_dir
+    )
+
+def plot_vbqt_batch_size_comparison(vbqt_results, depolar_rate=8641, distance=1.0,
+                              save_dir="./sigmetrics_plots"):
+    """Plot metrics vs node count for both schemes"""
+
+    os.makedirs(save_dir, exist_ok=True)
+    # Extract data for e2e
+    hbh_distances, hbh_fidelities, hbh_latencies, hbh_goodput, hbh_goodput_ratio, hbh_batch_size =\
+        [], [], [], [], [], []
+    for (n, d, r, p, v, tf, bs), data in vbqt_results.items():
+        hbh_distances.append(d)
+        hbh_fidelities.append(data.get('teleport_fids', 0))
+        hbh_latencies.append(data.get('duration', 0))
+        hbh_goodput.append(data.get('goodput', 0))
+        hbh_goodput_ratio.append(data.get('goodput_ratio', 0))
+        hbh_batch_size.append(data.get('batch_size', 0))
+    # Sort by batch size
+    hbh_sorted = sorted(zip(hbh_batch_size, hbh_fidelities, hbh_latencies, hbh_goodput, hbh_goodput_ratio))
+    if hbh_sorted:
+        hbh_batch_size, hbh_fidelities, hbh_latencies, hbh_goodput, hbh_goodput_ratio = zip(*hbh_sorted)
+    # calculate the goodput over time
+    hbh_latencies_ms = np.array(hbh_latencies) / 1e3
+    hbh_goodput_per_us = np.array(hbh_goodput) / hbh_latencies_ms
+    # Plot fidelity using plot_lines
+    plot_bars(
+        xs=[hbh_batch_size],
+        ys=[hbh_fidelities],
+        title=f'Fidelity vs Batch Size ({distance} km, {depolar_rate} Hz) bar',
+        x_label='Batch Size',
+        y_label='Average Fidelity',
+        # data_legends=[f"VBQT Batch Size {size}" for size in hbh_batch_size],
+        data_legends="VBQT Batch Size",
+        save_dir=save_dir
+    )
+    plot_bars(xs=[hbh_batch_size],
+              ys=[hbh_latencies],
+              title=f'Latency vs Batch Size ({distance} km, {depolar_rate} Hz bar',
+                x_label='Batch Size',
+                y_label='Transmission Time (ns)',
+                # data_legends=[f"VBQT Batch Size {size}" for size in hbh_batch_size],
+              data_legends="VBQT Batch Size",
+                save_dir=save_dir
+              )
+    # plot goodput using plot_bar
+    plot_bars(xs=[hbh_batch_size],
+              ys=[hbh_goodput_per_us],
+              title=f'Goodput vs Batch Size ({distance} km, {depolar_rate} Hz) bar',
+                x_label='Batch Size',
+                y_label='Goodput',
+                # data_legends=[f"VBQT Batch Size {size}" for size in hbh_batch_size],
+              data_legends="VBQT Batch Size",
+                save_dir=save_dir
               )
 
 
@@ -583,6 +698,7 @@ if __name__ == '__main__':
     e2e_results = load_e2e_results('../end_to_end_experiment/e2e_combined_result')
     # hbh_results = load_hopbyhop_results('./transportation_results')
     hbh_results = load_vbqt_results('./vbqt_results')
+    batch_results = load_vbqt_batch_results("./vbqt_batchsize_experiments")
     default_results = load_default_results('./transportation_results')
     print(f"Loaded {len(e2e_results)} end-to-end results")
     print(f"Loaded {len(hbh_results)} hop-by-hop results")
@@ -595,4 +711,18 @@ if __name__ == '__main__':
     #                                        hbh_nodes=5)
 
     # Plot node count comparison (1.0 km, 8641 Hz)
-    plot_nodecount_comparison(e2e_results, hbh_results, default_results, depolar_rate=8641, distance=1.0)
+    # plot_nodecount_comparison(e2e_results, hbh_results, default_results, depolar_rate=8641, distance=1.0
+    #                           , save_dir="./icdcs_plots/")
+    # plot_distance_comparison(e2e_results, hbh_results, default_results, depolar_rate=8641, nodes=3,
+    #                          save_dir="./icdcs_plots/")
+    # plot_distance_comparison(e2e_results, hbh_results, default_results, depolar_rate=8641, nodes=5,
+    #                          save_dir="./icdcs_plots/")
+    # plot_distance_comparison_more_hbh_node(e2e_results, hbh_results, default_results, depolar_rate=8641, e2e_nodes=5,
+    #                                        hbh_nodes=5,
+    #                                        save_dir="./icdcs_plots/")
+    plot_distance_comparison(e2e_results, hbh_results, default_results, depolar_rate=24483, nodes=3,
+                             save_dir="./icdcs_plots/")
+    plot_distance_comparison(e2e_results, hbh_results, default_results, depolar_rate=24483, nodes=5,
+                             save_dir="./icdcs_plots/")
+    # plot_vbqt_batch_size_comparison(vbqt_results=batch_results, depolar_rate=8641, distance=1.0,
+    #                                 save_dir="./icdcs_plots/")
