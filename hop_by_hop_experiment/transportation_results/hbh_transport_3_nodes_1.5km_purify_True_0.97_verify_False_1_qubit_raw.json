@@ -1,0 +1,20 @@
+{
+    "1": {
+        "teleport_success_count": [],
+        "total_count": [],
+        "teleport_success_rate": [],
+        "teleport_fids": [
+            0.0
+        ],
+        "duration": []
+    },
+    "2": {
+        "teleport_success_count": [],
+        "total_count": [],
+        "teleport_success_rate": [],
+        "teleport_fids": [
+            0.0
+        ],
+        "duration": []
+    }
+}

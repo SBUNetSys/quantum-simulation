@@ -12,8 +12,10 @@ import netsquid.qubits.operators as ops
 from netsquid.components.instructions import INSTR_Z, INSTR_X
 
 from protocols.MessageHandler import MessageType
+from protocols.EntanglementHandlerConcurrent import EntanglementHandlerConcurrent
 from utils import Logging
 from utils.ClassicalMessages import ClassicalMessage
+from protocols.Purification import Purification
 from utils.SignalMessages import *
 
 
@@ -78,7 +80,14 @@ class Transportation(NodeProtocol):
             await_signals = [self.await_signal(protocol, MessageType.SECURITY_TRANSPORT_QUBIT)
                              for protocol in qubit_ready_protocols]
         else:
-            await_signals = [self.await_signal(protocol, Signals.SUCCESS) for protocol in qubit_ready_protocols]
+            await_signals = []
+            for protocol in qubit_ready_protocols:
+                if type(protocol) is Purification:
+                    await_signals.append(self.await_signal(protocol, MessageType.PURIFICATION_SUCCESS))
+                if type(protocol) is EntanglementHandlerConcurrent:
+                    await_signals.append(self.await_signal(protocol, MessageType.ENTANGLED_SUCCESS))
+                else:
+                    await_signals.append(self.await_signal(protocol, Signals.SUCCESS))
         # have expression to wait for ANY qubit input signal
         self.qubit_input_signal = reduce(operator.or_, await_signals)
         # classical message handler
@@ -452,7 +461,7 @@ class Transportation(NodeProtocol):
                                  f"Current Qubits Received {len(self.final_result[self.entangled_node])}\n"
                                  f"Target Qubits Needed {self.transmitting_qubit_size}\n", color="green")
                 self.send_signal(MessageType.TRANSPORT_SUCCESS,
-                                 {"results": self.final_result[self.entangled_node],})
+                                 {"results": fid})
             transport_memory = self.node.subcomponents[f"{self.node.name}_transport_qmemory"]
             transport_memory.put(qubit, message.target_memo_pos)
 

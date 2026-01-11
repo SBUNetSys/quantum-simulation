@@ -56,8 +56,11 @@ class Verification(NodeProtocol):
         self.measurement_m0 = measurement_m0
         self.measurement_m1 = measurement_m1
         # controlled unitary gate
-        self.CU_Gate = CU_Gate
-        self.CCU_Gate = CCU_Gate
+        CU_matrix = controlled_unitary(batch_size)
+        CU_gate = ops.Operator("CU_Gate", CU_matrix)
+        CCU_gate = CU_gate.conj
+        self.CU_Gate = CU_gate
+        self.CCU_Gate = CCU_gate
 
         # classical message queue
         self.cc_message_queue = []
@@ -571,6 +574,31 @@ class Verification(NodeProtocol):
         self.verification_counter = 0
         self.successful_verification_counter = 0
         self.successful_verification_probability = []
+        # Clean up gates with explicit reference breaking
+        if hasattr(self, 'CCU_Gate'):
+            self.CCU_Gate._matrix = None  # Break matrix reference
+            del self.CCU_Gate
+        if hasattr(self, 'CU_Gate'):
+            self.CU_Gate._matrix = None   # Break matrix reference
+            del self.CU_Gate
+        if hasattr(self, 'measurement_m0'):
+            self.measurement_m0._matrix = None
+            del self.measurement_m0
+        if hasattr(self, 'measurement_m1'):
+            self.measurement_m1._matrix = None
+            del self.measurement_m1
+
+        # Recreate gates
+        CU_matrix = controlled_unitary(self.batch_size)
+        self.CU_Gate = ops.Operator("CU_Gate", CU_matrix)
+        self.CCU_Gate = self.CU_Gate.conj
+        measurement_m0, measurement_m1 = measure_operator()
+        self.measurement_m0 = measurement_m0
+        self.measurement_m1 = measurement_m1
+        # Force cleanup before calling super
+        # Force immediate cleanup
+        for _ in range(3):
+            gc.collect()
         super().reset()
 
     def stop(self):

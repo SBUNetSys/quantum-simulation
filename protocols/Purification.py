@@ -7,6 +7,7 @@ from netsquid.protocols.nodeprotocols import NodeProtocol
 from netsquid.protocols.protocol import Signals
 from netsquid.components.instructions import INSTR_CNOT, INSTR_H
 
+from protocols.EntanglementHandler import EntanglementHandler
 from protocols.MessageHandler import MessageType
 from utils import Logging, SignalMessages
 from utils.ClassicalMessages import ClassicalMessage
@@ -349,7 +350,11 @@ class Purification(NodeProtocol):
             entangle_node=entangle_node, re_entangle_mem_poses=mem_poses, is_source=self.is_source_node))
 
     def run(self):
-        entangle_signal = self.await_signal(self.entanglement_handler, signal_label=MessageType.ENTANGLED_SUCCESS)
+        self.logger.info(f"Purify {self.name} -> Purification started", color="yellow")
+        if type(self.entanglement_handler) is EntanglementHandler:
+            entangle_signal = self.await_signal(self.entanglement_handler, signal_label=Signals.SUCCESS)
+        else:
+            entangle_signal = self.await_signal(self.entanglement_handler, signal_label=MessageType.ENTANGLED_SUCCESS)
         cc_message_signal = (self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_START) |
                              self.await_signal(self.cc_message_handler, signal_label=MessageType.PURIFICATION_RESULT) |
                              self.await_signal(self.cc_message_handler,

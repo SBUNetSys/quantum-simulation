@@ -58,7 +58,7 @@ class GenEntanglement(NodeProtocol):
             raise TypeError("Start expression should be a {}, not a {}".format(
                 NodeProtocol, type(entangle_handler)))
         self.entanglement_handler = entangle_handler
-        self.aval_mem_postions = None  # stack of available memory positions
+        self.aval_mem_positions = None  # stack of available memory positions
         self.used_mem_positions = None  # stack of used memory positions
         self._total_pairs = total_pairs
         self._input_mem_pos = input_mem_pos
@@ -101,7 +101,7 @@ class GenEntanglement(NodeProtocol):
     def run(self):
         self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name}\n"
                          f"\tentangle node: {self.entangle_node}\n"
-                         f"\tmemory available positions: {self.aval_mem_postions}\n"
+                         f"\tmemory available positions: {self.aval_mem_positions}\n"
                          f"\tmemory used positions: {self.used_mem_positions}"
                          f"\ttotal pairs: {self._total_pairs}"
                          f"\tinput memory position: {self._input_mem_pos}\n"
@@ -145,7 +145,7 @@ class GenEntanglement(NodeProtocol):
             # print(f"GenEntangle {self.name} -> Node {self.node.name} had entangle node {self.entangle_node}.")
             initial_fidelity = None
             if self._is_source:
-                if len(self.aval_mem_postions) > 0 or len(self.re_entangle_pos) > 0:
+                if len(self.aval_mem_positions) > 0 or len(self.re_entangle_pos) > 0:
                     self.send_signal(MessageType.GEN_ENTANGLE_READY, None)
                 yield self.await_signal(self.entanglement_handler, MessageType.ENTANGLED)
             else:
@@ -170,8 +170,8 @@ class GenEntanglement(NodeProtocol):
         if not self._is_source:
             init_fidelity = None
 
-        if len(self.aval_mem_postions) > 0:
-            mem_pos = self.aval_mem_postions.pop(0)
+        if len(self.aval_mem_positions) > 0:
+            mem_pos = self.aval_mem_positions.pop(0)
             if self.qmemory.busy:
                 yield self.await_program(self.qmemory)
             self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} "
@@ -180,7 +180,7 @@ class GenEntanglement(NodeProtocol):
                              f"\tTime: {ns.sim_time()}\n"
                              f"\tIs Source: {self._is_source}\n"
                              f"\tQubit State: {self.qmemory.peek(0)[0]}\n"
-                             f"\tAvailable Memory positions: {self.aval_mem_postions}\n"
+                             f"\tAvailable Memory positions: {self.aval_mem_positions}\n"
                              f"\tUsed Memory positions: {self.used_mem_positions}\n"
                              f"\tSwapping qubit from position {self._input_mem_pos} to {mem_pos}", color="red")
 
@@ -197,7 +197,7 @@ class GenEntanglement(NodeProtocol):
                              f"\tIs Source: {self._is_source}\n"
                              f"\tCurrent entangled pairs: {self.entangled_pairs}\n"
                              f"\tUsed memory positions: {self.used_mem_positions}\n"
-                             f"\tAvailable memory positions: {self.aval_mem_postions}", color="red")
+                             f"\tAvailable memory positions: {self.aval_mem_positions}", color="red")
             self.send_signal(Signals.SUCCESS,
                              SignalMessages.NewEntanglementSignalMessage(
                                  self.node.name,
@@ -247,7 +247,7 @@ class GenEntanglement(NodeProtocol):
         if both re-entangle and available memory positions are empty, we wait upper layer for
         re-entanglement.
         """
-        if self._is_source and (len(self.aval_mem_postions) > 0 or len(self.re_entangle_pos) > 0):
+        if self._is_source and (len(self.aval_mem_positions) > 0 or len(self.re_entangle_pos) > 0):
             qsource = self.node.subcomponents[self._qsource_name]
             # avoid generating qubits if the qsource is busy
             current_time = ns.sim_time()
@@ -257,7 +257,7 @@ class GenEntanglement(NodeProtocol):
             qsource.trigger()
             self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} generating qubit\n"
                              f"\tCurrent entangled pairs {self.entangled_pairs}\n"
-                             f"\tAvailable memory positions: {self.aval_mem_postions}\n"
+                             f"\tAvailable memory positions: {self.aval_mem_positions}\n"
                              f"\tUsed memory positions: {self.used_mem_positions}\n"
                              f"\tRe-entangle positions: {self.re_entangle_pos}\n"
                              f"\tIs source: {self._is_source}", color="red")
@@ -330,7 +330,7 @@ class GenEntanglement(NodeProtocol):
                 if result.re_entangle_type == "after_entangle":
                     send_signal = False
                 else:
-                    send_signal = len(self.re_entangle_pos) == 0 and len(self.aval_mem_postions) == 0
+                    send_signal = len(self.re_entangle_pos) == 0 and len(self.aval_mem_positions) == 0
 
                 # we need to add the memory position to the re-entangle position
                 self.re_entangle_position(result.re_entangle_mem_poses)
@@ -373,11 +373,11 @@ class GenEntanglement(NodeProtocol):
         self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} re-entangling timeout signal received\n"
                          f"\tRe-active mem poses: {re_entangle_mem_poses}\n"
                          f"\tIs Source: {self._is_source}\n"
-                         f"\tCurrent Available Poses: {self.aval_mem_postions}\n"
+                         f"\tCurrent Available Poses: {self.aval_mem_positions}\n"
                          f"\tUsed Poses: {self.used_mem_positions}\n"
                          f"\tCurrent Re-entangle position: {self.re_entangle_pos}", color="yellow")
         for mem_pos in re_entangle_mem_poses:
-            self.aval_mem_postions.insert(0, mem_pos)
+            self.aval_mem_positions.insert(0, mem_pos)
             self.used_mem_positions.remove(mem_pos)
             # have case of retangle lost
             # if len(self.aval_mem_postions) > 0:
@@ -389,7 +389,7 @@ class GenEntanglement(NodeProtocol):
         self.logger.info(f"GenEntangle {self.name} -> Node {self.node.name} re-entangling timeout signal received\n"
                          f"\tRe-active mem poses: {re_entangle_mem_poses}\n"
                          f"\tIs Source: {self._is_source}\n"
-                         f"\tCurrent Available Poses: {self.aval_mem_postions}\n"
+                         f"\tCurrent Available Poses: {self.aval_mem_positions}\n"
                          f"\tUsed Poses: {self.used_mem_positions}\n"
                          f"\tCurrent Re-entangle position: {self.re_entangle_pos}", color="red")
         self.send_signal(MessageType.GEN_ENTANGLE_READY, None)
@@ -421,14 +421,14 @@ class GenEntanglement(NodeProtocol):
             # since we are using the input memory position as temporary memory position.
             # we will swap the qubits from input memory position to the available memory positions
             # therefore we need to make sure we do not use the input memory position as available memory position
-            self.aval_mem_postions = []
+            self.aval_mem_positions = []
             # check if the input memory position is in use
             if not self.qmemory.mem_positions[self._input_mem_pos].in_use:
                 # we need to claim the input memory position
                 self.qmemory.mem_positions[self._input_mem_pos].in_use = True
             self.used_mem_positions = [self._input_mem_pos]
             extra_memory -= 1
-            claim_memory_positions(extra_memory, self.aval_mem_postions, self.qmemory)
+            claim_memory_positions(extra_memory, self.aval_mem_positions, self.qmemory)
 
         return super().start()
 
@@ -438,7 +438,7 @@ class GenEntanglement(NodeProtocol):
         for i in self.qmemory.used_positions:
             self.qmemory.mem_positions[i].in_use = False
         self.used_mem_positions = []
-        self.aval_mem_postions = None
+        self.aval_mem_positions = None
         self.re_entangle_pos = []
 
     def reset(self):
@@ -475,13 +475,13 @@ class GenEntanglement(NodeProtocol):
         if self.node.qmemory is None:
             return False
         # check if entangle node is present but memory positions are not assigned
-        if self.entangle_node is not None and self.aval_mem_postions is None and len(
+        if self.entangle_node is not None and self.aval_mem_positions is None and len(
                 self._qmemory.unused_positions) < self._total_pairs + 1:
             return False
         # check if entangle node is present and memory positions are assigned correctly
         # -1 here since we are using the input memory position as temporary memory position
-        elif (self.aval_mem_postions is not None and
-              len(self.aval_mem_postions) != self._total_pairs - 1):
+        elif (self.aval_mem_positions is not None and
+              len(self.aval_mem_positions) != self._total_pairs - 1):
             return False
 
         # check if the node is a source and has a QSource
@@ -527,7 +527,7 @@ class QubitGenerationProtocol(NodeProtocol):
                 self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} received signal\n"
                                  f"\tSignal: {expr.triggered_events[0].type}", color="red")
                 # check if we should trigger the re-entangle signal or not
-                if len(self.main_protocol.aval_mem_postions) == 0:
+                if len(self.main_protocol.aval_mem_positions) == 0:
                     self.logger.info(f"QubitGenerationProtocol {self.name} -> Node {self.node.name} "
                                      f"No available memory positions\n"
                                      f"\tRe-entangle positions: {self.main_protocol.re_entangle_pos}", color="red")

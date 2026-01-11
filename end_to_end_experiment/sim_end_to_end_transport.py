@@ -15,16 +15,16 @@ from netsquid.protocols.nodeprotocols import LocalProtocol
 from netsquid.protocols.protocol import Signals
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.NetworkSetup import setup_network
+from utils.NetworkSetup import  setup_network_parallel
 from utils import Logging, GenSwappingTree
 from utils.Gates import controlled_unitary, measure_operator
 from protocols.MessageHandler import MessageHandler, MessageType
-from protocols.EntanglementHandler import EntanglementHandler
-from protocols.GenEntanglement import GenEntanglement
+from protocols.EntanglementHandlerConcurrent import EntanglementHandlerConcurrent
+from protocols.GenEntanglementConcurrent import GenEntanglementConcurrent
 from protocols.Purification import Purification
 from protocols.EndToEnd import EndToEndProtocol
 from protocols.Verification import Verification
-from protocols.Transport import Transportation
+from protocols.MultiHopTransport import Transportation
 from utils.SignalMessages import ProtocolFinishedSignalMessage
 
 
@@ -40,6 +40,7 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                  memory_depolar_rate=1,
                  node_distance=20,
                  target_fidelity=0.99,
+                 with_purification=True,
                  qubits_to_transport=1):
         if node_path is None:
             raise ValueError("node_path must be provided")
@@ -65,8 +66,7 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
             # Initialize the GenEntanglement protocol and EntanglementHandler protocol
             if index - 1 >= 0:
                 # case of we have a previous node
-                gen_protocol = GenEntanglement(
-                    input_mem_pos=0,
+                gen_protocol = GenEntanglementConcurrent(
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index - 1].name,
                     node=node,
@@ -75,7 +75,7 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                     logger=null_logger
                 )
                 self.add_subprotocol(gen_protocol)
-                eh_handler = EntanglementHandler(node=node,
+                eh_handler = EntanglementHandlerConcurrent(node=node,
                                                  name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
                                                  num_pairs=self.max_entangle_pairs,
                                                  qubit_input_protocol=gen_protocol,
@@ -89,24 +89,26 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
-                # add purification
-                pure_protocol = Purification(node=node,
-                                             name=f"purify_{node.name}->{network_nodes[index - 1].name}",
-                                             entangled_node=network_nodes[index - 1].name,
-                                             entanglement_handler=eh_handler,
-                                             cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                             max_purify_pair=self.max_entangle_pairs,
-                                             target_fidelity=target_fidelity,
-                                             is_top_layer=False,
-                                             logger=null_logger
-                                             )
-                self.add_subprotocol(pure_protocol)
-                lower_protocols.append(pure_protocol)
+                if with_purification:
+                    # add purification
+                    pure_protocol = Purification(node=node,
+                                                 name=f"purify_{node.name}->{network_nodes[index - 1].name}",
+                                                 entangled_node=network_nodes[index - 1].name,
+                                                 entanglement_handler=eh_handler,
+                                                 cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
+                                                 max_purify_pair=self.max_entangle_pairs,
+                                                 target_fidelity=target_fidelity,
+                                                 is_top_layer=False,
+                                                 logger=null_logger
+                                                 )
+                    self.add_subprotocol(pure_protocol)
+                    lower_protocols.append(pure_protocol)
+                else:
+                    lower_protocols.append(eh_handler)
 
             if index + 1 < len(network_nodes):
                 # case of we have a next node
-                gen_protocol = GenEntanglement(
-                    input_mem_pos=0,
+                gen_protocol = GenEntanglementConcurrent(
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index + 1].name,
                     node=node,
@@ -115,7 +117,7 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                     logger=null_logger
                 )
                 self.add_subprotocol(gen_protocol)
-                eh_handler = EntanglementHandler(node=node,
+                eh_handler = EntanglementHandlerConcurrent(node=node,
                                                  name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
                                                  num_pairs=self.max_entangle_pairs,
                                                  qubit_input_protocol=gen_protocol,
@@ -129,20 +131,23 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
-                pure_protocol = Purification(node=node,
-                                             name=f"purify_{node.name}->{network_nodes[index + 1].name}",
-                                             entangled_node=network_nodes[index + 1].name,
-                                             entanglement_handler=eh_handler,
-                                             cc_message_handler=self.subprotocols[
-                                                 f"message_handler_{node.name}"],
-                                             max_purify_pair=self.max_entangle_pairs,
-                                             target_fidelity=target_fidelity,
-                                             is_top_layer=False,
-                                             logger=null_logger
-                                             )
-                # Initialize the purification protocol
-                self.add_subprotocol(pure_protocol)
-                lower_protocols.append(pure_protocol)
+                if with_purification:
+                    pure_protocol = Purification(node=node,
+                                                 name=f"purify_{node.name}->{network_nodes[index + 1].name}",
+                                                 entangled_node=network_nodes[index + 1].name,
+                                                 entanglement_handler=eh_handler,
+                                                 cc_message_handler=self.subprotocols[
+                                                     f"message_handler_{node.name}"],
+                                                 max_purify_pair=self.max_entangle_pairs,
+                                                 target_fidelity=target_fidelity,
+                                                 is_top_layer=False,
+                                                 logger=null_logger
+                                                 )
+                    # Initialize the purification protocol
+                    self.add_subprotocol(pure_protocol)
+                    lower_protocols.append(pure_protocol)
+                else:
+                    lower_protocols.append(eh_handler)
             # Add end to end protocol to each node
             end_to_end = EndToEndProtocol(node=node,
                                           name=f"e2e_{node.name}",
@@ -190,10 +195,10 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
             if end_time is not None:
                 start_time = sim_time()
             yield self.await_signal(self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"],
-                                    MessageType.TRANSPORT_FINISHED)
+                                    MessageType.MULTI_HOP_FINISHED)
             end_time = sim_time()
             results = self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"].get_signal_result(
-                MessageType.TRANSPORT_FINISHED, self)
+                MessageType.MULTI_HOP_FINISHED, self)
             """
             result = {entangle_node: name, mem_poses:[]}
             """
@@ -249,6 +254,9 @@ class EndToEndTransportWithPurificationExample(LocalProtocol):
             if n != node:
                 cc_ports[n.name] = node.get_conn_port(n.ID)
         return cc_ports
+    def stop(self):
+        for subprotocol in self.subprotocols.values():
+            subprotocol.stop()
 
 
 class EndToEndTransportWithPurificationThroughput(LocalProtocol):
@@ -263,7 +271,8 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
                  memory_depolar_rate=1,
                  node_distance=20,
                  target_fidelity=0.99,
-                 qubits_to_transport=1):
+                 qubits_to_transport=1,
+                 with_purification=True):
         if node_path is None:
             raise ValueError("node_path must be provided")
         # generate the swapping tree and levels
@@ -288,8 +297,7 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
             # Initialize the GenEntanglement protocol and EntanglementHandler protocol
             if index - 1 >= 0:
                 # case of we have a previous node
-                gen_protocol = GenEntanglement(
-                    input_mem_pos=0,
+                gen_protocol = GenEntanglementConcurrent(
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index - 1].name,
                     node=node,
@@ -298,7 +306,7 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
                     logger=null_logger
                 )
                 self.add_subprotocol(gen_protocol)
-                eh_handler = EntanglementHandler(node=node,
+                eh_handler = EntanglementHandlerConcurrent(node=node,
                                                  name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
                                                  num_pairs=self.max_entangle_pairs,
                                                  qubit_input_protocol=gen_protocol,
@@ -312,24 +320,26 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
-                # add purification
-                pure_protocol = Purification(node=node,
-                                             name=f"purify_{node.name}->{network_nodes[index - 1].name}",
-                                             entangled_node=network_nodes[index - 1].name,
-                                             entanglement_handler=eh_handler,
-                                             cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
-                                             max_purify_pair=self.max_entangle_pairs,
-                                             target_fidelity=target_fidelity,
-                                             is_top_layer=False,
-                                             logger=null_logger
-                                             )
-                self.add_subprotocol(pure_protocol)
-                lower_protocols.append(pure_protocol)
+                if with_purification:
+                    # add purification
+                    pure_protocol = Purification(node=node,
+                                                 name=f"purify_{node.name}->{network_nodes[index - 1].name}",
+                                                 entangled_node=network_nodes[index - 1].name,
+                                                 entanglement_handler=eh_handler,
+                                                 cc_message_handler=self.subprotocols[f"message_handler_{node.name}"],
+                                                 max_purify_pair=self.max_entangle_pairs,
+                                                 target_fidelity=target_fidelity,
+                                                 is_top_layer=False,
+                                                 logger=null_logger
+                                                 )
+                    self.add_subprotocol(pure_protocol)
+                    lower_protocols.append(pure_protocol)
+                else:
+                    lower_protocols.append(eh_handler)
 
             if index + 1 < len(network_nodes):
                 # case of we have a next node
-                gen_protocol = GenEntanglement(
-                    input_mem_pos=0,
+                gen_protocol = GenEntanglementConcurrent(
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index + 1].name,
                     node=node,
@@ -338,7 +348,7 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
                     logger=null_logger
                 )
                 self.add_subprotocol(gen_protocol)
-                eh_handler = EntanglementHandler(node=node,
+                eh_handler = EntanglementHandlerConcurrent(node=node,
                                                  name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
                                                  num_pairs=self.max_entangle_pairs,
                                                  qubit_input_protocol=gen_protocol,
@@ -352,20 +362,23 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
                                                  )
                 self.add_subprotocol(eh_handler)
                 gen_protocol.entanglement_handler = eh_handler
-                pure_protocol = Purification(node=node,
-                                             name=f"purify_{node.name}->{network_nodes[index + 1].name}",
-                                             entangled_node=network_nodes[index + 1].name,
-                                             entanglement_handler=eh_handler,
-                                             cc_message_handler=self.subprotocols[
-                                                 f"message_handler_{node.name}"],
-                                             max_purify_pair=self.max_entangle_pairs,
-                                             target_fidelity=target_fidelity,
-                                             is_top_layer=False,
-                                             logger=null_logger
-                                             )
-                # Initialize the purification protocol
-                self.add_subprotocol(pure_protocol)
-                lower_protocols.append(pure_protocol)
+                if with_purification:
+                    pure_protocol = Purification(node=node,
+                                                 name=f"purify_{node.name}->{network_nodes[index + 1].name}",
+                                                 entangled_node=network_nodes[index + 1].name,
+                                                 entanglement_handler=eh_handler,
+                                                 cc_message_handler=self.subprotocols[
+                                                     f"message_handler_{node.name}"],
+                                                 max_purify_pair=self.max_entangle_pairs,
+                                                 target_fidelity=target_fidelity,
+                                                 is_top_layer=False,
+                                                 logger=null_logger
+                                                 )
+                    # Initialize the purification protocol
+                    self.add_subprotocol(pure_protocol)
+                    lower_protocols.append(pure_protocol)
+                else:
+                    lower_protocols.append(eh_handler)
             # Add end to end protocol to each node
             end_to_end = EndToEndProtocol(node=node,
                                           name=f"e2e_{node.name}",
@@ -410,9 +423,9 @@ class EndToEndTransportWithPurificationThroughput(LocalProtocol):
         #     print(f"Subprotocol: {subprotoco}")
         while True:
             yield self.await_signal(self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"],
-                                    MessageType.TRANSPORT_SUCCESS)
+                                    MessageType.MULTI_HOP_SUCCESS)
             results = self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"].get_signal_result(
-                MessageType.TRANSPORT_SUCCESS, self)
+                MessageType.MULTI_HOP_SUCCESS, self)
             self.send_signal(Signals.SUCCESS, results)
 
     def get_cc_ports(self, node):
@@ -474,8 +487,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
             # Initialize the GenEntanglement protocol and EntanglementHandler protocol
             if index - 1 >= 0:
                 # case of we have a previous node
-                gen_protocol = GenEntanglement(
-                    input_mem_pos=0,
+                gen_protocol = GenEntanglementConcurrent(
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index - 1].name,
                     node=node,
@@ -484,7 +496,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                     logger=null_logger
                 )
                 self.add_subprotocol(gen_protocol)
-                eh_handler = EntanglementHandler(node=node,
+                eh_handler = EntanglementHandlerConcurrent(node=node,
                                                  name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
                                                  num_pairs=self.max_entangle_pairs,
                                                  qubit_input_protocol=gen_protocol,
@@ -530,8 +542,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
 
             if index + 1 < len(network_nodes):
                 # case of we have a next node
-                gen_protocol = GenEntanglement(
-                    input_mem_pos=0,
+                gen_protocol = GenEntanglementConcurrent(
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index + 1].name,
                     node=node,
@@ -540,7 +551,7 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
                     logger=null_logger
                 )
                 self.add_subprotocol(gen_protocol)
-                eh_handler = EntanglementHandler(node=node,
+                eh_handler = EntanglementHandlerConcurrent(node=node,
                                                  name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
                                                  num_pairs=self.max_entangle_pairs,
                                                  qubit_input_protocol=gen_protocol,
@@ -631,10 +642,10 @@ class EndToEndTransportWithVerificationExample(LocalProtocol):
         start_time = sim_time()
         for index in range(self.num_runs):
             yield self.await_signal(self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"],
-                                    MessageType.TRANSPORT_FINISHED)
+                                    MessageType.MULTI_HOP_FINISHED)
             end_time = sim_time()
             results = self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"].get_signal_result(
-                MessageType.TRANSPORT_FINISHED, self)
+                MessageType.MULTI_HOP_FINISHED, self)
             """
             result = {entangle_node: name, mem_poses:[]}
             """
@@ -749,8 +760,7 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
             # Initialize the GenEntanglement protocol and EntanglementHandler protocol
             if index - 1 >= 0:
                 # case of we have a previous node
-                gen_protocol = GenEntanglement(
-                    input_mem_pos=0,
+                gen_protocol = GenEntanglementConcurrent(
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index - 1].name,
                     node=node,
@@ -759,7 +769,7 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
                     logger=null_logger
                 )
                 self.add_subprotocol(gen_protocol)
-                eh_handler = EntanglementHandler(node=node,
+                eh_handler = EntanglementHandlerConcurrent(node=node,
                                                  name=f"entanglement_handler_{node.name}->{network_nodes[index - 1].name}",
                                                  num_pairs=self.max_entangle_pairs,
                                                  qubit_input_protocol=gen_protocol,
@@ -805,8 +815,7 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
 
             if index + 1 < len(network_nodes):
                 # case of we have a next node
-                gen_protocol = GenEntanglement(
-                    input_mem_pos=0,
+                gen_protocol = GenEntanglementConcurrent(
                     total_pairs=self.max_entangle_pairs,
                     entangle_node=network_nodes[index + 1].name,
                     node=node,
@@ -815,7 +824,7 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
                     logger=null_logger
                 )
                 self.add_subprotocol(gen_protocol)
-                eh_handler = EntanglementHandler(node=node,
+                eh_handler = EntanglementHandlerConcurrent(node=node,
                                                  name=f"entanglement_handler_{node.name}->{network_nodes[index + 1].name}",
                                                  num_pairs=self.max_entangle_pairs,
                                                  qubit_input_protocol=gen_protocol,
@@ -903,9 +912,9 @@ class EndToEndTransportWithVerificationThroughput(LocalProtocol):
         self.start_subprotocols()
         while True:
             yield self.await_signal(self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"],
-                                    MessageType.TRANSPORT_SUCCESS)
+                                    MessageType.MULTI_HOP_SUCCESS)
             results = self.subprotocols[f"e2e_transport_{self.all_nodes[-1].name}"].get_signal_result(
-                MessageType.TRANSPORT_SUCCESS, self)
+                MessageType.MULTI_HOP_SUCCESS, self)
             self.send_signal(Signals.SUCCESS, results)
 
         # for subprotoco, val in self.subprotocols.items():
@@ -986,15 +995,30 @@ def example_sim_run_with_purification(nodes,
                                       node_distance,
                                       max_entangle_pairs,
                                       target_fidelity,
-                                      qubits_to_transport):
-    e2e_example = EndToEndTransportWithPurificationExample(network_nodes=nodes,
+                                      qubits_to_transport,
+                                      throughput_mode,
+                                      with_purification
+                                      ):
+    if throughput_mode:
+        e2e_example = EndToEndTransportWithPurificationThroughput(network_nodes=nodes,
+                                                                  num_runs=num_runs,
+                                                                  node_path=[node.name for node in nodes],
+                                                                  max_entangle_pairs=max_entangle_pairs,
+                                                                  memory_depolar_rate=memory_depolar_rate,
+                                                                  node_distance=node_distance,
+                                                                  target_fidelity=target_fidelity,
+                                                                  qubits_to_transport=qubits_to_transport,
+                                                                  with_purification=with_purification)
+    else:
+        e2e_example = EndToEndTransportWithPurificationExample(network_nodes=nodes,
                                                            num_runs=num_runs,
                                                            node_path=[node.name for node in nodes],
                                                            max_entangle_pairs=max_entangle_pairs,
                                                            memory_depolar_rate=memory_depolar_rate,
                                                            node_distance=node_distance,
                                                            target_fidelity=target_fidelity,
-                                                           qubits_to_transport=qubits_to_transport, )
+                                                           qubits_to_transport=qubits_to_transport,
+                                                               with_purification=with_purification)
 
     def record_run(evexpr):
         protocol = evexpr.triggered_events[-1].source
@@ -1008,32 +1032,6 @@ def example_sim_run_with_purification(nodes,
     return e2e_example, dc
 
 
-def example_sim_run_with_purification_throughput(nodes,
-                                                 num_runs,
-                                                 memory_depolar_rate,
-                                                 node_distance,
-                                                 max_entangle_pairs,
-                                                 target_fidelity,
-                                                 qubits_to_transport):
-    e2e_example = EndToEndTransportWithPurificationThroughput(network_nodes=nodes,
-                                                              num_runs=num_runs,
-                                                              node_path=[node.name for node in nodes],
-                                                              max_entangle_pairs=max_entangle_pairs,
-                                                              memory_depolar_rate=memory_depolar_rate,
-                                                              node_distance=node_distance,
-                                                              target_fidelity=target_fidelity,
-                                                              qubits_to_transport=qubits_to_transport, )
-
-    def record_run(evexpr):
-        protocol = evexpr.triggered_events[-1].source
-        result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Transported {len(result['results'])} Qubit")
-        return result
-
-    dc = DataCollector(record_run, include_time_stamp=False,
-                       include_entity_name=False)
-    dc.collect_on(pd.EventExpression(source=e2e_example, event_type=Signals.SUCCESS.value))
-    return e2e_example, dc
 
 
 def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
@@ -1041,7 +1039,9 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
                                       qubit_to_transport,
                                       skip_noise=True,
                                       CU_gate=None,
-                                      CCU_gate=None,):
+                                      CCU_gate=None,
+                                      throughput_mode=False
+                                      ):
     """
     Run the example verification protocol
     :param nodes: list of nodes
@@ -1057,7 +1057,22 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
     :return:
     """
     # Create the protocol
-    transport_example = EndToEndTransportWithVerificationExample(network_nodes=nodes,
+    if throughput_mode:
+        transport_example = EndToEndTransportWithVerificationThroughput(network_nodes=nodes,
+                                                                        num_runs=num_runs,
+                                                                        max_entangle_pairs=max_entangle_pairs,
+                                                                        memory_depolar_rate=memory_depolar_rate,
+                                                                        node_distance=node_distance,
+                                                                        target_fidelity=target_fidelity,
+                                                                        node_path=[node.name for node in nodes],
+                                                                        m_size=m_size,
+                                                                        batch_size=batch_size,
+                                                                        skip_noise=skip_noise,
+                                                                        qubits_to_transport=qubit_to_transport,
+                                                                        CU_gate=CU_gate,
+                                                                        CCU_gate=CCU_gate)
+    else:
+        transport_example = EndToEndTransportWithVerificationExample(network_nodes=nodes,
                                                                  num_runs=num_runs,
                                                                  max_entangle_pairs=max_entangle_pairs,
                                                                  memory_depolar_rate=memory_depolar_rate,
@@ -1084,60 +1099,11 @@ def example_sim_run_with_verification(nodes, num_runs, memory_depolar_rate,
                                      event_type=Signals.SUCCESS.value))
     return transport_example, dc
 
-
-def example_sim_run_with_verification_throughput(nodes, num_runs, memory_depolar_rate,
-                                                 node_distance, max_entangle_pairs, target_fidelity, m_size, batch_size,
-                                                 qubit_to_transport,
-                                                 skip_noise=True,
-                                                 CU_gate=None, CCU_gate=None):
-    """
-    Run the example verification protocol
-    :param nodes: list of nodes
-    :param num_runs: number of runs
-    :param memory_depolar_rate: memory depolar rate
-    :param node_distance: node distance
-    :param max_entangle_pairs: maximum entangle pairs
-    :param target_fidelity: target fidelity
-    :param m_size: m size
-    :param batch_size: batch size
-    :param qubit_to_transport: number of qubits to transmit
-    :param skip_noise: skip noise when popping qubits
-    :return:
-    """
-    # Create the protocol
-    transport_example = EndToEndTransportWithVerificationThroughput(network_nodes=nodes,
-                                                                    num_runs=num_runs,
-                                                                    max_entangle_pairs=max_entangle_pairs,
-                                                                    memory_depolar_rate=memory_depolar_rate,
-                                                                    node_distance=node_distance,
-                                                                    target_fidelity=target_fidelity,
-                                                                    node_path=[node.name for node in nodes],
-                                                                    m_size=m_size,
-                                                                    batch_size=batch_size,
-                                                                    skip_noise=skip_noise,
-                                                                    qubits_to_transport=qubit_to_transport,
-                                                                    CCU_gate=CCU_gate,
-                                                                    CU_gate=CU_gate)
-
-    # Run the protocol
-    def record_run(evexpr):
-        protocol = evexpr.triggered_events[-1].source
-        result = protocol.get_signal_result(Signals.SUCCESS)
-        print(f"Verification Transported {len(result['results'])} Qubit")
-        return result
-
-    dc = DataCollector(record_run, include_time_stamp=False,
-                       include_entity_name=False)
-    dc.collect_on(pd.EventExpression(source=transport_example,
-                                     event_type=Signals.SUCCESS.value))
-    return transport_example, dc
-
-
 def run_test_example_with_purification(qubit_number=2):
     nodes_list = [f"Node_{i}" for i in range(3)]
-    network = setup_network(nodes_list, "hop-by-hop-transportation",
+    network = setup_network_parallel(nodes_list, "hop-by-hop-transportation",
                             memory_capacity=10, memory_depolar_rate=0.001,
-                            node_distance=1, source_delay=1)
+                            node_distance=1)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     transport_example, dc = example_sim_run_with_purification(sample_nodes,
@@ -1158,9 +1124,9 @@ def run_test_example_with_purification(qubit_number=2):
 
 def run_test_example_with_verification(qubit_number=1):
     nodes_list = [f"Node_{i}" for i in range(3)]
-    network = setup_network(nodes_list, "hop-by-hop-transportation",
+    network = setup_network_parallel(nodes_list, "hop-by-hop-transportation",
                             memory_capacity=128, memory_depolar_rate=100,
-                            node_distance=3, source_delay=1)
+                            node_distance=3,)
     # create a protocol to entangle two nodes
     sample_nodes = [node for node in network.nodes.values()]
     transport_example, dc = example_sim_run_with_verification(sample_nodes, num_runs=2, memory_depolar_rate=100,
@@ -1177,815 +1143,76 @@ def run_test_example_with_verification(qubit_number=1):
     print(results)
 
 
-def run_multi_node_purification(max_node, qubit_number=1):
-    final_data = {}
-    os.makedirs("./transportation_results", exist_ok=True)
-    for node_count in range(3, max_node + 1):
-        node_data = {}
-        nodes_list = [f"Node_{i}" for i in range(node_count)]
-        network = setup_network(nodes_list, "end-to-end-transportation",
-                                memory_capacity=128, memory_depolar_rate=100,
-                                node_distance=3, source_delay=1)
-        # create a protocol to entangle two nodes
-        sample_nodes = [node for node in network.nodes.values()]
-        transport_example, dc = example_sim_run_with_purification(sample_nodes,
-                                                                  num_runs=1000,
-                                                                  memory_depolar_rate=100,
-                                                                  node_distance=3,
-                                                                  max_entangle_pairs=2,
-                                                                  target_fidelity=0.995,
-                                                                  qubits_to_transport=qubit_number)
-        # Run the simulation
-        transport_example.start()
-        ns.sim_run()
-        # Collect the data
-        collected_data = dc.dataframe
-        for c in collected_data.columns:
-            node_data[c] = collected_data[c].mean()
-            if len(collected_data[c]) < 1000:
-                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-            print(f"{node_count}->{c}: {collected_data[c].mean()}")
-        final_data[node_count] = node_data
-        transport_example.stop()
-        ns.sim_reset()
-    with open(f"./transportation_results/e2e_transport_{max_node}.json", "w") as f:
-        json.dump(final_data, f)
+def run_e2e_experiment(qubit_number=1, node_count=10, throughput_mode=False, with_purification=True,
+                       target_fidelity=0.98, with_verification=False, batch_size=4, m_size=3,
+                       node_distance=1.0, depolar_rate=63109, preload=False):
+    save_dir = "./e2e_5nodes_transportation_results/"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    save_file = os.path.join(save_dir,f"e2e_{node_count}nodes_{node_distance}m_{qubit_number}_qubit_{depolar_rate}Hz_"
+                 f"purification_{with_purification}_verification_{with_verification}_throughput_{throughput_mode}.json")
+    save_file_raw = os.path.join(save_dir, f"e2e_{node_count}nodes_{node_distance}m_{qubit_number}_qubit_{depolar_rate}Hz_"
+        f"purification_{with_purification}_verification_{with_verification}_throughput_{throughput_mode}_raw.json")
+    CU_matrix = None
+    CU_gate = None
+    CCU_gate = None
+    if with_purification and with_verification:
+        CU_matrix = controlled_unitary(4)
+        CU_gate = ops.Operator("CU_Gate", CU_matrix)
+        CCU_gate = CU_gate.conj
 
-
-def run_multi_node_purification_distance(max_distance, qubit_number=1):
-    final_data = {}
-    os.makedirs("./transportation_results", exist_ok=True)
-    for node_distance in range(1, max_distance):
-        node_data = {}
-        nodes_list = [f"Node_{i}" for i in range(5)]
-        network = setup_network(nodes_list, "end-to-end-transportation",
-                                memory_capacity=128, memory_depolar_rate=100,
-                                node_distance=node_distance, source_delay=1)
-        # create a protocol to entangle two nodes
-        sample_nodes = [node for node in network.nodes.values()]
-        transport_example, dc = example_sim_run_with_purification(sample_nodes,
-                                                                  num_runs=1000,
-                                                                  memory_depolar_rate=100,
-                                                                  node_distance=node_distance,
-                                                                  max_entangle_pairs=2,
-                                                                  target_fidelity=0.995,
-                                                                  qubits_to_transport=qubit_number)
-        # Run the simulation
-        transport_example.start()
-        ns.sim_run()
-        # Collect the data
-        collected_data = dc.dataframe
-        for c in collected_data.columns:
-            node_data[c] = collected_data[c].mean()
-            if len(collected_data[c]) < 1000:
-                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-            print(f"{node_distance}->{c}: {collected_data[c].mean()}")
-        final_data[node_distance] = node_data
-        transport_example.stop()
-        ns.sim_reset()
-    with open(f"./transportation_results/e2e_transport_{max_distance}_km_5_nodes.json", "w") as f:
-        json.dump(final_data, f)
-
-
-def run_5_node_e2e_purification(qubit_number=1):
-    nodes_list = [f"Node_{i}" for i in range(5)]
-    network = setup_network(nodes_list, "hop-by-hop-transportation",
-                            memory_capacity=10, memory_depolar_rate=63109,
-                            node_distance=1, source_delay=1)
-    # create a protocol to entangle two nodes
-    sample_nodes = [node for node in network.nodes.values()]
-    transport_example, dc = example_sim_run_with_purification(sample_nodes,
-                                                              num_runs=1000,
-                                                              memory_depolar_rate=63109,
-                                                              node_distance=1,
-                                                              max_entangle_pairs=9,
-                                                              target_fidelity=0.98,
-                                                              qubits_to_transport=qubit_number)
-    # Run the simulation
-    transport_example.start()
-    ns.sim_run()
-    # Collect the data
-    collected_data = dc.dataframe
-    node_data = {}
-    collected_data.to_json(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw.json")
-    for c in collected_data.columns:
-        if c == "teleport_fids":
-            s = []
-            for t in collected_data[c]:
-                s += t
-            node_data[c] = np.mean(s)
-        else:
-            node_data[c] = collected_data[c].mean()
-        # if c not in node_data:
-        #     node_data[c] = []
-        # node_data[c].append(collected_data[c].mean())
-        if len(collected_data[c]) < 1000:
-            print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-        print(f"5 Node ->{c}: {collected_data[c]}")
-    with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification.json", "w") as f:
-        json.dump(node_data, f)
-
-
-def run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10):
     final_data = {}
     final_data_raw = {}
-    for d in range(1, max_dis + 1):
-        print(f"Running {d} / {max_dis} km")
-        final_data[d] = {}
-        final_data_raw[d] = {}
-        nodes_list = [f"Node_{i}" for i in range(5)]
-        network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                memory_capacity=10, memory_depolar_rate=63109,
-                                node_distance=d, source_delay=1)
-        # create a protocol to entangle two nodes
-        sample_nodes = [node for node in network.nodes.values()]
-        transport_example, dc = example_sim_run_with_purification(sample_nodes,
-                                                                  num_runs=1000,
-                                                                  memory_depolar_rate=63109,
-                                                                  node_distance=d,
-                                                                  max_entangle_pairs=9,
-                                                                  target_fidelity=0.98,
-                                                                  qubits_to_transport=qubit_number)
-        # Run the simulation
-        transport_example.start()
-        ns.sim_run()
-        # Collect the data
-        collected_data = dc.dataframe
-        node_data = {}
-        final_data_raw[d] = collected_data.to_dict()
-        for c in collected_data.columns:
-            if c == "teleport_fids":
-                s = []
-                for t in collected_data[c]:
-                    s += t
-                node_data[c] = np.mean(s)
-            else:
-                node_data[c] = collected_data[c].mean()
-            # if c not in node_data:
-            #     node_data[c] = []
-            # node_data[c].append(collected_data[c].mean())
-            if len(collected_data[c]) < 1000:
-                print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-        final_data[d] = node_data
-        print(f"Run {d} km, res {node_data}")
-        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw_{max_dis}km.json",
-                  "w") as f:
-            json.dump(final_data_raw, f)
-        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_dis}km.json", "w") as f:
-            json.dump(final_data, f)
-        ns.set_random_state(rng=np.random.RandomState())
-        ns.sim_stop()
-        ns.sim_reset()
-        gc.collect()
-
-
-def run_5_node_e2e_purification_node(qubit_number=1, max_node=10):
-    final_data = {}
-    final_data_raw = {}
-    if os.path.exists(
-            f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json"):
-        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json",
-                  "r") as f:
-            final_data_raw = json.load(f)
-    if os.path.exists(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_node}_node.json"):
-        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_node}_node.json",
-                  "r") as f:
-            final_data = json.load(f)
-    for node in range(3, max_node):
-        print(f"Running {node} / {max_node} Node")
-        if str(node) in final_data_raw:
-            print(f"Node {node} already exists, skipping")
-            continue
-        final_data[node] = {}
-        final_data_raw[node] = {}
-        node_data = {"teleport_fids": []}
-        while len(node_data["teleport_fids"]) < 1000:
-            try:
-                nodes_list = [f"Node_{j}" for j in range(node)]
-                network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                        memory_capacity=10, memory_depolar_rate=63109,
-                                        node_distance=1, source_delay=1)
-                # create a protocol to entangle two nodes
-                sample_nodes = [node for node in network.nodes.values()]
-                transport_example, dc = example_sim_run_with_purification(sample_nodes,
-                                                                          num_runs=1,
-                                                                          memory_depolar_rate=63109,
-                                                                          node_distance=1,
-                                                                          max_entangle_pairs=9,
-                                                                          target_fidelity=0.98,
-                                                                          qubits_to_transport=qubit_number)
-                # Run the simulation
-                transport_example.start()
-                ns.sim_run()
-                # Collect the data
-                collected_data = dc.dataframe
-                # final_data_raw[node] = collected_data.to_dict()
-                for c in collected_data.columns:
-                    if c not in node_data:
-                        node_data[c] = []
-                    if c == "teleport_fids":
-                        s = []
-                        for t in collected_data[c]:
-                            s += t
-                        node_data[c].append(np.mean(s))
-                    else:
-                        node_data[c].append(collected_data[c].mean())
-                    # if c not in node_data:
-                    #     node_data[c] = []
-                    # node_data[c].append(collected_data[c].mean())
-                    # if len(collected_data[c]) < 1000:
-                    #     print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-                print(f"Run {node} node, {len(node_data['teleport_fids'])}/1000")
-                transport_example.stop()
-                ns.set_random_state(rng=np.random.RandomState())
-                ns.sim_reset()
-            except Exception as e:
-                print(e)
-                transport_example.stop()
-                ns.set_random_state(rng=np.random.RandomState())
-                ns.sim_reset()
-        # final_data[node] = node_data
-        final_data_raw[node] = node_data
-        node_data_calculated = {k: np.mean(v) for k, v in node_data.items()}
-        final_data[node] = node_data_calculated
-        print(f"Run {node} node, res {node_data_calculated}")
-        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_raw_{max_node}_node.json",
-                  "w") as f:
-            json.dump(final_data_raw, f)
-        with open(f"./transportation_results/e2e_5nodes_{qubit_number}_qubit_purification_{max_node}_node.json",
-                  "w") as f:
-            json.dump(final_data, f)
-
-def run_e2e_purification_target_node(qubit_number=1, target_node=4):
-    final_data_raw = {}
-    run_count = 0
-    if os.path.exists(
-            f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification_raw.json"):
-        with open(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification_raw.json",
-                  "r") as f:
-            final_data_raw = json.load(f)
-            run_count = len(final_data_raw['teleport_fids'])
-    # if os.path.exists(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification.json"):
-    #     with open(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification.json",
-    #               "r") as f:
-    #         final_data = json.load(f)
-
-    while run_count < 1000:
+    node_data = {"teleport_fids":[]}
+    if preload:
+        if os.path.exists(save_file) and os.path.exists(save_file_raw):
+            with open(save_file, "r") as f:
+                final_data = json.load(f)
+            with open(save_file_raw, "r") as f:
+                final_data_raw = json.load(f)
+            node_data = final_data_raw
+    while len(node_data["teleport_fids"]) < 1000:
         try:
-            nodes_list = [f"Node_{j}" for j in range(target_node)]
-            network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                    memory_capacity=10, memory_depolar_rate=63109,
-                                    node_distance=1, source_delay=1)
+            nodes_list = [f"Node_{j}" for j in range(node_count)]
+            network = setup_network_parallel(nodes_list, "end-to-end-transportation",
+                                    memory_capacity=1001, memory_depolar_rate=depolar_rate,
+                                    node_distance=node_distance)
             # create a protocol to entangle two nodes
             sample_nodes = [node for node in network.nodes.values()]
-            transport_example, dc = example_sim_run_with_purification(sample_nodes,
-                                                                      num_runs=1,
-                                                                      memory_depolar_rate=63109,
-                                                                      node_distance=1,
-                                                                      max_entangle_pairs=10,
-                                                                      target_fidelity=0.98,
-                                                                      qubits_to_transport=qubit_number)
+            if with_verification and with_purification:
+                transport_example, dc = example_sim_run_with_verification(sample_nodes,
+                                                                          num_runs=1,
+                                                                          memory_depolar_rate=depolar_rate,
+                                                                          node_distance=node_distance,
+                                                                          max_entangle_pairs=1000,
+                                                                          target_fidelity=target_fidelity,
+                                                                          qubit_to_transport=qubit_number,
+                                                                          m_size=m_size,
+                                                                          batch_size=batch_size,
+                                                                          CU_gate=CCU_gate,
+                                                                          CCU_gate=CCU_gate,
+                                                                          throughput_mode=throughput_mode
+                                                                          )
+            else:
+                transport_example, dc = example_sim_run_with_purification(sample_nodes,
+                                                                          num_runs=1,
+                                                                          memory_depolar_rate=depolar_rate,
+                                                                          node_distance=node_distance,
+                                                                          max_entangle_pairs=100,
+                                                                          target_fidelity=target_fidelity,
+                                                                          qubits_to_transport=qubit_number,
+                                                                          with_purification=with_purification,
+                                                                          throughput_mode=throughput_mode
+                                                                          )
             # Run the simulation
             transport_example.start()
-            ns.sim_run()
+            if throughput_mode:
+                ns.sim_run(duration=1e9)
+            else:
+                ns.sim_run()
             # Collect the data
             collected_data = dc.dataframe
             # final_data_raw[node] = collected_data.to_dict()
-            for c in collected_data.columns:
-                if c not in final_data_raw:
-                    final_data_raw[c] = []
-                if c == "teleport_fids":
-                    s = []
-                    for t in collected_data[c]:
-                        s += t
-                    final_data_raw[c].append(np.mean(s))
-                else:
-                    final_data_raw[c].append(collected_data[c].mean())
-                # if c not in node_data:
-                #     node_data[c] = []
-                # node_data[c].append(collected_data[c].mean())
-                # if len(collected_data[c]) < 1000:
-                #     print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-            print(f"Run {target_node} node, {run_count}/1000")
-            transport_example.stop()
-            ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_reset()
-            run_count += 1
-            # final_data[node] = node_data
-            node_data_calculated = {k: np.mean(v) for k, v in final_data_raw.items()}
-            with open(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification_raw.json",
-                      "w") as f:
-                json.dump(final_data_raw, f)
-            with open(f"./transportation_results/e2e_{target_node}nodes_{qubit_number}_qubit_purification.json",
-                      "w") as f:
-                json.dump(node_data_calculated, f)
-        except Exception as e:
-            print(e)
-            transport_example.stop()
-            ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_reset()
-
-
-
-def run_5_node_e2e_purification_throughput(qubit_number=1000):
-    final_data_raw = {}
-    final_data = {}
-    success_count = []
-    total_count = []
-    average_fids = []
-    if os.path.exists("./transportation_results/e2e_5nodes_throughput_raw.json"):
-        with open(f"./transportation_results/e2e_5nodes_throughput_raw.json", "r") as f:
-            final_data_raw = json.load(f)
-            # start = list(final_data_raw.keys())[-1]
-            # print(f"Loading throughput data from {start}...")
-            for key, val in final_data_raw.items():
-                print(f"Loading {key}")
-                total_count.append(val['total_count'])
-                success_count.append(val['teleport_success_count'])
-                average_fids.append(val['average_fidelity'])
-            start = int(key) + 1
-            print(f"Starting preload index {start}")
-    else:
-        start = 0
-    for i in range(start, 1000):
-        nodes_list = [f"Node_{i}" for i in range(5)]
-        network = setup_network(nodes_list, "e2e-transportation",
-                                memory_capacity=1500, memory_depolar_rate=63109,
-                                node_distance=1, source_delay=1)
-        # create a protocol to entangle two nodes
-        sample_nodes = [node for node in network.nodes.values()]
-        transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
-                                                                             num_runs=1,
-                                                                             memory_depolar_rate=63109,
-                                                                             node_distance=1,
-                                                                             max_entangle_pairs=1500,
-                                                                             target_fidelity=0.98,
-                                                                             qubits_to_transport=qubit_number)
-        # Run the simulation
-        transport_example.start()
-        ns.sim_run(duration=1e9)
-        # Collect the data
-        collected_data = dc.dataframe
-        final_row = collected_data.tail(1)
-        node_data = {
-            "total_count": 0,
-            "teleport_success_count": 0,
-            "average_fidelity": 0,
-        }
-        all_fid = []
-        for c in final_row.columns:
-            data = final_row[c].iloc[0]
-            for fid in data.values():
-                all_fid.append(fid)
-                if fid > 0.99:
-                    node_data["teleport_success_count"] += 1
-                node_data["total_count"] += 1
-        node_data["average_fidelity"] = np.mean(all_fid)
-        final_data_raw[i] = node_data
-        print(f"Finished {i}/1000\n{node_data}")
-        total_count.append(node_data["total_count"])
-        average_fids.append(node_data["average_fidelity"])
-        success_count.append(node_data["teleport_success_count"])
-
-        transport_example.stop()
-        ns.set_random_state(rng=np.random.RandomState())
-        ns.sim_stop()
-        ns.sim_reset()
-        gc.collect()
-        final_data["total_count"] = np.mean(total_count)
-        final_data["average_fidelity"] = np.mean(average_fids)
-        final_data["teleport_success_count"] = np.mean(success_count)
-
-        with open(f"./transportation_results/e2e_5nodes_throughput_raw.json", "w") as f:
-            json.dump(final_data_raw, f)
-
-        with open(f"./transportation_results/e2e_5nodes_throughput.json", "w") as f:
-            json.dump(final_data, f)
-
-    print(f"Final Data: {final_data}")
-
-
-def run_5_node_e2e_purification_throughput_distance(qubit_number=1000, max_dis=10):
-    final_data_raw = {}
-    final_data = {}
-    success_count = []
-    total_count = []
-    average_fids = []
-    if os.path.exists(f"./transportation_results/e2e_5nodes_throughput_raw_{max_dis}_km.json"):
-        with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_dis}_km.json", "r") as f:
-            final_data_raw = json.load(f)
-            # start = list(final_data_raw.keys())[-1]
-            # print(f"Loading throughput data from {start}...")
-            for dis, data in final_data_raw.items():
-                if len(data) < 1000:
-                    start_dis = int(dis)
-                    for key, val in data.items():
-                        print(f"Loading {key}")
-                        total_count.append(val['total_count'])
-                        success_count.append(val['teleport_success_count'])
-                        average_fids.append(val['average_fidelity'])
-                    start = int(key) + 1
-                    print(f"Starting preload dis {dis} km and run {start}")
-    else:
-        start_dis = 1
-        start = 0
-    for d in range(start_dis, max_dis + 1):
-        final_data_raw[d] = {}
-        final_data[d] = {}
-        for i in range(start, 1000):
-            print(f"Starting preload dis {d} km and run {i}")
-            nodes_list = [f"Node_{j}" for j in range(5)]
-            network = setup_network(nodes_list, "e2e-transportation",
-                                    memory_capacity=1500, memory_depolar_rate=63109,
-                                    node_distance=d, source_delay=1)
-            # create a protocol to entangle two nodes
-            sample_nodes = [node for node in network.nodes.values()]
-            transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
-                                                                                 num_runs=d,
-                                                                                 memory_depolar_rate=63109,
-                                                                                 node_distance=1,
-                                                                                 max_entangle_pairs=1500,
-                                                                                 target_fidelity=0.98,
-                                                                                 qubits_to_transport=qubit_number)
-            # Run the simulation
-            transport_example.start()
-            ns.sim_run(duration=1e9)
-            # Collect the data
-            collected_data = dc.dataframe
-            final_row = collected_data.tail(1)
-            node_data = {
-                "total_count": 0,
-                "teleport_success_count": 0,
-                "average_fidelity": 0,
-            }
-            all_fid = []
-            for c in final_row.columns:
-                data = final_row[c].iloc[0]
-                for fid in data.values():
-                    all_fid.append(fid)
-                    if fid > 0.99:
-                        node_data["teleport_success_count"] += 1
-                    node_data["total_count"] += 1
-            node_data["average_fidelity"] = np.mean(all_fid)
-            final_data_raw[d][i] = node_data
-            print(f"Finished {i}/1000\n{node_data}")
-            total_count.append(node_data["total_count"])
-            average_fids.append(node_data["average_fidelity"])
-            success_count.append(node_data["teleport_success_count"])
-
-            transport_example.stop()
-            ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_reset()
-            final_data[d]["total_count"] = np.mean(total_count)
-            final_data[d]["average_fidelity"] = np.mean(average_fids)
-            final_data[d]["teleport_success_count"] = np.mean(success_count)
-
-            with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_dis}_km.json", "w") as f:
-                json.dump(final_data_raw, f)
-
-            with open(f"./transportation_results/e2e_5nodes_throughput_{max_dis}_km.json", "w") as f:
-                json.dump(final_data, f)
-
-    print(f"Final Data: {final_data}")
-
-
-def run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10):
-    final_data_raw = {}
-    final_data = {}
-    success_count = []
-    total_count = []
-    average_fids = []
-    start = 0
-    if os.path.exists(f"./transportation_results/e2e_5nodes_throughput_raw_{max_node}_node.json"):
-        with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_node}_node.json", "r") as f:
-            final_data_raw = json.load(f)
-            # start = list(final_data_raw.keys())[-1]
-            # print(f"Loading throughput data from {start}...")
-            for node, data in final_data_raw.items():
-                if len(data) < 1000:
-                    start_node = int(node)
-                    for key, val in data.items():
-                        print(f"Loading {key}")
-                        total_count.append(val['total_count'])
-                        success_count.append(val['teleport_success_count'])
-                        average_fids.append(val['average_fidelity'])
-                    start = int(key) + 1
-                    print(f"Starting preload dis {node} node and run {start}")
-    else:
-        start_node = 3
-        start = 0
-    for node in range(start_node, max_node):
-        if str(node) not in final_data_raw:
-            final_data_raw[str(node)] = {}
-        final_data[str(node)] = {}
-        if start != 0:
-            run_count = start
-            start = 0
-        else:
-            run_count = 0
-        while run_count < 1000:
-            try:
-                print(f"Starting {node} node and run {run_count}/1000")
-                nodes_list = [f"Node_{j}" for j in range(node)]
-                network = setup_network(nodes_list, "e2e-transportation",
-                                        memory_capacity=1500, memory_depolar_rate=63109,
-                                        node_distance=1, source_delay=1)
-                # create a protocol to entangle two nodes
-                sample_nodes = [node for node in network.nodes.values()]
-                transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
-                                                                                     num_runs=1,
-                                                                                     memory_depolar_rate=63109,
-                                                                                     node_distance=1,
-                                                                                     max_entangle_pairs=1500,
-                                                                                     target_fidelity=0.98,
-                                                                                     qubits_to_transport=qubit_number)
-                # Run the simulation
-                transport_example.start()
-                ns.sim_run(duration=1e9)
-                # Collect the data
-                collected_data = dc.dataframe
-                final_row = collected_data.tail(1)
-                node_data = {
-                    "total_count": 0,
-                    "teleport_success_count": 0,
-                    "average_fidelity": 0,
-                }
-                all_fid = []
-                for c in final_row.columns:
-                    data = final_row[c].iloc[0]
-                    for fid in data.values():
-                        all_fid.append(fid)
-                        if fid > 0.99:
-                            node_data["teleport_success_count"] += 1
-                        node_data["total_count"] += 1
-                node_data["average_fidelity"] = np.mean(all_fid)
-                final_data_raw[str(node)][run_count] = node_data
-                print(f"Finished {run_count}/1000\n{node_data}")
-                total_count.append(node_data["total_count"])
-                average_fids.append(node_data["average_fidelity"])
-                success_count.append(node_data["teleport_success_count"])
-
-                transport_example.stop()
-                ns.set_random_state(rng=np.random.RandomState())
-                ns.sim_reset()
-                final_data[str(node)]["total_count"] = np.mean(total_count)
-                final_data[str(node)]["average_fidelity"] = np.mean(average_fids)
-                final_data[str(node)]["teleport_success_count"] = np.mean(success_count)
-
-                with open(f"./transportation_results/e2e_5nodes_throughput_raw_{max_node}_node.json", "w") as f:
-                    json.dump(final_data_raw, f)
-
-                with open(f"./transportation_results/e2e_5nodes_throughput_{max_node}_node.json", "w") as f:
-                    json.dump(final_data, f)
-                run_count += 1
-            except Exception as e:
-                print(f"error: {e}")
-                transport_example.stop()
-                ns.set_random_state(rng=np.random.RandomState())
-                ns.sim_reset()
-
-    print(f"Final Data: {final_data}")
-
-def run_e2e_purification_throughput_target_node(qubit_number=1000, node_count=4):
-    final_data_raw = {}
-    final_data = {}
-    success_count = []
-    total_count = []
-    average_fids = []
-    run_count = 0
-    if os.path.exists(f"./transportation_results/e2e_{node_count}nodes_purification_throughput_raw.json"):
-        with open(f"./transportation_results/e2e_{node_count}nodes_purification_throughput_raw.json", "r") as f:
-            final_data_raw = json.load(f)
-            # start = list(final_data_raw.keys())[-1]
-            # print(f"Loading throughput data from {start}...")
-            for node, data in final_data_raw.items():
-                if len(data) < 1000:
-                    for key, val in data.items():
-                        print(f"Loading {key}")
-                        total_count.append(val['total_count'])
-                        success_count.append(val['teleport_success_count'])
-                        average_fids.append(val['average_fidelity'])
-                    run_count = int(key) + 1
-                    print(f"Starting preload dis {node} node and run {run_count}")
-
-    if str(node_count) not in final_data_raw:
-        final_data_raw[str(node_count)] = {}
-    final_data[str(node_count)] = {}
-
-    while run_count < 1000:
-        try:
-            print(f"Starting {node_count} node and run {run_count}/1000")
-            nodes_list = [f"Node_{j}" for j in range(node_count)]
-            network = setup_network(nodes_list, "e2e-transportation",
-                                    memory_capacity=1500, memory_depolar_rate=63109,
-                                    node_distance=1, source_delay=1)
-            # create a protocol to entangle two nodes
-            sample_nodes = [node for node in network.nodes.values()]
-            transport_example, dc = example_sim_run_with_purification_throughput(sample_nodes,
-                                                                                 num_runs=1,
-                                                                                 memory_depolar_rate=63109,
-                                                                                 node_distance=1,
-                                                                                 max_entangle_pairs=1500,
-                                                                                 target_fidelity=0.98,
-                                                                                 qubits_to_transport=qubit_number)
-            # Run the simulation
-            transport_example.start()
-            ns.sim_run(duration=1e9)
-            # Collect the data
-            collected_data = dc.dataframe
-            final_row = collected_data.tail(1)
-            node_data = {
-                "total_count": 0,
-                "teleport_success_count": 0,
-                "average_fidelity": 0,
-            }
-            all_fid = []
-            for c in final_row.columns:
-                data = final_row[c].iloc[0]
-                for fid in data.values():
-                    all_fid.append(fid)
-                    if fid > 0.99:
-                        node_data["teleport_success_count"] += 1
-                    node_data["total_count"] += 1
-            node_data["average_fidelity"] = np.mean(all_fid)
-            node_data["all_fid"] = all_fid
-            final_data_raw[str(node_count)][run_count] = node_data
-            print(f"Finished {run_count}/1000\n{node_data}")
-            total_count.append(node_data["total_count"])
-            average_fids.append(node_data["average_fidelity"])
-            success_count.append(node_data["teleport_success_count"])
-
-            transport_example.stop()
-            ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_reset()
-            final_data[str(node_count)]["total_count"] = np.mean(total_count)
-            final_data[str(node_count)]["average_fidelity"] = np.mean(average_fids)
-            final_data[str(node_count)]["teleport_success_count"] = np.mean(success_count)
-
-            with open(f"./transportation_results/e2e_{node_count}nodes_purification_throughput_raw.json", "w") as f:
-                json.dump(final_data_raw, f)
-
-            with open(f"./transportation_results/e2e_{node_count}nodes_purification_throughput.json", "w") as f:
-                json.dump(final_data, f)
-            run_count += 1
-        except Exception as e:
-            print(f"error: {e}")
-            transport_example.stop()
-            ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_reset()
-
-    print(f"Final Data: {final_data}")
-
-
-def run_e2e_verification_throughput(qubit_number=1000, node_count=4, distance=1.0):
-    final_data_raw = {}
-    final_data = {}
-    success_count = []
-    total_count = []
-    average_fids = []
-    start = 0
-    CU_matrix = controlled_unitary(4)
-    CU_gate = ops.Operator("CU_Gate", CU_matrix)
-    CCU_gate = CU_gate.conj
-    # CU_matrix = None
-    # CU_gate = None
-    # CCU_gate = None
-    if os.path.exists(f"./transportation_results/e2e_{node_count}nodes_throughput_{distance}km_verify_raw.json"):
-        with open(f"./transportation_results/e2e_{node_count}nodes_throughput_{distance}km_verify_raw.json", "r") as f:
-            final_data_raw = json.load(f)
-            # start = list(final_data_raw.keys())[-1]
-            # print(f"Loading throughput data from {start}...")
-            data = final_data_raw[str(node_count)]
-            if len(data) < 1000:
-                for key, val in data.items():
-                    print(f"Loading {key}")
-                    total_count.append(val['total_count'])
-                    success_count.append(val['teleport_success_count'])
-                    average_fids.append(val['average_fidelity'])
-                start = int(key) + 1
-                print(f"Starting preload {node_count} node and run {start}")
-    else:
-        start = 0
-    if start != 0:
-        run_count = start
-        start = 0
-    else:
-        run_count = 0
-    if str(node_count) not in final_data_raw:
-        final_data_raw[str(node_count)] = {}
-    final_data[str(node_count)] = {}
-    while run_count < 1000:
-        try:
-            print(f"Starting {node_count} node and run {run_count}/1000")
-            nodes_list = [f"Node_{j}" for j in range(node_count)]
-            network = setup_network(nodes_list, "e2e-transportation",
-                                    memory_capacity=1500, memory_depolar_rate=63109,
-                                    node_distance=distance, source_delay=1)
-            # create a protocol to entangle two nodes
-            sample_nodes = [node for node in network.nodes.values()]
-            transport_example, dc = example_sim_run_with_verification_throughput(sample_nodes,
-                                                                                 num_runs=1,
-                                                                                 memory_depolar_rate=63109,
-                                                                                 node_distance=distance,
-                                                                                 max_entangle_pairs=1500,
-                                                                                 target_fidelity=0.98,
-                                                                                 qubit_to_transport=qubit_number,
-                                                                                 CU_gate=CCU_gate,
-                                                                                 CCU_gate=CCU_gate,
-                                                                                 batch_size=4,
-                                                                                 m_size=3)
-
-            # Run the simulation
-            transport_example.start()
-            ns.sim_run(duration=1e9)
-            # Collect the data
-            collected_data = dc.dataframe
-            final_row = collected_data.tail(1)
-            node_data = {
-                "total_count": 0,
-                "teleport_success_count": 0,
-                "average_fidelity": 0,
-            }
-            all_fid = []
-            for c in final_row.columns:
-                data = final_row[c].iloc[0]
-                for fid in data.values():
-                    all_fid.append(fid)
-                    if fid > 0.99:
-                        node_data["teleport_success_count"] += 1
-                    node_data["total_count"] += 1
-            # if len(all_fid) > 0:
-            #     node_data["average_fidelity"] = np.mean(all_fid)
-            # else:
-            #     node_data["average_fidelity"] = 0.0
-            node_data["average_fidelity"] = np.mean(all_fid)
-            node_data["all_fids"] = all_fid
-            final_data_raw[str(node_count)][str(run_count)] = node_data
-            print(f"Finished {run_count}/1000\n{node_data}")
-            total_count.append(node_data["total_count"])
-            average_fids.append(node_data["average_fidelity"])
-            success_count.append(node_data["teleport_success_count"])
-
-            transport_example.stop()
-            transport_example = None
-            gc.collect()
-            ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_reset()
-            final_data[str(node_count)]["total_count"] = np.mean(total_count)
-            final_data[str(node_count)]["average_fidelity"] = np.mean(average_fids)
-            final_data[str(node_count)]["teleport_success_count"] = np.mean(success_count)
-
-            with open(f"./transportation_results/e2e_{node_count}nodes_throughput_{distance}km_verify_raw.json", "w") as f:
-                json.dump(final_data_raw, f)
-
-            with open(f"./transportation_results/e2e_{node_count}nodes_{distance}km_verify_throughput.json", "w") as f:
-                json.dump(final_data, f)
-            run_count += 1
-        except Exception as e:
-            print(f"error: {e}")
-            traceback.print_exc()
-            transport_example.stop()
-            transport_example = None
-            gc.collect()
-            ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_reset()
-
-    print(f"Final Data: {final_data}")
-
-
-def run_4_node_e2e_verification(qubit_number=1, node_count=3, distance=1.0):
-    run_count = 0
-    node_data = {}
-    CU_matrix = controlled_unitary(4)
-    CU_gate = ops.Operator("CU_Gate", CU_matrix)
-    CCU_gate = CU_gate.conj
-    while run_count < 1000:
-        try:
-            print(f"Start {run_count}/1000")
-            nodes_list = [f"Node_{i}" for i in range(node_count)]
-            network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                    memory_capacity=1000, memory_depolar_rate=63109,
-                                    node_distance=distance, source_delay=1)
-            # create a protocol to entangle two nodes
-            sample_nodes = [node for node in network.nodes.values()]
-            transport_example, dc = example_sim_run_with_verification(sample_nodes,
-                                                                      num_runs=1,
-                                                                      memory_depolar_rate=63109,
-                                                                      node_distance=distance,
-                                                                      max_entangle_pairs=1000,
-                                                                      target_fidelity=0.98,
-                                                                      qubit_to_transport=qubit_number,
-                                                                      m_size=3,
-                                                                      batch_size=4,
-                                                                      CU_gate=CCU_gate,
-                                                                      CCU_gate=CCU_gate,
-                                                                      )
-            # Run the simulation
-            transport_example.start()
-            ns.sim_run()
-            # Collect the data
-            collected_data = dc.dataframe
-            # collected_data.to_json(f"./transportation_results/e2e_4nodes_{qubit_number}_qubit_verification_raw.json")
             for c in collected_data.columns:
                 if c not in node_data:
                     node_data[c] = []
@@ -2001,115 +1228,139 @@ def run_4_node_e2e_verification(qubit_number=1, node_count=3, distance=1.0):
                 # node_data[c].append(collected_data[c].mean())
                 # if len(collected_data[c]) < 1000:
                 #     print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-                # print(f"5 Node ->{c}: {node_data[c]}")
-            with open(f"./transportation_results/e2e_{node_count}nodes_{qubit_number}_qubit_verification_{distance}km_raw.json",
-                      "w") as f:
+            print(f"Run {node_count} node, {len(node_data['teleport_fids'])}/1000")
+            transport_example.stop()
+            ns.set_random_state(rng=np.random.RandomState())
+            ns.sim_reset()
+            gc.collect()
+            with open(save_file_raw, "w") as f:
                 json.dump(node_data, f)
-            final_data = {}
-            for k, v in node_data.items():
-                final_data[k] = np.mean(v)
-                print(f"{node_count}Node -> {k}: {final_data[k]}")
-            with open(f"./transportation_results/e2e_{node_count}nodes_{qubit_number}_qubit_verification_{distance}km.json",
-                      'w') as f:
-                json.dump(final_data, f)
-            print(f"Finished {run_count}/1000")
-
-            transport_example.stop()
-            ns.set_random_state(rng=np.random.RandomState())
-            ns.sim_reset()
-            run_count += 1
+            with open(save_file, "w") as f:
+                json.dump(node_data, f)
         except Exception as e:
-            print(f"error: {e}")
+            print(e)
+            traceback.print_exc()
             transport_example.stop()
             ns.set_random_state(rng=np.random.RandomState())
             ns.sim_reset()
+            # final_data[node] = node_data
+    final_data_raw = node_data
+    node_data_calculated = {k: np.mean(v) for k, v in node_data.items()}
+    final_data = node_data_calculated
+    # save data
+    with open(save_file_raw, "w") as f:
+        json.dump(final_data_raw, f)
+    with open(save_file, "w") as f:
+        json.dump(final_data, f)
+    print(f"Run {node_count} node, res {node_data_calculated}")
+    return final_data, final_data_raw
 
+def e2e_increase_distance_experiment(max_distances, experiment_name, node_count, depolar_rate, with_purification,
+                                     with_verification, throughput_mode, preload=False):
+    target_fid_dic = {
+        "500": [0.99],
+        "1000": [0.98],
+        "1500": [0.97],
+        "2000": [0.95],
+        "2500": [0.94],
+        "3000": [0.92],
+        "3500": [0.91],
+        "4000": [0.90],
+        "4500": [0.88],
+        "5000": [0.87],
+    }
+    save_path = (f"./e2e_increase_distance_{experiment_name}km_{node_count}nodes_"
+                 f"purification_{with_purification}_verification_{with_verification}_"
+                 f"throughput_{throughput_mode}.json")
+    experiment_data = {}
+    if preload:
+        with open(save_path, "r") as f:
+            experiment_data = json.load(f)
+    # start running
+    from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
+    with Progress(TextColumn("[progress.description]{task.description}"),
+                  BarColumn(),
+                  TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                  TextColumn("[progress.completed]{task.completed}/{task.total}"),
+                  TimeRemainingColumn(),
+                  transient=True) as progress:
+        task = progress.add_task("[green]Paris...", total=len(max_distances))
 
-def run_5_node_e2e_purification_new(qubit_number=1):
-    for i in range(1000):
-        nodes_list = [f"Node_{i}" for i in range(5)]
-        network = setup_network(nodes_list, "hop-by-hop-transportation",
-                                memory_capacity=10, memory_depolar_rate=63109,
-                                node_distance=1, source_delay=1)
-        # create a protocol to entangle two nodes
-        sample_nodes = [node for node in network.nodes.values()]
-        transport_example, dc = example_sim_run_with_purification(sample_nodes,
-                                                                  num_runs=1,
-                                                                  memory_depolar_rate=63109,
-                                                                  node_distance=1,
-                                                                  max_entangle_pairs=10,
-                                                                  target_fidelity=0.98,
-                                                                  qubits_to_transport=qubit_number)
-        # Run the simulation
-        transport_example.start()
-        ns.sim_run()
-        # Collect the data
-        collected_data = dc.dataframe
-        node_data = {}
-        for c in collected_data.columns:
-            if c == "teleport_fids":
-                s = []
-                for t in collected_data[c]:
-                    s += t
-                node_data[c] = np.mean(s)
-                print(f"5 Node ->{c}: {node_data[c]}")
-            else:
-                node_data[c] = collected_data[c].mean()
-            # if c not in node_data:
-            #     node_data[c] = []
-            # node_data[c].append(collected_data[c].mean())
-            # if len(collected_data[c]) < 1000:
-            #     print(f"Failed Finished 1000 run {len(collected_data[c])}/1000")
-            # print(f"5 Node ->{c}: {node_data[c]}")
-        print("Stopping example")
-        transport_example.stop()
-        print("Stopping ns")
-        ns.sim_stop()
-        ns.set_random_state(rng=np.random.RandomState())
-        print("Reseting network")
-        ns.sim_reset()
-
+        for distance in max_distances:
+            distance = int(distance * 1000)
+            if str(distance) in experiment_data:
+                print(f"Skip distance {distance}")
+                progress.update(task, advance=4)
+                continue
+            experiment_data[str(distance)] = {}
+            target_fidelity = target_fid_dic[str(distance)][0]
+            qubit_number = 1
+            res, res_raw = run_e2e_experiment(qubit_number=qubit_number,
+                                              node_count=node_count,
+                                              throughput_mode=throughput_mode,
+                                              with_purification=with_purification,
+                                              target_fidelity=target_fidelity,
+                                              with_verification=with_verification,
+                                              node_distance=distance/1000,
+                                              depolar_rate=depolar_rate,
+                                              preload=preload)
+            experiment_data[str(distance)] = res
+            # save after each distance
+            with open(save_path, "w") as f:
+                json.dump(experiment_data, f)
+            progress.update(task, advance=1)
+    # save data
+    with open(save_path, "w") as f:
+        json.dump(experiment_data, f)
 
 if __name__ == '__main__':
     # seed = np.random.randint(0, 10000)
     # seed = 3020
     # np.random.seed(seed)
     # print(f'seed {seed}')
-    # run_test_example_with_purification()
-    # run_5_node_e2e_purification(1)
-    # run_5_node_e2e_purification_throughput(1000)
-    # run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
-    # exit()
-    # run_4_node_e2e_verification(qubit_number=1, node_count=4)
-    if len(sys.argv) == 2:
-        opt = int(sys.argv[1])
-        if opt == 1:
-            # run_5_node_e2e_purification_distance(qubit_number=1, max_dis=10)
-            run_e2e_purification_throughput_target_node(qubit_number=1200, node_count=4)
-        elif opt == 2:
-            run_e2e_purification_throughput_target_node(qubit_number=1200, node_count=3)
-        elif opt == 3:
-            run_5_node_e2e_purification_node(qubit_number=1, max_node=10)
-        elif opt == 4:
-            run_5_node_e2e_purification_throughput_node(qubit_number=1000, max_node=10)
-        elif opt == 5:
-            run_4_node_e2e_verification(qubit_number=1, node_count=3)
-        elif opt == 6:
-            run_4_node_e2e_verification(qubit_number=1, node_count=4)
-        elif opt == 7:
-            run_e2e_verification_throughput(qubit_number=1500, node_count=3, distance=1)
-        elif opt == 8:
-            run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=1)
-        elif opt == 9:
-            run_e2e_verification_throughput(qubit_number=1500, node_count=4, distance=0.5)
-        elif opt == 10:
-            run_4_node_e2e_verification(qubit_number=1, node_count=4, distance=0.5)
-        elif opt == 11:
-            run_4_node_e2e_verification(qubit_number=1, node_count=3, distance=0.5)
-    else:
-        print("Usage: python sim_end_to_end_transport.py opt")
-    # run_4_node_e2e_verification(1)
-    # run_5_node_e2e_purification_new(1)
-    # run_test_example_with_verification()
-    # run_multi_node(11)
-    # run_multi_node_purification_distance(11)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run end-to-end quantum network experiment")
+    parser.add_argument('--qubit_number', type=int, default=1, help='Number of qubits to transport')
+    parser.add_argument('--node_count', type=int, default=10, help='Number of nodes in the network')
+    parser.add_argument('--throughput_mode', action='store_true', help='Enable throughput mode')
+    parser.add_argument('--with_purification', action='store_true', help='Enable purification')
+    parser.add_argument('--target_fidelity', type=float, default=0.98, help='Target fidelity')
+    parser.add_argument('--with_verification', action='store_true', help='Enable verification')
+    parser.add_argument('--batch_size', type=int, default=4, help='Batch size for verification')
+    parser.add_argument('--m_size', type=int, default=3, help='M size for verification')
+    parser.add_argument('--node_distance', type=float, default=1.0, help='Distance between nodes')
+    parser.add_argument('--depolar_rate', type=float, default=63109, help='Memory depolarization rate')
+    parser.add_argument('--preload', action='store_true', help='Preload previous results')
+
+    args = parser.parse_args()
+    print(
+        f"Running with args: with args: "
+        f"\n\tdistance={args.node_distance}"
+        f"\n\ttarget_fid={args.target_fidelity}"
+        f"\n\tdepolar_rate={args.depolar_rate}"
+        f"\n\tnode_count={args.node_count}"
+        f"\n\tbatch_size={args.batch_size}"
+        f"\n\tm_size={args.m_size}"
+        f"\n\tqubit_number={args.qubit_number}"
+        f"\n\twith_purify={args.with_purification}"
+        f"\n\tis_throughput={args.throughput_mode}"
+        f"\n\twith_verification={args.with_verification}"
+        f"\n\tpreload={args.preload}")
+    run_e2e_experiment(
+        qubit_number=args.qubit_number,
+        node_count=args.node_count,
+        throughput_mode=args.throughput_mode,
+        with_purification=args.with_purification,
+        target_fidelity=args.target_fidelity,
+        with_verification=args.with_verification,
+        batch_size=args.batch_size,
+        m_size=args.m_size,
+        node_distance=args.node_distance,
+        depolar_rate=args.depolar_rate,
+        preload=args.preload
+    )
+    # e2e_increase_distance_experiment(max_distances=[2], experiment_name="max_2.0", node_count=3, depolar_rate=6000,
+    #                                  with_purification=True, with_verification=False,
+    #                              throughput_mode=False, preload=False)
+    pass
