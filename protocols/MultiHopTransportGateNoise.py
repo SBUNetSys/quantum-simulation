@@ -13,6 +13,7 @@ from netsquid.components.qprogram import QuantumProgram
 from netsquid.components.instructions import INSTR_CNOT, INSTR_H, INSTR_S, INSTR_X, INSTR_Z, INSTR_MEASURE
 
 from protocols.Purification import Purification
+from protocols.EntanglementHandlerConcurrent import EntanglementHandlerConcurrent
 from protocols.MessageHandler import MessageType
 from utils import Logging
 from utils.ClassicalMessages import ClassicalMessage
@@ -55,6 +56,8 @@ class Transportation(NodeProtocol):
             for protocol in qubit_ready_protocols:
                 if type(protocol) is Purification:
                     await_signals.append(self.await_signal(protocol, MessageType.PURIFICATION_SUCCESS))
+                elif type(protocol) is EntanglementHandlerConcurrent:
+                    await_signals.append(self.await_signal(protocol, MessageType.ENTANGLED_SUCCESS))
                 else:
                     await_signals.append(self.await_signal(protocol, Signals.SUCCESS))
 

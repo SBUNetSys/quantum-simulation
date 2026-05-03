@@ -62,7 +62,7 @@ class Transportation(NodeProtocol):
             for protocol in qubit_ready_protocols:
                 if type(protocol) is Purification:
                     await_signals.append(self.await_signal(protocol, MessageType.PURIFICATION_SUCCESS))
-                if type(protocol) is EntanglementHandlerConcurrent:
+                elif type(protocol) is EntanglementHandlerConcurrent:
                     await_signals.append(self.await_signal(protocol, MessageType.ENTANGLED_SUCCESS))
                 else:
                     await_signals.append(self.await_signal(protocol, Signals.SUCCESS))
