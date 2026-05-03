@@ -294,7 +294,9 @@ def run_gate_noise_sim_worker(queue, distance, target_fid, depolar_rate, node_co
                 node_data[c].append(np.mean(s))
                 node_data["teleport_fids_all"] = s
             else:
-                node_data[c].append(collected_data[c].mean())
+                val = collected_data[c].mean()
+                node_data[c].append(val)
+                node_data_raw[c].append(val)
 
         transport_example.stop()
         ns.sim_stop()
