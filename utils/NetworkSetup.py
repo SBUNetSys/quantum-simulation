@@ -5,7 +5,8 @@ from netsquid.nodes.network import Network
 from netsquid.nodes.connections import DirectConnection
 from netsquid.components import ClassicalChannel, QuantumChannel, CombinedChannel
 from netsquid.components.qsource import QSource, SourceStatus
-from netsquid.components.qprocessor import QuantumProcessor
+from netsquid.components.qprocessor import QuantumProcessor, PhysicalInstruction
+from netsquid.components.instructions import INSTR_CNOT, INSTR_H, INSTR_S, INSTR_X, INSTR_Z, INSTR_MEASURE
 from netsquid.components.models.delaymodels import FibreDelayModel
 from netsquid.components.models.qerrormodels import DepolarNoiseModel, FibreLossModel
 from netsquid.qubits.state_sampler import StateSampler
@@ -201,5 +202,92 @@ def setup_network_parallel(nodes_list, network_name,
                                      models={"delay_model": FibreDelayModel(c=200e3)}),# models={"delay_model": FibreDelayModel(c=200e3)}
                     ClassicalChannel(f"CChannel_{nodes[j].name}->{nodes[index].name}", length=node_distance * diff,
                                      models={"delay_model": FibreDelayModel(c=200e3)})) # models={"delay_model": FibreDelayModel(c=200e3)}
+                network.add_connection(node, nodes[j], connection=conn_cchannel)
+    return network
+
+
+def setup_network_parallel_with_gate_noise(nodes_list, network_name,
+                                           memory_capacity=10,
+                                           memory_depolar_rate=10,
+                                           node_distance=20,
+                                           gate_duration_ns=50,
+                                           gate_depolar_rate=20000,
+                                           cnot_duration_ns=300,
+                                           cnot_depolar_rate=33000,
+                                           measure_duration_ns=500):
+    """
+    Same topology as setup_network_parallel, but each node also gets a dedicated
+    2-position gate_processor with physical instructions for gate noise and delay.
+
+    Gate defaults based on superconducting qubit hardware (~2024):
+      - Single-qubit (H, S, X, Z): 50 ns, ~0.1% depolar error  (depolar_rate=20000 Hz)
+      - CNOT: 300 ns, ~1% depolar error                         (depolar_rate=33000 Hz)
+      - Measurement: 500 ns (no quantum noise model)
+    """
+    network = Network(network_name)
+    nodes = network.add_nodes(nodes_list)
+
+    single_qubit_noise = DepolarNoiseModel(gate_depolar_rate)
+    two_qubit_noise = DepolarNoiseModel(cnot_depolar_rate)
+    phys_instructions = [
+        PhysicalInstruction(INSTR_CNOT, duration=cnot_duration_ns,
+                            quantum_noise_model=two_qubit_noise, parallel=False),
+        PhysicalInstruction(INSTR_H, duration=gate_duration_ns,
+                            quantum_noise_model=single_qubit_noise, parallel=False),
+        PhysicalInstruction(INSTR_S, duration=gate_duration_ns,
+                            quantum_noise_model=single_qubit_noise, parallel=False),
+        PhysicalInstruction(INSTR_X, duration=gate_duration_ns,
+                            quantum_noise_model=single_qubit_noise, parallel=False),
+        PhysicalInstruction(INSTR_Z, duration=gate_duration_ns,
+                            quantum_noise_model=single_qubit_noise, parallel=False),
+        PhysicalInstruction(INSTR_MEASURE, duration=measure_duration_ns, parallel=False),
+    ]
+
+    for index, node in enumerate(nodes):
+        state_sampler = StateSampler([ns.b00], [1])
+        node.add_subcomponent(QSource(name=f"QSource_{node.name}", state_sampler=state_sampler,
+                                      num_ports=1, status=SourceStatus.EXTERNAL))
+        node.add_subcomponent(QuantumProcessor(name=nodes[index].name + "_transport_qmemory",
+                                               num_positions=memory_capacity,
+                                               fallback_to_nonphysical=True,
+                                               memory_noise_models=
+                                               [DepolarNoiseModel(memory_depolar_rate)] * memory_capacity))
+        node.add_subcomponent(QuantumProcessor(name=f"gate_processor_{node.name}",
+                                               num_positions=2,
+                                               phys_instructions=phys_instructions))
+        if index - 1 >= 0:
+            node.add_subcomponent(QuantumProcessor(name=nodes[index - 1].name + "_qmemory",
+                                                   num_positions=memory_capacity,
+                                                   fallback_to_nonphysical=True,
+                                                   memory_noise_models=
+                                                   [DepolarNoiseModel(memory_depolar_rate)] * memory_capacity))
+        if index + 1 < len(nodes):
+            node.add_subcomponent(QuantumProcessor(name=nodes[index + 1].name + "_qmemory",
+                                                   num_positions=memory_capacity,
+                                                   fallback_to_nonphysical=True,
+                                                   memory_noise_models=
+                                                   [DepolarNoiseModel(memory_depolar_rate)] * memory_capacity))
+
+    qchannel_depolar_rate = calculate_channel_depolar_rate(node_distance)
+    for index, node in enumerate(nodes):
+        if index + 1 < len(nodes):
+            right_node = nodes[index + 1]
+            qchannel = CombinedChannel(name=f"QChannel_{node.name}->{right_node.name}", length=node_distance,
+                                       models={"quantum_loss_model": FibreLossModel(p_loss_init=0.01, p_loss_length=0.5),
+                                               "delay_model": FibreDelayModel(c=200e3),
+                                               "quantum_noise_model": DepolarNoiseModel(qchannel_depolar_rate)})
+            port_name_a, port_name_b = network.add_connection(
+                node, right_node, channel_to=qchannel, label="quantum",
+                port_name_node1=f"qout_{nodes[index + 1].name}",
+                port_name_node2=f"qin_{node.name}")
+
+            for j in range(index + 1, len(nodes)):
+                diff = j - index
+                conn_cchannel = DirectConnection(
+                    f"CChannelConn_{nodes[index].name}_{nodes[j].name}",
+                    ClassicalChannel(f"CChannel_{nodes[index].name}->{nodes[j].name}", length=node_distance * diff,
+                                     models={"delay_model": FibreDelayModel(c=200e3)}),
+                    ClassicalChannel(f"CChannel_{nodes[j].name}->{nodes[index].name}", length=node_distance * diff,
+                                     models={"delay_model": FibreDelayModel(c=200e3)}))
                 network.add_connection(node, nodes[j], connection=conn_cchannel)
     return network
