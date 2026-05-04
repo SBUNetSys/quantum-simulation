@@ -1,11 +1,13 @@
 #!/bin/bash
-# Fixed total path length experiment.
+# Fixed total path length experiment — all jobs run in parallel.
 # Holds total distance at TOTAL_KM while increasing node count 5→30 (step 5).
 # Per-segment distance = TOTAL_KM / (nodes - 1), computed with bc.
-# Run with an optional depolar rate argument:
-#   bash run_fixed_total_distance_experiment.sh 8641
+# Logs go to ./gate_noise_logs/fixed_total/<rate>/.
+#
+# Usage:
+#   bash run_fixed_total_distance_experiment.sh 8641    # single rate
 #   bash run_fixed_total_distance_experiment.sh 24483
-# If no argument is given, both rates are run sequentially.
+#   bash run_fixed_total_distance_experiment.sh         # both rates in parallel
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -29,7 +31,7 @@ fi
 mkdir -p "$SAVE_PATH"
 
 echo "=========================================="
-echo "  Fixed Total Distance Experiment"
+echo "  Fixed Total Distance Experiment (parallel)"
 echo "  Total path: ${TOTAL_KM} km"
 echo "  Nodes:      ${NODES[*]}"
 echo "  Depolar:    ${DEPOLAR_RATES[*]} Hz"
@@ -40,53 +42,46 @@ echo "  Save:       ${SAVE_PATH}"
 echo "  $(date)"
 echo "=========================================="
 
+pids=()
+
 for DEPOLAR_RATE in "${DEPOLAR_RATES[@]}"; do
-    echo ""
-    echo "--- Depolar rate: ${DEPOLAR_RATE} Hz ---"
+    LOG_DIR="./gate_noise_logs/fixed_total/${DEPOLAR_RATE}"
+    mkdir -p "$LOG_DIR"
+
+    COMMON_ARGS="--depolar-rate $DEPOLAR_RATE --total-runs $TOTAL_RUNS \
+        --gate-depolar-rate $GATE_DEPOLAR_RATE --gate-duration-ns $GATE_DURATION_NS \
+        --cnot-depolar-rate $CNOT_DEPOLAR_RATE --cnot-duration-ns $CNOT_DURATION_NS \
+        --save-path $SAVE_PATH --preload"
+
     for N in "${NODES[@]}"; do
         SEGMENTS=$((N - 1))
         DIST=$(echo "scale=6; $TOTAL_KM / $SEGMENTS" | bc)
-        echo ""
-        echo ">> nodes=${N}  segment_dist=${DIST}km  total=${TOTAL_KM}km"
+        log_prefix="${LOG_DIR}/nodes_${N}"
 
-        echo "   [1/2] multihop (end-of-path correction)"
         python -u sim_multihop_gate_noise.py \
-            --distance "$DIST" \
-            --node-count "$N" \
-            --depolar-rate "$DEPOLAR_RATE" \
-            --total-runs "$TOTAL_RUNS" \
-            --gate-depolar-rate "$GATE_DEPOLAR_RATE" \
-            --gate-duration-ns "$GATE_DURATION_NS" \
-            --cnot-depolar-rate "$CNOT_DEPOLAR_RATE" \
-            --cnot-duration-ns "$CNOT_DURATION_NS" \
-            --save-path "$SAVE_PATH" \
-            --preload
-        if [ $? -ne 0 ]; then
-            echo "   ERROR: multihop failed for nodes=${N}"
-        fi
+            --distance "$DIST" --node-count "$N" \
+            $COMMON_ARGS \
+            > "${log_prefix}_multihop.log" 2>&1 &
+        pids+=($!)
+        echo "  [PID $!] multihop  nodes=${N}  dist=${DIST}km  @${DEPOLAR_RATE}Hz"
 
-        echo "   [2/2] transport (per-hop correction)"
         python -u sim_transport_gate_noise.py \
-            --distance "$DIST" \
-            --node-count "$N" \
-            --depolar-rate "$DEPOLAR_RATE" \
-            --total-runs "$TOTAL_RUNS" \
-            --gate-depolar-rate "$GATE_DEPOLAR_RATE" \
-            --gate-duration-ns "$GATE_DURATION_NS" \
-            --cnot-depolar-rate "$CNOT_DEPOLAR_RATE" \
-            --cnot-duration-ns "$CNOT_DURATION_NS" \
-            --save-path "$SAVE_PATH" \
-            --preload
-        if [ $? -ne 0 ]; then
-            echo "   ERROR: transport failed for nodes=${N}"
-        fi
-
-        echo "----------------------------------------"
+            --distance "$DIST" --node-count "$N" \
+            $COMMON_ARGS \
+            > "${log_prefix}_transport.log" 2>&1 &
+        pids+=($!)
+        echo "  [PID $!] transport nodes=${N}  dist=${DIST}km  @${DEPOLAR_RATE}Hz"
     done
 done
 
 echo ""
+echo "Launched ${#pids[@]} processes. Waiting for all to finish..."
+echo "Monitor: tail -f ./gate_noise_logs/fixed_total/*/*.log"
+echo ""
+
+wait "${pids[@]}"
+
 echo "=========================================="
-echo "  Fixed total distance experiments completed."
+echo "  All fixed total distance experiments completed."
 echo "  $(date)"
 echo "=========================================="
